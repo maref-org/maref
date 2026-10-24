@@ -117,18 +117,20 @@ class IdentityProbe(Probe):
             signal_key = f"spoof:{account.account_id}"
             if signal_key in self._emitted:
                 continue
-            events.append(self._build_event(
-                attack_type=AttackType.IDENTITY_SPOOFING,
-                severity=Severity.HIGH,
-                subject=account.agent_did or account.account_id,
-                evidence={
-                    "platform": account.platform.value,
-                    "handle": account.handle,
-                    "account_id": account.account_id,
-                    "agent_did": account.agent_did,
-                    "reason": "undeclared_external_account",
-                },
-            ))
+            events.append(
+                self._build_event(
+                    attack_type=AttackType.IDENTITY_SPOOFING,
+                    severity=Severity.HIGH,
+                    subject=account.agent_did or account.account_id,
+                    evidence={
+                        "platform": account.platform.value,
+                        "handle": account.handle,
+                        "account_id": account.account_id,
+                        "agent_did": account.agent_did,
+                        "reason": "undeclared_external_account",
+                    },
+                )
+            )
             self._emitted.add(signal_key)
 
         # 2. sybil 聚类 → SYBIL_ATTACK
@@ -139,24 +141,24 @@ class IdentityProbe(Probe):
         for cluster in clusters:
             # 稳定去重键: 排序账号集合哈希 (cluster_id 每次 poll 重新生成,
             # 不能作去重键 — G1-C1 修复)
-            cluster_sig = hashlib.sha256(
-                "|".join(sorted(cluster.account_ids)).encode()
-            ).hexdigest()
+            cluster_sig = hashlib.sha256("|".join(sorted(cluster.account_ids)).encode()).hexdigest()
             signal_key = f"sybil:{cluster_sig}"
             if signal_key in self._emitted:
                 continue
-            events.append(self._build_event(
-                attack_type=AttackType.SYBIL_ATTACK,
-                severity=Severity.HIGH,
-                subject=cluster.agent_did or cluster.cluster_id,
-                evidence={
-                    "cluster_id": cluster.cluster_id,
-                    "account_ids": cluster.account_ids,
-                    "agent_did": cluster.agent_did,
-                    "confidence": round(cluster.confidence, 3),
-                    "signals": cluster.signals,
-                },
-            ))
+            events.append(
+                self._build_event(
+                    attack_type=AttackType.SYBIL_ATTACK,
+                    severity=Severity.HIGH,
+                    subject=cluster.agent_did or cluster.cluster_id,
+                    evidence={
+                        "cluster_id": cluster.cluster_id,
+                        "account_ids": cluster.account_ids,
+                        "agent_did": cluster.agent_did,
+                        "confidence": round(cluster.confidence, 3),
+                        "signals": cluster.signals,
+                    },
+                )
+            )
             self._emitted.add(signal_key)
 
         # 3. 共谋检测 → SYBIL_ATTACK (CRITICAL 用于明确自导自演)
@@ -173,18 +175,20 @@ class IdentityProbe(Probe):
             signal_key = f"collusion:{collusion.kind.value}:{involved_sig}"
             if signal_key in self._emitted:
                 continue
-            events.append(self._build_event(
-                attack_type=AttackType.SYBIL_ATTACK,
-                severity=Severity.CRITICAL,
-                subject="|".join(collusion.involved_accounts) or "collusion",
-                evidence={
-                    "kind": collusion.kind.value,
-                    "label": collusion.kind.label,
-                    "involved_accounts": collusion.involved_accounts,
-                    "description": collusion.description,
-                    "confidence": round(collusion.confidence, 3),
-                },
-            ))
+            events.append(
+                self._build_event(
+                    attack_type=AttackType.SYBIL_ATTACK,
+                    severity=Severity.CRITICAL,
+                    subject="|".join(collusion.involved_accounts) or "collusion",
+                    evidence={
+                        "kind": collusion.kind.value,
+                        "label": collusion.kind.label,
+                        "involved_accounts": collusion.involved_accounts,
+                        "description": collusion.description,
+                        "confidence": round(collusion.confidence, 3),
+                    },
+                )
+            )
             self._emitted.add(signal_key)
 
         return events

@@ -143,10 +143,14 @@ jobs:
         with:
           scan-type: image
           scan-ref: maref/maref:scan
+          # 只扫漏洞：mitmproxy 自带的示例 CA 私钥会被 secret 扫描判 HIGH，
+          # 仓库级密钥泄露由 leak-detection.yml 单独负责。
+          scanners: vuln
           format: table
           exit-code: 1
           severity: HIGH,CRITICAL
           ignore-unfixed: true
+          trivyignores: .trivyignore
 
       - name: Run Trivy with SARIF output
         uses: aquasecurity/trivy-action@v0.36.0
@@ -154,10 +158,12 @@ jobs:
         with:
           scan-type: image
           scan-ref: maref/maref:scan
+          scanners: vuln
           format: sarif
           output: trivy-results.sarif
           severity: HIGH,CRITICAL
           ignore-unfixed: true
+          trivyignores: .trivyignore
 
       - name: Upload Trivy results
         if: always()

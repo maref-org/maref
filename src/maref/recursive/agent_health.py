@@ -149,7 +149,12 @@ class PulseWriter:
     ) -> None:
         self._agent_id = agent_id
         if pulses_dir is None:
-            base = Path(os.environ.get("MAREF_AUDIT_PATH", ".governance"))
+            try:
+                from maref._paths import get_governance_base
+
+                base = get_governance_base()
+            except Exception:
+                base = Path(os.environ.get("MAREF_AUDIT_PATH", ".governance")).resolve()
             self._dir = base / "pulses"
         else:
             self._dir = Path(pulses_dir)
@@ -194,10 +199,21 @@ class PulseWriter:
     def check_pulse_staleness(
         pulses_dir: Path | str | None = None,
         max_stale_ratio: float = 0.30,
+        ignore_older_than_hours: float | None = None,
     ) -> dict[str, Any]:
-        """Check all pulse files for staleness (M0.3 check)."""
+        """Check all pulse files for staleness (M0.3 check).
+
+        Pulses older than ``ignore_older_than_hours`` are historical test /
+        retired-agent artifacts; they are reported separately instead of
+        counting as currently-dead agents.
+        """
         if pulses_dir is None:
-            base = Path(os.environ.get("MAREF_AUDIT_PATH", ".governance"))
+            try:
+                from maref._paths import get_governance_base
+
+                base = get_governance_base()
+            except Exception:
+                base = Path(os.environ.get("MAREF_AUDIT_PATH", ".governance")).resolve()
             pulses_dir = base / "pulses"
         else:
             pulses_dir = Path(pulses_dir)
@@ -208,9 +224,20 @@ class PulseWriter:
         now = time.time()
         total = 0
         stale = 0
+        historical = 0
         stale_agents: list[str] = []
+        cutoff = (
+            now - ignore_older_than_hours * 3600 if ignore_older_than_hours is not None else None
+        )
 
         for pulse_file in pulses_dir.glob("*.json"):
+            if cutoff is not None:
+                try:
+                    if pulse_file.stat().st_mtime < cutoff:
+                        historical += 1
+                        continue
+                except OSError:
+                    continue
             total += 1
             try:
                 with open(pulse_file) as f:
@@ -230,5 +257,6 @@ class PulseWriter:
             "stale": stale,
             "stale_ratio": round(stale_ratio, 3),
             "stale_agents": stale_agents,
+            "historical_ignored": historical,
             "status": "healthy" if stale_ratio <= max_stale_ratio else "degraded",
         }

@@ -60,6 +60,7 @@ class WorkflowTask:
     description: str
     domain: TaskDomain
     allocation: TaskAllocation
+    agent_id: str = ""
     created_at: float = field(default_factory=time.time)
     created_by: str = "system"
 
@@ -159,6 +160,7 @@ class CarbonSiliconSymbiosis:
             description=task_desc,
             domain=domain,
             allocation=base_allocation,
+            agent_id=agent_id,
         )
         return task
 
@@ -273,9 +275,9 @@ class CarbonSiliconSymbiosis:
             return None
 
         allocation = instance.task.allocation
-        self.get_agent_trust(
-            self._agent_trust.keys().__iter__().__next__() if self._agent_trust else "default"
-        )
+        # spot check 须用**执行 agent** 的信任（非任意 agent）——修复前取
+        # _agent_trust 首个 key，导致用错 agent 的信任判定。
+        self.get_agent_trust(instance.task.agent_id or "default")
         needs_check = allocation in (TaskAllocation.HUMAN_REQUIRED, TaskAllocation.COLLABORATIVE)
 
         if allocation == TaskAllocation.AGENT_ONLY:

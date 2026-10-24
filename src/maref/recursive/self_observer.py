@@ -104,10 +104,12 @@ class SelfObserver:
         """
         t0 = time.monotonic()
         paths = test_paths if test_paths is not None else self._test_paths
-        # Collect-only mode: scan all of ``tests/`` for an accurate total
-        # count (fast since --co only collects, doesn't execute).
+        # Collect-only mode: scan a fast subset of ``tests/`` for an accurate
+        # enough total count (fast since --co only collects, doesn't execute).
+        # Using the whole ``tests/`` tree takes ~47s (9652 tests) which blows
+        # the snapshot budget; the 4 core dirs collect in <4s.
         if collect_only and test_paths is None:
-            paths = ["tests/"]
+            paths = ["tests/cli/", "tests/unit/", "tests/governance/", "tests/redblue/"]
         # Fix 10: use sys.executable instead of "python3" — the latter
         # resolves to /usr/bin/python3 (system Python) which has no pytest
         # installed, causing observe_tests to silently return total=0.
@@ -119,6 +121,19 @@ class SelfObserver:
         cmd.append("--continue-on-collection-errors")
         if collect_only:
             cmd.append("--co")
+            # tests/desktop/* import-time blocks: test_e2e_real.py +
+            # test_real_integration.py run osascript at module import for the
+            # macOS Accessibility check, which pops a system permission dialog
+            # and hangs collection forever. Skip the whole dir.
+            cmd.append("--ignore=tests/desktop")
+            # pytest-randomly reshuffles fixtures/tests; during collect it can
+            # also hang on files that touch real hardware. Disable it.
+            cmd.extend(["-p", "no:randomly"])
+            # pyproject addopts forces --cov (and --cov-fail-under 50%) which
+            # makes collect-only slow (coverage tracking on every import) and
+            # can FAIL on low coverage. Collect-only just needs test counts;
+            # strip coverage so it stays fast and never fails on coverage.
+            cmd.extend(["-o", "addopts=", "--no-cov"])
         else:
             # Fix 10: exclude slow integration/chaos/benchmark tests so the
             # metrics phase stays within the 15-min cycle budget (matches CI).

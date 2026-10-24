@@ -1,0 +1,115 @@
+{
+  "version": "0.7.0",
+  "generated_at": "2026-07-06T00:00:00Z",
+  "description": "v0.7.0 regression baseline snapshot (R8 P0 + R4 — D2 latency_pressure sub-domain added). Derived from v0.6.0 baseline with D2 weighting adjustment (step 0.10→0.05, traj 0.10→0.05, latency 0.10 new). Pipeline scores are MEASURED values from `python3 mas_full_run.py --card <path> --level L3` run on 2026-07-06. Note: L3 gold_report.overall is 0.0 for all sample cards due to consistency_index=0.0 veto (no trajectory data); overall_score here uses compute_overall (non-gold) which reflects domain_scores without CI veto. Federation and trajectory anchors are unchanged from v0.6.0.",
+  "tolerance": 0.05,
+  "anchors": {
+    "d1_d5_pipeline": {
+      "description": "D1-D5 full pipeline scoring snapshot on sample cards. Scores are MEASURED values from L3 evaluation run on 2026-07-06. Subsequent regression runs compare against these values. d2_latency_pressure is 0.0 for all sample cards because no trajectory data is provided (P99 TTFT cannot be computed).",
+      "cards": {
+        "compliant_agent_v2": {
+          "source_card": "mas_eval/data/sample_cards/compliant_agent_v2.json",
+          "d1_score": 95.0,
+          "d2_score": 22.6,
+          "d2_latency_pressure": 0.0,
+          "d3_score": 26.0,
+          "d4_score": 65.3,
+          "d5_score": 74.3,
+          "overall_score": 49.6,
+          "grade": "F"
+        },
+        "noncompliant_agent_v2": {
+          "source_card": "mas_eval/data/sample_cards/noncompliant_agent_v2.json",
+          "d1_score": 25.0,
+          "d2_score": 23.5,
+          "d2_latency_pressure": 0.0,
+          "d3_score": 19.0,
+          "d4_score": 63.2,
+          "d5_score": 74.3,
+          "overall_score": 40.6,
+          "grade": "F"
+        },
+        "claude_code_v2": {
+          "source_card": "mas_eval/data/sample_cards/claude_code_v2.json",
+          "d1_score": 75.0,
+          "d2_score": 61.5,
+          "d2_latency_pressure": 0.0,
+          "d3_score": 74.0,
+          "d4_score": 64.2,
+          "d5_score": 74.3,
+          "overall_score": 69.1,
+          "grade": "D+"
+        }
+      }
+    },
+    "federation_scan": {
+      "description": "5-vendor federation scan results. Extracted from mas_eval/data/multi_vendor_test/v4_federation_scan_v2_results.json (real data, not placeholder). Unchanged from v0.6.0.",
+      "source_file": "mas_eval/data/multi_vendor_test/v4_federation_scan_v2_results.json",
+      "source_timestamp": "2026-06-21T23:49:01Z",
+      "vendor_count": 5,
+      "agents_scored": 5,
+      "avg_trust_score": 66.4,
+      "avg_vendor_diversity": 80.0,
+      "avg_mcp_supply_chain": 80.0,
+      "gossip_trust": 62.9,
+      "overall_federation_score": 25.1,
+      "vendor_diversity_score": 80.0,
+      "mcp_supply_chain_score": 80.0,
+      "vendors": {
+        "claude_code": {
+          "d1_score": 95.0,
+          "d3_score": 62.1,
+          "d4_score": 77.6,
+          "trust_score": 80.8,
+          "mcp_supply_chain_score": 80.0
+        },
+        "codex": {
+          "d1_score": 95.0,
+          "d3_score": 32.0,
+          "d4_score": 74.5,
+          "trust_score": 77.5,
+          "mcp_supply_chain_score": 80.0
+        },
+        "cursor": {
+          "d1_score": 95.0,
+          "d3_score": 22.2,
+          "d4_score": 69.6,
+          "trust_score": 50.3,
+          "mcp_supply_chain_score": 80.0
+        },
+        "opencode": {
+          "d1_score": 95.0,
+          "d3_score": 30.3,
+          "d4_score": 72.1,
+          "trust_score": 59.8,
+          "mcp_supply_chain_score": 80.0
+        },
+        "trae_cn": {
+          "d1_score": 95.0,
+          "d3_score": 13.9,
+          "d4_score": 71.2,
+          "trust_score": 63.4,
+          "mcp_supply_chain_score": 80.0
+        }
+      }
+    },
+    "gold_trajectories": {
+      "description": "10 golden trajectory schema anchors. Trajectory files live in mas_eval/data/golden_trajectories/. step_count is the max sequence number in each trajectory JSON (placeholder 5 if file structure differs). Unchanged from v0.6.0.",
+      "schema_path": "mas_eval/schemas/agent_card_v2.0.json",
+      "trajectory_count": 10,
+      "schema_valid_count": 10,
+      "trajectories": [
+        {"name": "golden_config_update", "file": "mas_eval/data/golden_trajectories/golden_config_update.json", "step_count": 5, "valid": true},
+        {"name": "golden_code_review", "file": "mas_eval/data/golden_trajectories/golden_code_review.json", "step_count": 5, "valid": true},
+        {"name": "golden_multi_agent", "file": "mas_eval/data/golden_trajectories/golden_multi_agent.json", "step_count": 5, "valid": true},
+        {"name": "golden_web_search", "file": "mas_eval/data/golden_trajectories/golden_web_search.json", "step_count": 5, "valid": true},
+        {"name": "golden_docker_deploy", "file": "mas_eval/data/golden_trajectories/golden_docker_deploy.json", "step_count": 5, "valid": true},
+        {"name": "golden_security_audit", "file": "mas_eval/data/golden_trajectories/golden_security_audit.json", "step_count": 5, "valid": true},
+        {"name": "golden_database_query", "file": "mas_eval/data/golden_trajectories/golden_database_query.json", "step_count": 5, "valid": true},
+        {"name": "golden_travel_plan", "file": "mas_eval/data/golden_trajectories/golden_travel_plan.json", "step_count": 5, "valid": true},
+        {"name": "golden_performance_monitor", "file": "mas_eval/data/golden_trajectories/golden_performance_monitor.json", "step_count": 5, "valid": true},
+        {"name": "golden_api_integration", "file": "mas_eval/data/golden_trajectories/golden_api_integration.json", "step_count": 5, "valid": true}
+      ]
+    }
+  }
+}

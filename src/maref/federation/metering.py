@@ -99,10 +99,10 @@ class ContributionScore:
 # engine instance (v0.51 W2-S3 / B3); it is carved out of ALL base slots
 # proportionally so the total always sums to 1.0 regardless of its value.
 _BASE_CONTRIBUTION_WEIGHTS: dict[str, float] = {
-    "duration": 0.30,   # longer work = more contribution
-    "tokens": 0.25,     # more tokens processed = more contribution
-    "complexity": 0.30, # higher complexity = more contribution
-    "success": 0.15,    # successful completion bonus
+    "duration": 0.30,  # longer work = more contribution
+    "tokens": 0.25,  # more tokens processed = more contribution
+    "complexity": 0.30,  # higher complexity = more contribution
+    "success": 0.15,  # successful completion bonus
 }
 
 
@@ -273,9 +273,7 @@ class TaskMeteringEngine:
         indices = self._index_by_task.get(task_id, [])
         return [self._metrics[i] for i in indices]
 
-    def get_org_metrics(
-        self, org: str, since: float | None = None
-    ) -> list[TaskMetric]:
+    def get_org_metrics(self, org: str, since: float | None = None) -> list[TaskMetric]:
         """Return all metrics involving ``org`` (as provider or consumer).
 
         If ``since`` is given, only metrics at or after that timestamp
@@ -334,7 +332,9 @@ class TaskMeteringEngine:
         # Normalise effort factors to [0, 1] relative to the task's max so
         # that duration/tokens/complexity/success/outcome_quality are
         # comparable before weighting (v0.51 W2-S3 quality participation).
-        max_duration = max((sum(m.duration_ms for m in ms) for ms in per_agent.values()), default=0.0)
+        max_duration = max(
+            (sum(m.duration_ms for m in ms) for ms in per_agent.values()), default=0.0
+        )
         max_tokens = max((sum(m.token_count for m in ms) for ms in per_agent.values()), default=0)
 
         raw_weights: dict[str, float] = {}
@@ -354,13 +354,11 @@ class TaskMeteringEngine:
             }
             weights = _contribution_weights(self._outcome_quality_weight)
             if self._outcome_quality_weight > 0:
-                factors_raw["outcome_quality"] = (
-                    sum(m.outcome_quality for m in agent_metrics) / len(agent_metrics)
-                )
+                factors_raw["outcome_quality"] = sum(
+                    m.outcome_quality for m in agent_metrics
+                ) / len(agent_metrics)
             factor_breakdown[did] = factors_raw
-            raw_weights[did] = sum(
-                factors_raw[f] * weights[f] for f in factors_raw
-            )
+            raw_weights[did] = sum(factors_raw[f] * weights[f] for f in factors_raw)
 
         # Normalise weights so they sum to 1.0 across all agents.
         total_weight = sum(raw_weights.values())
@@ -394,9 +392,7 @@ class TaskMeteringEngine:
         org was provider or consumer.
         """
         metrics = [
-            m
-            for m in self.get_org_metrics(org)
-            if period_start <= m.timestamp <= period_end
+            m for m in self.get_org_metrics(org) if period_start <= m.timestamp <= period_end
         ]
 
         provided = [m for m in metrics if m.provider_org == org]

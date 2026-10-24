@@ -1,24 +1,14 @@
 #!/usr/bin/env python3
-"""Standalone audit chain verification script.
+"""Standalone audit chain verification.
 
-Verifies all four layers of MAREF audit chain integrity without requiring
-the MAREF framework to be installed. Only needs Python 3.10+ standard
-library + cryptography package for Ed25519 verification.
+Verifies chain linkage, record hashes, and optional Ed25519/HMAC signatures.
+Supports both ``AuditLogger`` records and legacy state-machine records.
 
 Usage:
-    # Verify chain integrity only
     python3 scripts/verify_audit_chain.py --audit-file audit.jsonl
-
-    # Verify chain + Ed25519 signatures
-    python3 scripts/verify_audit_chain.py \\
-        --audit-file audit.jsonl --public-key signer.pem
-
-    # Verify chain + Merkle proof
-    python3 scripts/verify_audit_chain.py \\
-        --audit-file audit.jsonl --merkle-proof proof.json
-
-    # For federated proof verification, use:
-    #   maref federated verify proof.json [--pubkey signer.pem]
+    python3 scripts/verify_audit_chain.py --audit-file audit.jsonl --json
+    python3 scripts/verify_audit_chain.py --audit-file audit.jsonl \\
+        --public-key signer.pem
 """
 
 from __future__ import annotations
@@ -29,95 +19,24 @@ import json
 import sys
 from pathlib import Path
 
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+_SRC = _REPO_ROOT / "src"
+if str(_SRC) not in sys.path:
+    sys.path.insert(0, str(_SRC))
 
-def verify_chain(filepath: str) -> tuple[bool, str]:
-    with open(filepath) as f:
-        entries = [json.loads(line) for line in f if line.strip()]
-
-    if not entries:
-        return False, "Empty audit file"
-
-    previous = ""
-    for entry in entries:
-        if entry.get("previous_hash", "") != previous:
-            return False, f"Chain broken at entry {entry.get('id', '?')}"
-        payload = json.dumps(
-            {
-                "id": entry["id"],
-                "timestamp": entry["timestamp"],
-                "event_type": entry["event_type"],
-                "actor": entry["actor"],
-                "action": entry["action"],
-                "details": entry["details"],
-                "metadata": entry.get("metadata", {}),
-                "previous_hash": entry.get("previous_hash", ""),
-            },
-            sort_keys=True,
-            ensure_ascii=False,
-            default=str,
-        )
-        expected = hashlib.sha256(
-            entry.get("previous_hash", "").encode() + payload.encode()
-        ).hexdigest()
-        if entry.get("chain_hash", "") != expected:
-            return False, f"Hash mismatch at entry {entry.get('id', '?')}"
-        previous = entry["chain_hash"]
-
-    return True, f"All {len(entries)} entries verified"
-
-
-def verify_ed25519_signatures(filepath: str, public_key_pem_path: str) -> tuple[int, int]:
-    try:
-        from cryptography.exceptions import InvalidSignature
-        from cryptography.hazmat.primitives import serialization
-        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
-    except ImportError:
-        print("Error: 'cryptography' package required for Ed25519 verification", file=sys.stderr)
-        print("Install: pip install cryptography", file=sys.stderr)
-        sys.exit(1)
-
-    pubkey_pem = Path(public_key_pem_path).read_text()
-    pubkey = serialization.load_pem_public_key(pubkey_pem.encode())
-
-    with open(filepath) as f:
-        entries = [json.loads(line) for line in f if line.strip()]
-
-    valid = 0
-    total = 0
-    for entry in entries:
-        sig = entry.get("ed25519_signature", "")
-        if not sig:
-            continue
-        total += 1
-        payload = json.dumps(
-            {
-                "id": entry["id"],
-                "timestamp": entry["timestamp"],
-                "event_type": entry["event_type"],
-                "actor": entry["actor"],
-                "action": entry["action"],
-                "details": entry["details"],
-                "metadata": entry.get("metadata", {}),
-                "previous_hash": entry.get("previous_hash", ""),
-            },
-            sort_keys=True,
-            ensure_ascii=False,
-            default=str,
-        ).encode()
-        try:
-            pubkey.verify(bytes.fromhex(sig), payload)
-            valid += 1
-        except InvalidSignature:
-            pass
-
-    return valid, total
+from maref.governance.audit_chain_verify import (  # noqa: E402
+    resolve_hmac_key,
+    verify_audit_chain,
+)
 
 
 def merkle_hash_pair(left: str, right: str) -> str:
     return hashlib.sha256((left + right).encode()).hexdigest()
 
 
-def verify_merkle_proof(target_hash: str, proof: list[list[str | bool]], expected_root: str) -> bool:
+def verify_merkle_proof(
+    target_hash: str, proof: list[list[str | bool]], expected_root: str
+) -> bool:
     current = target_hash
     for sibling_hash, direction in proof:
         if direction == "left" or direction is False:
@@ -142,16 +61,13 @@ def verify_merkle_proof_file(proof_path: str) -> tuple[bool, str]:
     if not root:
         return False, "Missing root_hash/merkle_root in proof file"
 
-    ok = verify_merkle_proof(target, proof_path_list, root)
-    if ok:
-        return True, f"Merkle proof valid: {target[:12]}... → {root[:12]}..."
+    if verify_merkle_proof(target, proof_path_list, root):
+        return True, f"Merkle proof valid: {target[:12]}... -> {root[:12]}..."
     return False, f"Merkle proof invalid: {target[:12]}... does not chain to {root[:12]}..."
 
 
-def main():
-    parser = argparse.ArgumentParser(
-        description="Verify MAREF audit chain integrity"
-    )
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Verify MAREF audit chain integrity")
     parser.add_argument("--audit-file", required=True, help="Path to audit JSONL file")
     parser.add_argument(
         "--public-key",
@@ -159,39 +75,62 @@ def main():
         help="Path to Ed25519 public key PEM (for signature verification)",
     )
     parser.add_argument(
+        "--hmac-key",
+        default=None,
+        help="HMAC key (defaults to MAREF_HMAC_SECRET_KEY or on-disk key file)",
+    )
+    parser.add_argument(
         "--merkle-proof",
         default=None,
         help="Path to Merkle proof JSON file (for offline proof verification)",
     )
+    parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON")
     args = parser.parse_args()
 
-    if not Path(args.audit_file).exists():
-        print(f"Error: audit file not found: {args.audit_file}", file=sys.stderr)
-        sys.exit(1)
+    audit_path = Path(args.audit_file)
+    if not audit_path.exists():
+        print(f"Error: audit file not found: {audit_path}", file=sys.stderr)
+        return 1
 
-    ok, msg = verify_chain(args.audit_file)
-    print(f"{'✅' if ok else '❌'} Chain integrity: {msg}")
-    if not ok:
-        sys.exit(1)
-
+    public_key_pem = None
     if args.public_key:
-        valid, total = verify_ed25519_signatures(args.audit_file, args.public_key)
-        if total > 0:
-            print(f"{'✅' if valid == total else '⚠️'} Ed25519 signatures: {valid}/{total} valid")
-        else:
-            print("ℹ️  No Ed25519-signed entries found")
+        public_key_pem = Path(args.public_key).read_text()
+
+    hmac_key = resolve_hmac_key(args.hmac_key)
+    report = verify_audit_chain(
+        audit_path,
+        hmac_key=hmac_key,
+        ed25519_public_key_pem=public_key_pem,
+    )
+
+    if args.json:
+        print(json.dumps(report.to_dict(), ensure_ascii=False, indent=2))
+    else:
+        status = "OK" if report.integrity_intact else "FAILED"
+        print(f"Chain integrity: {status} ({report.total} records)")
+        print(f"  formats: {report.formats}")
+        print(f"  link breaks: {len(report.link_breaks)}")
+        print(f"  hash invalid: {len(report.hash_invalid)}")
+        print(f"  signature invalid: {len(report.signature_invalid)}")
+        print(f"  signature unverifiable: {len(report.signature_unverifiable)}")
+        print(f"  unsigned: {len(report.unsigned)}")
+        if report.notes:
+            for note in report.notes[:10]:
+                print(f"  note: {note}")
+
+    exit_code = 0 if report.integrity_intact else 1
 
     if args.merkle_proof:
         if not Path(args.merkle_proof).exists():
             print(f"Error: proof file not found: {args.merkle_proof}", file=sys.stderr)
-            sys.exit(1)
+            return 1
         ok, msg = verify_merkle_proof_file(args.merkle_proof)
-        print(f"{'✅' if ok else '❌'} Merkle proof: {msg}")
+        print(f"{'OK' if ok else 'FAILED'} Merkle proof: {msg}")
         if not ok:
-            sys.exit(1)
+            exit_code = 1
 
-    print("\nVerification complete.")
+    return exit_code
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

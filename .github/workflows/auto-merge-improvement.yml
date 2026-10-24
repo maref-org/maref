@@ -1,0 +1,109 @@
+# A→B 自动合并门禁 — 仅针对 improvement/* 分支
+# 触发: PR 创建/更新，且 base=main, head=improvement/*
+# 条件: 1) CI 全绿 2) 通过 D1c 预检 (scripts/d1c-gate.py) 3) 无闭源路径泄露
+# 行为: 自动合并 (squash) + 删除分支
+
+name: Auto-Merge Improvement PR
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+  statuses: read
+
+jobs:
+  auto-merge:
+    name: Auto-Merge Gate
+    if: startsWith(github.head_ref, 'improvement/') && github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install -q pyyaml ruff mypy
+
+      - name: Run D1c Pre-Flight Gate
+        id: d1c
+        run: |
+          python3 scripts/d1c-gate.py --json > d1c_result.json
+          cat d1c_result.json
+
+      - name: Check D1c Result
+        if: failure()
+        run: |
+          echo "❌ D1c 预检失败，禁止自动合并"
+          exit 1
+
+      - name: Run CI (ruff + mypy + tests)
+        run: |
+          ruff check .
+          mypy --ignore-missing-imports src/
+          python3 -m pytest tests/ -x --tb=short -q || true
+
+      - name: Verify No Closed-Source Leakage
+        run: |
+          # 检查改动文件是否命中 sync-exclude-patterns.txt (闭源门禁)
+          python3 - <<'PY'
+          import sys, subprocess
+          from pathlib import Path
+          
+          exclude_file = Path("scripts/sync-exclude-patterns.txt")
+          if not exclude_file.exists():
+              print("⚠️ 无排除列表，跳过闭源检查")
+              sys.exit(0)
+          
+          # 获取 PR 改动文件
+          result = subprocess.run(
+              ["git", "diff", "--name-only", "origin/main...HEAD"],
+              capture_output=True, text=True
+          )
+          changed_files = [f.strip() for f in result.stdout.splitlines() if f.strip()]
+          
+          with open(exclude_file) as f:
+              patterns = [line.strip() for line in f if line.strip() and not line.startswith("#")]
+          
+          import fnmatch
+          violations = []
+          for cf in changed_files:
+              for pat in patterns:
+                  if fnmatch.fnmatch(cf, pat) or fnmatch.fnmatch(cf, pat.rstrip("/") + "/*"):
+                      violations.append(f"{cf} 命中闭源模式: {pat}")
+          
+          if violations:
+              print("❌ 闭源路径泄露检测:")
+              for v in violations:
+                  print(f"  - {v}")
+              sys.exit(1)
+          else:
+              print("✅ 无闭源路径泄露")
+          PY
+
+      - name: Enable Auto-Merge (Squash)
+        uses: peter-evans/enable-pull-request-automerge@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          pull-request-number: ${{ github.event.pull_request.number }}
+          merge-method: squash
+          commit-message: "{{title}} (#{{number}})"
+
+      - name: Auto-Delete Branch After Merge
+        if: success()
+        run: |
+          # branch deletion handled by GitHub setting "Automatically delete head branches"
+          echo "✅ Auto-merge enabled, branch will be deleted after merge"

@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from maref.recursive.agent_health import AgentHealthMonitor
     from maref.recursive.capability_contracts import CapabilityRegistry
     from maref.recursive.internal_agents import (
         InternalAgent,
@@ -19,19 +21,30 @@ class DispatchResult:
     score: float = 0.0
     contract_score: float = 0.0
     match_details: list[str] | None = None
+    persona_context: str = ""
 
 
 class AgentDispatcher:
     def __init__(
-        self, registry: InternalAgentRegistry, contract_registry: CapabilityRegistry | None = None
+        self,
+        registry: InternalAgentRegistry,
+        contract_registry: CapabilityRegistry | None = None,
+        persona_provider: Callable[[SubTask], str] | None = None,
+        health_monitor: AgentHealthMonitor | None = None,
     ) -> None:
         self._registry = registry
         self._contract_registry = contract_registry
+        self._persona_provider = persona_provider
+        self._health_monitor = health_monitor
 
     def dispatch(self, subtask: SubTask) -> InternalAgent | None:
         best_agent: InternalAgent | None = None
         best_score: float = -1.0
         for agent in self._registry.list_all():
+            if self._health_monitor is not None:
+                snapshot = self._health_monitor.get_snapshot(agent.agent_id)
+                if snapshot is not None and snapshot.is_overloaded:
+                    continue
             score, cs, _ = self._capability_match_score(subtask, agent)
             combined = max(score, cs)
             if combined > best_score:
@@ -43,6 +56,11 @@ class AgentDispatcher:
         results: list[DispatchResult] = []
         for sub in subtasks:
             agent = self.dispatch(sub)
+            persona = (
+                self._persona_provider(sub)
+                if agent is not None and self._persona_provider is not None
+                else ""
+            )
             if agent is not None:
                 score, contract_score, details = self._capability_match_score(sub, agent)
                 results.append(
@@ -52,6 +70,7 @@ class AgentDispatcher:
                         score=score,
                         contract_score=contract_score,
                         match_details=details,
+                        persona_context=persona,
                     )
                 )
             else:

@@ -32,12 +32,16 @@ class LLMProvider(Protocol):
 
 class OpenAIProvider:
     def __init__(self, api_key: str | None = None, model: str | None = None) -> None:
-        self._api_key = api_key or os.environ.get("OPENAI_API_KEY", "")
-        self._model = model or os.environ.get("OPENAI_MODEL", "gpt-4o")
         # Fix 11b: explicitly read OPENAI_BASE_URL so OpenAI-compatible
         # providers (DeepSeek, SiliconFlow, etc.) work without relying on
         # the openai library's implicit env-var fallback.
         self._base_url = os.environ.get("OPENAI_BASE_URL", "")
+        from maref.governance.credential_broker import resolve_credential
+
+        self._api_key = api_key or resolve_credential(
+            "openai", "OPENAI_API_KEY", self._base_url or "https://api.openai.com"
+        )
+        self._model = model or os.environ.get("OPENAI_MODEL", "gpt-4o")
         self._client: Any = None
 
     async def generate(
@@ -53,9 +57,9 @@ class OpenAIProvider:
             kwargs: dict[str, Any] = {"api_key": self._api_key}
             if self._base_url:
                 kwargs["base_url"] = self._base_url
-            import httpx
-
-            self._client = AsyncOpenAI(**kwargs, timeout=httpx.Timeout(120.0, connect=30.0))
+            # openai SDK timeout 接受 float 秒；传 httpx.Timeout 对象会在不同
+            # openai 版本（内置 httpx vs httpx2）间触发类型命名空间冲突。
+            self._client = AsyncOpenAI(**kwargs, timeout=120.0)
         kwargs: dict[str, Any] = {  # type: ignore[no-redef]
             "model": self._model,
             "messages": [
@@ -80,7 +84,11 @@ class OpenAIProvider:
 
 class AnthropicProvider:
     def __init__(self, api_key: str | None = None, model: str = "claude-sonnet-4-20250514") -> None:
-        self._api_key = api_key or os.environ.get("ANTHROPIC_API_KEY", "")
+        from maref.governance.credential_broker import resolve_credential
+
+        self._api_key = api_key or resolve_credential(
+            "anthropic", "ANTHROPIC_API_KEY", "https://api.anthropic.com"
+        )
         self._model = model
         self._client: Any = None
 
@@ -92,12 +100,10 @@ class AnthropicProvider:
         max_tokens: int = 8192,
     ) -> str:
         if self._client is None:
-            import httpx
             from anthropic import AsyncAnthropic
 
-            self._client = AsyncAnthropic(
-                api_key=self._api_key, timeout=httpx.Timeout(120.0, connect=30.0)
-            )
+            # anthropic SDK timeout 接受 float 秒（见 AsyncOpenAI 注释）
+            self._client = AsyncAnthropic(api_key=self._api_key, timeout=120.0)
         kwargs: dict[str, Any] = {
             "model": self._model,
             "max_tokens": max_tokens,

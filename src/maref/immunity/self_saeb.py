@@ -122,12 +122,14 @@ class SelfSAEBRunner:
                 if has_hits:
                     false_pos += 1
 
-            details.append({
-                "sample": sample["name"],
-                "expected_hit": sample["expected_hit"],
-                "actual_hits": len(hits),
-                "correct": has_hits == sample["expected_hit"],
-            })
+            details.append(
+                {
+                    "sample": sample["name"],
+                    "expected_hit": sample["expected_hit"],
+                    "actual_hits": len(hits),
+                    "correct": has_hits == sample["expected_hit"],
+                }
+            )
 
         detection_rate = detected / max(total - 1, 1)  # Exclude safe code sample
         gene_count = len(self._bank.query_all())

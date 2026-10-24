@@ -14,6 +14,24 @@ logger = logging.getLogger(__name__)
 _SESSION_TIMEOUT = int(os.environ.get("MAREF_BROWSER_SESSION_TIMEOUT", "300"))
 _MAX_SESSIONS = int(os.environ.get("MAREF_BROWSER_MAX_SESSIONS", "4"))
 
+_credential_manager_instance: Any = None
+
+
+def _get_credential_manager() -> Any:
+    """获取 CredentialManager 单例（避免重复实例化）"""
+    global _credential_manager_instance
+    if _credential_manager_instance is None:
+        from maref.identity.credential_manager import CredentialManager
+
+        _credential_manager_instance = CredentialManager()
+    return _credential_manager_instance
+
+
+def _reset_credential_manager() -> None:
+    """重置 CredentialManager 单例（仅用于测试）"""
+    global _credential_manager_instance
+    _credential_manager_instance = None
+
 
 class PlaywrightNotAvailableError(RuntimeError):
     pass
@@ -23,6 +41,7 @@ class PlaywrightNotAvailableError(RuntimeError):
 class BrowserSession:
     session_id: str
     browser_type: BrowserType
+    domain: str = ""
     created_at: float = field(default_factory=time.time)
     last_used: float = field(default_factory=time.time)
     ref_count: int = 0
@@ -126,6 +145,10 @@ class BrowserSessionPool:
             )
             self._sessions[session_id] = session
             self._start_cleanup()
+
+            if page:
+                await self._restore_session_state(session_id, page)
+
             return session
 
     async def release(self, session_id: str) -> None:
@@ -164,6 +187,59 @@ class BrowserSessionPool:
         session = self._sessions.pop(session_id, None)
         if session is not None:
             await session.close()
+
+    async def _restore_session_state(self, session_id: str, page: Any) -> None:
+        """从 CredentialManager 恢复浏览器会话状态"""
+        try:
+            manager = _get_credential_manager()
+
+            # 仅恢复当前 session 对应域名的会话
+            session = self._sessions.get(session_id)
+            domain = session.domain if session else ""
+            if not domain:
+                return
+
+            session_data = manager.load_browser_session(domain)
+            if not session_data:
+                return
+
+            cookies = session_data.get("cookies", [])
+            if cookies:
+                try:
+                    await page.context.add_cookies(cookies)
+                    logger.debug(
+                        "Restored %d cookies for domain %s",
+                        len(cookies),
+                        domain,
+                    )
+                except Exception as e:
+                    logger.debug("Failed to restore cookies for %s: %s", domain, e)
+
+            local_storage = session_data.get("local_storage", {})
+            if local_storage:
+                try:
+                    await page.evaluate(
+                        """(storage) => {
+                            for (const [key, value] of Object.entries(storage)) {
+                                localStorage.setItem(key, value);
+                            }
+                        }""",
+                        local_storage,
+                    )
+                    logger.debug(
+                        "Restored %d localStorage items for domain %s",
+                        len(local_storage),
+                        domain,
+                    )
+                except Exception as e:
+                    logger.debug(
+                        "Failed to restore localStorage for %s: %s",
+                        domain,
+                        e,
+                    )
+
+        except Exception as e:
+            logger.debug("Failed to restore session state: %s", e)
 
     def _start_cleanup(self) -> None:
         if self._cleanup_task is not None and not self._cleanup_task.done():

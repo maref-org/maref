@@ -4,7 +4,15 @@ import contextlib
 from typing import Any
 from unittest.mock import patch
 
-from maref.observation.probes import ProbeReading, ProbeSeverity
+import pytest
+
+from maref.observation.probes import (
+    DesktopProbe,
+    GUIBuildProbe,
+    PlaywrightProbe,
+    ProbeReading,
+    ProbeSeverity,
+)
 from maref.recursive.self_diagnostician import (
     DiagnosisReport,
     RiskLevel,
@@ -33,6 +41,22 @@ class TestDiagnosisReport:
 
 
 class TestSelfDiagnostician:
+    @pytest.fixture(autouse=True)
+    def _clear_probe_cache(self) -> None:
+        """清空 probe 类级 TTL 缓存，保证本类测试的 mock measure 生效。
+
+        诊断通过 probe._measure_cached() 读取（类级 6h 缓存）。若先前
+        测试真实验证过这些 probe（如 CI 无浏览器时 measure 判 CRITICAL），
+        缓存命中会使本类 mock 的 measure 被绕过，导致环境相关假失败。
+        """
+        for probe_cls in (PlaywrightProbe, DesktopProbe, GUIBuildProbe):
+            probe_cls._cached_reading = None
+            probe_cls._cached_at = 0.0
+        yield
+        for probe_cls in (PlaywrightProbe, DesktopProbe, GUIBuildProbe):
+            probe_cls._cached_reading = None
+            probe_cls._cached_at = 0.0
+
     def test_default_construction(self) -> None:
         d = SelfDiagnostician()
         assert d.cb_state == "CLOSED"
@@ -444,21 +468,26 @@ class TestSelfDiagnostician:
         assert d.check_and_trip(report) is False
         assert d._blocked is True
 
-    def test_check_and_trip_cb_closed_critical_returns_true(self) -> None:
-        d = SelfDiagnostician()
-        report = DiagnosisReport(snapshot_ref="s1", risk_matrix={"entropy": RiskLevel.CRITICAL})
-        assert d.check_and_trip(report) is True
-        assert d._cb_state == "CLOSED"
-        assert d._blocked is False
-        assert d._trip_count == 1
+    def test_check_and_trip_single_system_critical_trips(self) -> None:
+        """单次系统健康 CRITICAL 立即熔断（survival-first fail-fast）。
 
-    def test_check_and_trip_trips_after_3_critical(self) -> None:
+        语义对齐 openclaw（c0201e66 确立）：系统健康探针（SYSTEM_HEALTH_PROBES）
+        单次 CRITICAL 即熔断，不等累积阈值。ENTROPY 属系统健康探针，故立即 OPEN。
+        """
         d = SelfDiagnostician()
-        d._trip_count = 3
         report = DiagnosisReport(snapshot_ref="s1", risk_matrix={"entropy": RiskLevel.CRITICAL})
         assert d.check_and_trip(report) is False
         assert d._cb_state == "OPEN"
         assert d._blocked is True
+        assert d._trip_count == 1
+
+    def test_check_and_trip_env_probe_critical_does_not_trip(self) -> None:
+        """环境探针 CRITICAL 不熔断（gui_build/playwright/desktop 非系统健康信号）。"""
+        d = SelfDiagnostician()
+        report = DiagnosisReport(snapshot_ref="s1", risk_matrix={"gui_build": RiskLevel.CRITICAL})
+        assert d.check_and_trip(report) is True
+        assert d._cb_state == "CLOSED"
+        assert d._blocked is False
 
     def test_check_and_trip_cb_closed_no_critical(self) -> None:
         d = SelfDiagnostician()

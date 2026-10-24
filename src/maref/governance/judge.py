@@ -7,8 +7,10 @@
 
 from __future__ import annotations
 
+import math
 import re
 from abc import ABC, abstractmethod
+from collections import Counter
 from typing import Any, Protocol
 
 from maref.governance.trace import Trace, Verdict, VerdictDecision
@@ -103,6 +105,65 @@ _FLAG_PATTERNS: tuple[str, ...] = (
 )
 
 
+class AttackEntropyTracker:
+    """攻击分布熵跟踪器（T-P0-2）。
+
+    依据：不可能锁（arXiv 2608.01388）——固定 FSA 的 recall 上界受攻击分布
+    top-k 集中度约束（攻击分布熵解释 76% 方差）。攻击分布熵上升说明攻击模式
+    正在多样化，规则集覆盖可能不足，应触发不变量进化（而非继续加词表）。
+
+    度量：
+      - Shannon 熵 ``H = -Σ p_i·log2(p_i)``（bits）
+      - 归一化熵 ``H_norm = H / log2(k)`` ∈ [0, 1]，k = 已观测模式数
+      - ``should_evolve()``：归一化熵 ≥ 阈值 → 建议触发不变量进化
+    """
+
+    def __init__(self, evolve_threshold: float = 0.85) -> None:
+        self._evolve_threshold = evolve_threshold
+        self._counts: Counter[str] = Counter()
+        self._total = 0
+
+    def record(self, patterns: list[str]) -> None:
+        """记录本轮命中的模式（每个模式计一次）。"""
+        for p in patterns:
+            self._counts[p] += 1
+            self._total += 1
+
+    def entropy(self) -> float:
+        """攻击分布 Shannon 熵（bits）。无样本时为 0。"""
+        if self._total == 0:
+            return 0.0
+        h = 0.0
+        for c in self._counts.values():
+            p = c / self._total
+            h -= p * math.log2(p)
+        return h
+
+    def normalized_entropy(self) -> float:
+        """归一化熵 H/log2(k) ∈ [0,1]。k≤1 时为 0。"""
+        k = len(self._counts)
+        if k <= 1:
+            return 0.0
+        return self.entropy() / math.log2(k)
+
+    def observed_classes(self) -> int:
+        return len(self._counts)
+
+    def should_evolve(self) -> bool:
+        """熵 ≥ 阈值 → 建议触发不变量进化（不变量集是 RSI 变异对象）。"""
+        return self.observed_classes() > 1 and self.normalized_entropy() >= self._evolve_threshold
+
+    def snapshot(self) -> dict[str, Any]:
+        return {
+            "entropy_bits": round(self.entropy(), 4),
+            "normalized_entropy": round(self.normalized_entropy(), 4),
+            "observed_classes": self.observed_classes(),
+            "total_hits": self._total,
+            "evolve_threshold": self._evolve_threshold,
+            "should_evolve": self.should_evolve(),
+        }
+
+
 class RuleJudge(Judge):
     """基于策略模式匹配的规则法官。
 
@@ -118,11 +179,21 @@ class RuleJudge(Judge):
         self,
         block_patterns: tuple[str, ...] = _BLOCK_PATTERNS,
         flag_patterns: tuple[str, ...] = _FLAG_PATTERNS,
+        entropy_tracker: AttackEntropyTracker | None = None,
     ) -> None:
         self._block_patterns = block_patterns
         self._flag_patterns = flag_patterns
+        self._entropy = entropy_tracker or AttackEntropyTracker()
 
     affiliation = None  # 规则法官全局中立，无归属、永不回避
+
+    def entropy_snapshot(self) -> dict[str, Any]:
+        """攻击分布熵快照（T-P0-2）。
+
+        ``should_evolve=True`` 表示攻击模式多样性已超过阈值，调用方应触发
+        不变量进化（RSI 变异对象 = 不变量集），而非继续扩充词表。
+        """
+        return self._entropy.snapshot()
 
     def arbitrate(
         self,
@@ -131,6 +202,7 @@ class RuleJudge(Judge):
     ) -> Verdict:
         block_evidence: list[str] = []
         flag_evidence: list[str] = []
+        hit_patterns: list[str] = []
         for step in trace.steps:
             blob_tokens = _tokens(f"{step.action} {step.decision}")
             for pattern in self._block_patterns:
@@ -138,13 +210,16 @@ class RuleJudge(Judge):
                     block_evidence.append(
                         f"{step.agent_id}:{step.action}@{step.ts:.2f} (block:{pattern})"
                     )
+                    hit_patterns.append(f"block:{pattern}")
                     break
             for pattern in self._flag_patterns:
                 if _pattern_matches(blob_tokens, pattern):
                     flag_evidence.append(
                         f"{step.agent_id}:{step.action}@{step.ts:.2f} (flag:{pattern})"
                     )
+                    hit_patterns.append(f"flag:{pattern}")
                     break
+        self._entropy.record(hit_patterns)
 
         if block_evidence:
             return Verdict(

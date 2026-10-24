@@ -33,7 +33,7 @@ class TestValidateSingleBitTransitions:
 
         try:
             # Temporarily corrupt a Gray code to create 2-bit difference
-            validator_module.GRAY_CODE[2] = (0, 1, 1, 0, 0)  # Changed from (0,1,0,0,0)
+            validator_module.GRAY_CODE[2] = (0, 1, 1, 1)  # Changed from (0,0,1,1)
             passed, errors = validate_single_bit_transitions()
             assert passed is False
             assert any("Hamming distance" in e for e in errors)

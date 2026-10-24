@@ -13,13 +13,14 @@ v0.38.0+: Ed25519 signing for offline-verifiable audit chain.
 
 from __future__ import annotations
 
+import fcntl
 import hashlib
 import hmac
 import json
 import logging
 import os
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -183,7 +184,14 @@ class AuditLogger:
             self._path: Path | None = None
             self._memory_entries: list[AuditEntry] = []
         else:
-            self._path = Path(log_path) if not isinstance(log_path, Path) else log_path
+            p = Path(log_path) if not isinstance(log_path, Path) else log_path
+            if not p.is_absolute():
+                # P2-7: 相对路径强制走 MAREF_AUDIT_PATH 沙箱，杜绝 cwd/repo 根污染
+                base = Path(os.environ.get("MAREF_AUDIT_PATH", ".governance"))
+                if base.suffix:  # 指向文件时取父目录
+                    base = base.parent
+                p = base / p
+            self._path = p
             self._memory_entries = []
         self._write_lock: Any = __import__("threading").Lock()
         self._max_file_size = max_file_size_mb * 1024 * 1024
@@ -509,13 +517,11 @@ class AuditLogger:
         import uuid
 
         now = time.time()
+        # 文件模式的 previous_hash 必须在 _write 的跨进程文件锁内读取；
+        # 此处只处理纯内存模式，避免锁外读到的尾哈希过期导致分叉。
         previous_hash = self._memory_entries[-1].chain_hash if self._memory_entries else ""
-        if self._path is not None and self._path.exists() and not self._memory_entries:
-            existing = self.read_all(max_entries=None)
-            if existing:
-                previous_hash = existing[-1].chain_hash
         entry = AuditEntry(
-            id=uuid.uuid4().hex[:8],
+            id=uuid.uuid4().hex,
             timestamp=now,
             event_type=event_type,
             actor=actor,
@@ -571,38 +577,68 @@ class AuditLogger:
         )
 
     def _write(self, entry: AuditEntry) -> AuditEntry:
-        signed_entry = self._entry_with_signature(entry)
-        chain_hash = self._compute_chain_hash(signed_entry)
-        final_entry = AuditEntry(
-            id=signed_entry.id,
-            timestamp=signed_entry.timestamp,
-            event_type=signed_entry.event_type,
-            actor=signed_entry.actor,
-            action=signed_entry.action,
-            details=signed_entry.details,
-            metadata=signed_entry.metadata,
-            parent_action_id=signed_entry.parent_action_id,
-            previous_hash=signed_entry.previous_hash,
-            chain_hash=chain_hash,
-            hmac_signature=signed_entry.hmac_signature,
-            ed25519_signature=signed_entry.ed25519_signature,
-            signer_fingerprint=signed_entry.signer_fingerprint,
-            tenant_id=signed_entry.tenant_id,
-            layer=signed_entry.layer,
-            round=signed_entry.round,
-        )
-        if self._chain_integrator is not None:
-            self._chain_integrator.record_audit_entry(final_entry)
         if self._path is None:
+            signed_entry = self._entry_with_signature(entry)
+            chain_hash = self._compute_chain_hash(signed_entry)
+            final_entry = replace(signed_entry, chain_hash=chain_hash)
             self._memory_entries.append(final_entry)
+            if self._chain_integrator is not None:
+                self._chain_integrator.record_audit_entry(final_entry)
             return final_entry
+
         self._path.parent.mkdir(parents=True, exist_ok=True)
         if self._path.exists() and self._path.stat().st_size >= self._max_file_size:
             self._rotate()
-        line = json.dumps(final_entry.to_dict(), ensure_ascii=False, default=str)
-        with self._write_lock, open(self._path, "a") as f:
-            f.write(line + "\n")
+
+        # 关键修复（T1.4）：读取链尾 + 签名 + append 在同一把跨进程
+        # 文件锁内完成，消除并发写入导致的 previous_hash 分叉。
+        with self._write_lock, open(self._path, "a+b") as f:
+            fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+            try:
+                previous_hash = self._last_chain_hash_from_handle(f)
+                locked_entry = replace(entry, previous_hash=previous_hash)
+                signed_entry = self._entry_with_signature(locked_entry)
+                chain_hash = self._compute_chain_hash(signed_entry)
+                final_entry = replace(signed_entry, chain_hash=chain_hash)
+                line = json.dumps(final_entry.to_dict(), ensure_ascii=False, default=str)
+                f.seek(0, os.SEEK_END)
+                f.write((line + "\n").encode("utf-8"))
+                f.flush()
+            finally:
+                fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+
+        if self._chain_integrator is not None:
+            self._chain_integrator.record_audit_entry(final_entry)
         return final_entry
+
+    def _last_chain_hash_from_handle(self, fh) -> str:
+        """Read last valid chain_hash from an already-locked file handle."""
+        fh.seek(0, os.SEEK_END)
+        size = fh.tell()
+        if size == 0:
+            return ""
+        window = min(size, 64 * 1024)
+        while True:
+            offset = size - window
+            fh.seek(offset)
+            chunk = fh.read(window).decode("utf-8", errors="replace")
+            lines = chunk.splitlines()
+            if offset > 0 and lines:
+                lines = lines[1:]
+            for line in reversed(lines):
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    data = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                entry = self._entry_from_dict(data)
+                if entry is not None and entry.chain_hash:
+                    return entry.chain_hash
+            if window >= size:
+                return ""
+            window = min(size, window * 2)
 
     def _rotate(self) -> None:
         """Rotate audit log: rename current file, start a new one."""
@@ -652,6 +688,89 @@ class AuditLogger:
                 if max_entries and len(entries) >= max_entries:
                     break
         return entries[-max_entries:] if max_entries else entries
+
+    def find_by_id(self, entry_id: str) -> AuditEntry | None:
+        """Look up a single audit entry by id.
+
+        Used by on-demand evidence verification so old entries remain
+        verifiable after a restart without loading the whole chain into
+        memory.  Production deployments should back this with an id index;
+        the JSONL scan here is the dependency-free fallback.
+        """
+        if not entry_id:
+            return None
+        if self._path is None:
+            for entry in reversed(self._memory_entries):
+                if entry.id == entry_id:
+                    return entry
+            return None
+        if not self._path.exists():
+            return None
+        with open(self._path) as f:
+            for line in f:
+                line = line.strip()
+                if not line or entry_id not in line:
+                    continue
+                try:
+                    data = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if data.get("id") != entry_id:
+                    continue
+                return AuditEntry(
+                    id=data["id"],
+                    timestamp=data["timestamp"],
+                    event_type=data["event_type"],
+                    actor=data["actor"],
+                    action=data["action"],
+                    details=data["details"],
+                    metadata=data.get("metadata", {}),
+                    parent_action_id=data.get("parent_action_id", ""),
+                    previous_hash=data.get("previous_hash", ""),
+                    chain_hash=data.get("chain_hash", ""),
+                    hmac_signature=data.get("hmac_signature", ""),
+                    ed25519_signature=data.get("ed25519_signature", ""),
+                    signer_fingerprint=data.get("signer_fingerprint", ""),
+                    tenant_id=data.get("tenant_id", ""),
+                    layer=data.get("layer", "governance"),
+                    round=data.get("round", 0),
+                )
+        return None
+
+    def verify_entry(
+        self,
+        entry: AuditEntry,
+        ed25519_public_key_pem: str | None = None,
+    ) -> bool:
+        """Verify one entry's chain hash and signature without scanning the log.
+
+        Used by evidence checks: an evidence record that was edited after being
+        written must not be accepted just because it still parses as JSON.
+        """
+        if entry.signature_type == "unsigned":
+            return False
+        if not entry.chain_hash or not self._verify_chain_hash(entry):
+            return False
+        if entry.signature_type == "ed25519":
+            pub_key = ed25519_public_key_pem
+            if pub_key is None and self._ed25519_keypair is not None:
+                pub_key = self._ed25519_keypair.public_key_pem
+            if pub_key is None:
+                return False
+            return self._verify_entry_signature(entry, pub_key)
+        hmac_key = self._resolve_hmac_key_for_verify()
+        if hmac_key is None:
+            return False
+        return self._verify_hmac_signature(entry, hmac_key)
+
+    def verify_entry_integrity(
+        self,
+        entry_id: str,
+        ed25519_public_key_pem: str | None = None,
+    ) -> bool:
+        """Verify a single entry by id (see :meth:`verify_entry`)."""
+        entry = self.find_by_id(entry_id)
+        return entry is not None and self.verify_entry(entry, ed25519_public_key_pem)
 
     def read_recent(self, n: int = 100) -> list[AuditEntry]:
         return self.read_all(max_entries=n)
@@ -706,11 +825,15 @@ class AuditLogger:
                             action=data["action"],
                             details=data["details"],
                             metadata=data.get("metadata", {}),
+                            parent_action_id=data.get("parent_action_id", ""),
                             previous_hash=data.get("previous_hash", ""),
                             chain_hash=data.get("chain_hash", ""),
                             hmac_signature=data.get("hmac_signature", ""),
                             ed25519_signature=data.get("ed25519_signature", ""),
                             signer_fingerprint=data.get("signer_fingerprint", ""),
+                            tenant_id=data.get("tenant_id", ""),
+                            layer=data.get("layer", "governance"),
+                            round=data.get("round", 0),
                         )
                     )
                     if max_entries and len(filtered) >= max_entries:
@@ -750,6 +873,64 @@ class AuditLogger:
     def get_audit_trail(self, max_entries: int | None = 1000) -> list[AuditEntry]:
         """Return the audit trail with optional limit."""
         return self.read_all(max_entries=max_entries)
+
+    def _last_chain_hash_from_file(self) -> str:
+        """O(1) tail read of the last valid entry's chain_hash.
+
+        Replaces the previous ``read_all(max_entries=None)`` full-file scan
+        on every ``log()`` append, which made writes O(n) per entry (and
+        O(n²) cumulative for a long-running chain). Seeks to the file tail
+        and walks backward in bounded chunks; the window only grows when a
+        single record is unusually large.
+
+        Parsing semantics match ``read_all``: malformed lines and partial
+        dicts (missing required fields) are skipped, so the chain continues
+        from the last *valid* record.
+        """
+        if self._path is None or not self._path.exists():
+            return ""
+        # 文件存在(有历史链)但 stat/open 失败：上抛而非返回 ""。若返回 ""
+        # log() 会以 previous_hash="" 续写，把合法新条目变假篡改(断链)。
+        # 审计链完整性优先于写入可用性(fail-closed)。
+        try:
+            size = self._path.stat().st_size
+        except OSError:
+            raise
+        if size == 0:
+            return ""
+        window = min(size, 64 * 1024)
+        while True:
+            offset = size - window
+            try:
+                with open(self._path, "rb") as fh:
+                    fh.seek(offset)
+                    chunk = fh.read(window).decode("utf-8", errors="replace")
+            except OSError:
+                raise
+            lines = chunk.splitlines()
+            # When the window starts mid-file its first line is truncated.
+            if offset > 0 and lines:
+                lines = lines[1:]
+            for line in reversed(lines):
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    data = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                entry = self._entry_from_dict(data)
+                if entry is not None:
+                    if entry.chain_hash:
+                        return entry.chain_hash
+                    # 旁路写入方留下的无链记录（如 meta_cognitive_audit 只写
+                    # event/actor/action/details）不能当作链尾：继续向前找最后
+                    # 一条带 chain_hash 的记录。否则 log() 会以 previous_hash=""
+                    # 续写，使后续合法条目全部断链（历史 911 处断点即此根因）。
+                    continue
+            if window >= size:
+                return ""
+            window = min(size, window * 2)
 
     def count(self) -> int:
         return len(self._memory_entries)

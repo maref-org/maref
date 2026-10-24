@@ -37,6 +37,7 @@ class CapabilityListing:
     status: ListingStatus = ListingStatus.ACTIVE
     published_at: float = field(default_factory=time.time)
     metadata: dict[str, Any] = field(default_factory=dict)
+    license: str = "unknown"
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -48,6 +49,7 @@ class CapabilityListing:
             "sla": self.sla,
             "status": self.status.value,
             "published_at": self.published_at,
+            "license": self.license,
         }
 
 
@@ -73,11 +75,13 @@ class AgentMarketplace:
         discovery: AgentDiscovery | None = None,
         negotiator: AgentNegotiator | None = None,
         audit_store: UnifiedAuditStore | None = None,
+        governance_gate: Any | None = None,
     ) -> None:
         self._economy = economy or AgentEconomy()
         self._discovery = discovery
         self._negotiator = negotiator or AgentNegotiator()
         self._audit_store = audit_store or UnifiedAuditStore()
+        self._governance_gate = governance_gate
         self._listings: dict[str, CapabilityListing] = {}
         self._fulfilled: dict[str, NegotiationResult] = {}
 
@@ -90,6 +94,21 @@ class AgentMarketplace:
         return self._discovery
 
     def publish(self, listing: CapabilityListing) -> str:
+        if self._governance_gate is not None:
+            trust = float(listing.metadata.get("publisher_trust", 0.0))
+            validation = listing.metadata.get("validation")
+            provenance = listing.metadata.get("provenance_ledger")
+            decision = self._governance_gate.review_listing(
+                listing,
+                publisher_trust=trust,
+                validation=validation,
+                provenance=provenance,
+                asset_id=str(listing.metadata.get("provenance_asset_id", "")),
+            )
+            if not decision.allowed:
+                from maref.governance.marketplace_gate import MarketplacePolicyError
+
+                raise MarketplacePolicyError(decision)
         self._listings[listing.listing_id] = listing
         if self._discovery is not None:
             self._discovery.register_peer(

@@ -14,6 +14,7 @@ from maref.integration.a2a_bridge import A2ABridge, CommunicationBlockedError
 from maref.integration.a2a_client import A2AClient
 from maref.integration.a2a_discovery import A2ADiscovery
 from maref.integration.a2a_secure_transport import A2ASecureTransport, CertificateManager
+from maref.integration.a2a_semantic_guard import SemanticDecision, SemanticIntegrityGuard
 from maref.integration.a2a_server import create_a2a_router
 from maref.integration.a2a_types import (
     A2A_PROTOCOL_VERSION,
@@ -240,6 +241,8 @@ __all__ = [
     "CertificateManager",
     "CommunicationBlockedError",
     "create_a2a_router",
+    "SemanticIntegrityGuard",
+    "SemanticDecision",
     "DelegatedTask",
     "map_a2a_to_maref",
     "map_maref_to_a2a",

@@ -1,0 +1,100 @@
+[
+  {
+    "pattern_id": "1ec6e51347d3",
+    "attack_class": "anomaly_detected",
+    "attack_subtype": "verdict=unknown",
+    "trigger": "anomaly_verdict_unknown",
+    "count": 30,
+    "dimension": "anomaly"
+  },
+  {
+    "class": "ASI01_prompt_injection",
+    "trigger": "untrusted_input_in_system_prompt",
+    "pattern_id": "03da2d1263ca",
+    "attack_class": "ASI01_prompt_injection",
+    "attack_subtype": "theoretical",
+    "count": 0,
+    "dimension": "owasp_theoretical"
+  },
+  {
+    "class": "ASI02_output_handling",
+    "trigger": "sensitive_output_not_sanitized",
+    "pattern_id": "c859300c4c81",
+    "attack_class": "ASI02_output_handling",
+    "attack_subtype": "theoretical",
+    "count": 0,
+    "dimension": "owasp_theoretical"
+  },
+  {
+    "class": "ASI03_supply_chain",
+    "trigger": "unverified_plugin_loaded",
+    "pattern_id": "bc544dd9e68c",
+    "attack_class": "ASI03_supply_chain",
+    "attack_subtype": "theoretical",
+    "count": 0,
+    "dimension": "owasp_theoretical"
+  },
+  {
+    "class": "ASI04_data_poisoning",
+    "trigger": "untrusted_fine_tuning_data",
+    "pattern_id": "048de4fe5991",
+    "attack_class": "ASI04_data_poisoning",
+    "attack_subtype": "theoretical",
+    "count": 0,
+    "dimension": "owasp_theoretical"
+  },
+  {
+    "class": "ASI05_improper_error_handling",
+    "trigger": "error_context_leaked",
+    "pattern_id": "f38a626ad054",
+    "attack_class": "ASI05_improper_error_handling",
+    "attack_subtype": "theoretical",
+    "count": 0,
+    "dimension": "owasp_theoretical"
+  },
+  {
+    "class": "ASI06_excessive_agency",
+    "trigger": "unscoped_tool_permission",
+    "pattern_id": "4fb8db8cf678",
+    "attack_class": "ASI06_excessive_agency",
+    "attack_subtype": "theoretical",
+    "count": 0,
+    "dimension": "owasp_theoretical"
+  },
+  {
+    "class": "ASI07_system_prompt_leakage",
+    "trigger": "internal_prompt_exposed",
+    "pattern_id": "bfa8917b8225",
+    "attack_class": "ASI07_system_prompt_leakage",
+    "attack_subtype": "theoretical",
+    "count": 0,
+    "dimension": "owasp_theoretical"
+  },
+  {
+    "class": "ASI08_vector_weakness",
+    "trigger": "embedding_manipulation",
+    "pattern_id": "5479fc8ecb85",
+    "attack_class": "ASI08_vector_weakness",
+    "attack_subtype": "theoretical",
+    "count": 0,
+    "dimension": "owasp_theoretical"
+  },
+  {
+    "class": "ASI09_misinformation",
+    "trigger": "hallucinated_governance_output",
+    "pattern_id": "391932191bba",
+    "attack_class": "ASI09_misinformation",
+    "attack_subtype": "theoretical",
+    "count": 0,
+    "dimension": "owasp_theoretical"
+  },
+  {
+    "class": "ASI10_unbounded_consumption",
+    "trigger": "token_loop_detected",
+    "pattern_id": "72c6bb260a23",
+    "attack_class": "ASI10_unbounded_consumption",
+    "attack_subtype": "theoretical",
+    "count": 0,
+    "dimension": "owasp_theoretical"
+  }
+]

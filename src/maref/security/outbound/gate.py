@@ -241,10 +241,7 @@ class OutboundMessageGate:
         # DENY 优先级 1: 可执行/附件可执行载荷
         deny_flags = [f for f in payload_result.flags if f in _DENY_PAYLOAD_FLAGS]
         if deny_flags:
-            reasons.append(
-                "阻断: 出站载荷含可执行内容 "
-                f"({', '.join(f.value for f in deny_flags)})"
-            )
+            reasons.append(f"阻断: 出站载荷含可执行内容 ({', '.join(f.value for f in deny_flags)})")
             return GateDecision.DENY
 
         # DENY 优先级 2: 凭证索取 + 代码诱饵 组合 (明确恶意攻击链)
@@ -298,10 +295,7 @@ class OutboundMessageGate:
                 return GateDecision.HITL
 
         # 高危渠道 + 面向外部人类 → 保守人工确认
-        if (
-            message.channel in _HIGH_RISK_CHANNELS
-            and is_person
-        ):
+        if message.channel in _HIGH_RISK_CHANNELS and is_person:
             reasons.append("人工确认: 高危渠道向真实人类发送")
             return GateDecision.HITL
 
@@ -316,11 +310,7 @@ class OutboundMessageGate:
         message: OutboundMessage,
         verdict: OutboundVerdict,
     ) -> ObservationEvent:
-        severity = (
-            Severity.CRITICAL
-            if verdict.decision == GateDecision.DENY
-            else Severity.HIGH
-        )
+        severity = Severity.CRITICAL if verdict.decision == GateDecision.DENY else Severity.HIGH
         evidence: dict[str, Any] = {
             "channel": message.channel.value,
             # G3-I10: 接收方/URL 哈希化, 防 PII 明文入审计链
@@ -384,6 +374,4 @@ class MalformedOutboundCallError(Exception):
     """
 
     def __init__(self, detail: str = "") -> None:
-        super().__init__(
-            "OutboundMessageGate 无法解析出站调用参数 (fail-closed): " + detail
-        )
+        super().__init__("OutboundMessageGate 无法解析出站调用参数 (fail-closed): " + detail)

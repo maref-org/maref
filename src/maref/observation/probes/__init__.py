@@ -223,6 +223,13 @@ class BaseProbe(ABC):
     suitable for lightweight / stateless probes.
     """
 
+    # Class-level TTL cache shared across instances: heavy probes
+    # (gui_build / desktop / playwright) run real subprocess checks that
+    # take 5-30s each, so the reading is cached class-wide for the TTL.
+    _cached_reading: ProbeReading | None = None
+    _cached_at: float = 0.0
+    cache_ttl_s: float = 21600.0
+
     def __init__(
         self,
         name: str,
@@ -239,6 +246,21 @@ class BaseProbe(ABC):
     @abstractmethod
     def measure(self, context: dict[str, Any] | None = None) -> ProbeReading:
         """Take a single measurement and return the reading."""
+
+    def _measure_cached(self, context: dict[str, Any] | None = None) -> ProbeReading:
+        """measure() with TTL caching — subclasses call this instead of
+        implementing caching themselves. Returns the cached reading if the
+        cache is still fresh, otherwise runs measure() and caches it.
+        Cache is class-level so fresh instances share it."""
+        cls = type(self)
+        now = time.time()
+        cached: ProbeReading | None = getattr(cls, "_cached_reading", None)
+        if cached is not None and (now - getattr(cls, "_cached_at", 0.0)) < cls.cache_ttl_s:
+            return cached
+        reading = self.measure(context)
+        cls._cached_reading = reading
+        cls._cached_at = now
+        return reading
 
     def get_readings(self, n: int = 100) -> list[ProbeReading]:
         return self._readings[-n:]

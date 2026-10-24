@@ -1,0 +1,200 @@
+[
+  {
+    "vaccine_id": "VAX-0001",
+    "source_pattern": "1ec6e51347d3",
+    "attack_class": "anomaly_detected",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "anomaly_verdict_unknown",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: anomaly_detected"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-10-07T06:00:04.709349",
+      "merkle_root": "594a3949b03f404256b1c61231639a0f085eac27e56bdafeac647a845ca9e826"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0002",
+    "source_pattern": "03da2d1263ca",
+    "attack_class": "ASI01_prompt_injection",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "untrusted_input_in_system_prompt",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: ASI01_prompt_injection"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-10-07T06:00:04.709363",
+      "merkle_root": "20ab4ceac2909dc1140f5274a63fa74fb813d1bba09cd4859b467099b5b6fe2e"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0003",
+    "source_pattern": "c859300c4c81",
+    "attack_class": "ASI02_output_handling",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "sensitive_output_not_sanitized",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: ASI02_output_handling"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-10-07T06:00:04.709371",
+      "merkle_root": "020b9b858d468fb9dedd5b6aa299068e1de625a238b13d144c265a138752d8b8"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0004",
+    "source_pattern": "bc544dd9e68c",
+    "attack_class": "ASI03_supply_chain",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "unverified_plugin_loaded",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: ASI03_supply_chain"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-10-07T06:00:04.709376",
+      "merkle_root": "90e73aa70dd801f0de589130d9d01a74880378313849fd08ac547462ce06c4b8"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0005",
+    "source_pattern": "048de4fe5991",
+    "attack_class": "ASI04_data_poisoning",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "untrusted_fine_tuning_data",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: ASI04_data_poisoning"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-10-07T06:00:04.709380",
+      "merkle_root": "3568389858c7aa666fa408c0fe63aaeae3dfcf396d6e3424defc59be4d6d0506"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0006",
+    "source_pattern": "f38a626ad054",
+    "attack_class": "ASI05_improper_error_handling",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "error_context_leaked",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: ASI05_improper_error_handling"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-10-07T06:00:04.709384",
+      "merkle_root": "e600ca2b9c8f1b6ba4e23b77d892fa5ebd8d882676fddbb90229add3bd0d0329"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0007",
+    "source_pattern": "4fb8db8cf678",
+    "attack_class": "ASI06_excessive_agency",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "unscoped_tool_permission",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: ASI06_excessive_agency"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-10-07T06:00:04.709387",
+      "merkle_root": "f90b4b15be26de48bae282832612f4f598efd7d943e9ace6f1e4f67112cfee03"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0008",
+    "source_pattern": "bfa8917b8225",
+    "attack_class": "ASI07_system_prompt_leakage",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "internal_prompt_exposed",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: ASI07_system_prompt_leakage"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-10-07T06:00:04.709390",
+      "merkle_root": "835aeafe4b721e1b232c39ce29c521047be385245594c917e7b51e8c2fe58996"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0009",
+    "source_pattern": "5479fc8ecb85",
+    "attack_class": "ASI08_vector_weakness",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "embedding_manipulation",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: ASI08_vector_weakness"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-10-07T06:00:04.709393",
+      "merkle_root": "93893ad0cb2a5935b7910b978654f8bde3795b9008d2b772bff6b965677ad345"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0010",
+    "source_pattern": "391932191bba",
+    "attack_class": "ASI09_misinformation",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "hallucinated_governance_output",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: ASI09_misinformation"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-10-07T06:00:04.709396",
+      "merkle_root": "5b302fc8e9c28fb27e1f8fa607370b1ce635aa5451ecc829d5b5487096990cc7"
+    },
+    "status": "candidate"
+  },
+  {
+    "vaccine_id": "VAX-0011",
+    "source_pattern": "72c6bb260a23",
+    "attack_class": "ASI10_unbounded_consumption",
+    "product": {
+      "safetygate_rule": {
+        "type": "block_pattern",
+        "pattern": "token_loop_detected",
+        "action": "DENY",
+        "reason": "\u75ab\u82d7\u963b\u65ad: ASI10_unbounded_consumption"
+      }
+    },
+    "batch": {
+      "compiled_at": "2026-10-07T06:00:04.709399",
+      "merkle_root": "10da169717eef4f59a81fb52efbe934fc9a209e22735f6281f837589e3b1b06f"
+    },
+    "status": "candidate"
+  }
+]
