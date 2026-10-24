@@ -57,6 +57,7 @@ data/logs/*
 !data/logs/.gitkeep
 data/raw/*
 !data/raw/.gitkeep
+data/github_insights/
 results/experiments/*
 !results/experiments/.gitkeep
 

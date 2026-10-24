@@ -1,0 +1,108 @@
+# Commercial agent action risk policy (P0-A).
+#
+# Point MAREF_COMMERCIAL_ACTIONS_PATH at this file to activate route-evidence
+# enforcement in GovernedPipeline.  When the policy is loaded, actions at or
+# above route_required_levels must carry a valid model_route_decision id.
+#
+# Semantics:
+# - Rules are evaluated top to bottom; the first match wins.
+# - Unclassified actions fall back to default_level (L3, fail-closed).
+# - Patterns use fnmatch syntax ("pricing.*", "refund.execute", "*").
+# - purpose_id is a controlled identifier used for evidence purpose binding;
+#   it must come from this file, never from free-form user input.
+
+version: 1
+epoch: "2026-10-20"
+default_level: L3
+route_required_levels:
+  - L2
+  - L3
+
+levels:
+  L0:
+    description: read-only commerce queries and public knowledge
+    route_evidence: optional
+  L1:
+    description: workspace/content writes without business-system side effects
+    route_evidence: optional
+  L2:
+    description: business-system writes (price, stock, order, dispatch)
+    route_evidence: required
+  L3:
+    description: funds, contracts, invoices and other irreversible actions
+    route_evidence: required
+
+actions:
+  # L0 — read-only
+  - match: "catalog.*"
+    level: L0
+    purpose_id: "commerce.catalog.read"
+  - match: "product.*"
+    level: L0
+    purpose_id: "commerce.product.read"
+  - match: "inventory.query"
+    level: L0
+    purpose_id: "commerce.inventory.read"
+  - match: "order.query"
+    level: L0
+    purpose_id: "commerce.order.read"
+  - match: "knowledge.*"
+    level: L0
+    purpose_id: "commerce.knowledge.read"
+  - match: "faq.*"
+    level: L0
+    purpose_id: "commerce.faq.read"
+
+  # L1 — content/workspace writes
+  - match: "content.draft"
+    level: L1
+    purpose_id: "commerce.content.draft"
+  - match: "copy.*"
+    level: L1
+    purpose_id: "commerce.content.copy"
+  - match: "report.generate"
+    level: L1
+    purpose_id: "commerce.report.generate"
+
+  # L2 — business system writes
+  - match: "pricing.*"
+    level: L2
+    purpose_id: "commerce.pricing.change"
+  - match: "inventory.adjust"
+    level: L2
+    purpose_id: "commerce.inventory.adjust"
+  - match: "order.update"
+    level: L2
+    purpose_id: "commerce.order.update"
+  - match: "promotion.*"
+    level: L2
+    purpose_id: "commerce.promotion.change"
+  - match: "logistics.dispatch"
+    level: L2
+    purpose_id: "commerce.logistics.dispatch"
+  - match: "customer.*"
+    level: L2
+    purpose_id: "commerce.customer.write"
+  - match: "refund.request"
+    level: L2
+    purpose_id: "commerce.refund.request"
+
+  # L3 — funds / contracts / irreversible
+  - match: "payment.*"
+    level: L3
+    purpose_id: "commerce.payment.execute"
+  - match: "refund.execute"
+    level: L3
+    purpose_id: "commerce.refund.execute"
+  - match: "contract.*"
+    level: L3
+    purpose_id: "commerce.contract.sign"
+  - match: "invoice.*"
+    level: L3
+    purpose_id: "commerce.invoice.issue"
+  - match: "supplier.commit"
+    level: L3
+    purpose_id: "commerce.supplier.commit"
+  - match: "account.credit"
+    level: L3
+    purpose_id: "commerce.account.credit"
