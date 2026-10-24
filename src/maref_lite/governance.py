@@ -30,6 +30,9 @@ from maref.governance import (
     GovernanceStateMachine,
     OscillationFixLoop,
 )
+from maref.governance import (
+    CircuitBreaker as CircuitBreaker,
+)
 from maref.observation.detector import DualThresholdConfig, DualThresholdDetector
 from maref.observation.probes import (
     AnomalyProbe,
@@ -40,6 +43,7 @@ from maref.observation.probes import (
 )
 from maref.observation.registry import ProbeRegistry
 from maref.observation.store import ObservationStore
+from maref.recursive.meta_governance import MetaGovernance as MetaGovernance
 from sidecar.collector import ObservationCollector
 from sidecar.monitor import Anomaly, CompositeMonitor
 
