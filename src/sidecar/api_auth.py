@@ -40,20 +40,51 @@ _SCOPE_MAP: dict[str, str] = {}
 _API_KEYS: list[str] = []
 _ALLOWED_SCOPES: list[str] = []
 
+_credential_manager_instance: Any = None
+
+
+def _get_credential_manager() -> Any:
+    """获取 CredentialManager 单例（避免重复实例化）"""
+    global _credential_manager_instance
+    if _credential_manager_instance is None:
+        from maref.identity.credential_manager import CredentialManager
+
+        _credential_manager_instance = CredentialManager()
+    return _credential_manager_instance
+
+
+def _reset_credential_manager() -> None:
+    """重置 CredentialManager 单例（仅用于测试）"""
+    global _credential_manager_instance
+    _credential_manager_instance = None
+
 
 def _load_keys() -> None:
     global _API_KEYS, _ALLOWED_SCOPES
     if _API_KEYS:
         return
-    raw = os.environ.get("MAREF_API_KEY", "")
-    raw2 = os.environ.get("MAREF_API_KEY_2", "")
+
+    raw = raw2 = scopes_raw = ""
+    # 优先使用 CredentialManager；不可用或无值则回退环境变量
+    try:
+        manager = _get_credential_manager()
+        raw = manager.get("MAREF_API_KEY") or ""
+        raw2 = manager.get("MAREF_API_KEY_2") or ""
+        scopes_raw = manager.get("MAREF_API_KEY_SCOPES") or ""
+    except Exception:
+        pass
+
+    raw = raw or os.environ.get("MAREF_API_KEY", "")
+    raw2 = raw2 or os.environ.get("MAREF_API_KEY_2", "")
+    scopes_raw = scopes_raw or os.environ.get("MAREF_API_KEY_SCOPES", "")
+
     keys = []
     if raw:
         keys.append(raw.strip())
     if raw2:
         keys.append(raw2.strip())
     _API_KEYS = keys
-    scopes_raw = os.environ.get("MAREF_API_KEY_SCOPES", "")
+
     _ALLOWED_SCOPES = [s.strip() for s in scopes_raw.split(",") if s.strip()]
 
 

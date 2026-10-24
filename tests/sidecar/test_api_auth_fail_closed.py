@@ -28,15 +28,20 @@ from sidecar.api_auth import (
     APIKeyManager,
     AuthMiddleware,
     _register_route_scope,
+    _reset_credential_manager,
     require_auth,
 )
 
 
 @pytest.fixture(autouse=True)
 def clear_keys():
+    _reset_credential_manager()
     APIKeyManager.reload()
+    _reset_credential_manager()
     yield
+    _reset_credential_manager()
     APIKeyManager.reload()
+    _reset_credential_manager()
 
 
 @pytest.fixture

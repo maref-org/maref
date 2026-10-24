@@ -139,6 +139,7 @@ from maref.recursive.distributed_bft import (
 from maref.recursive.distributed_bft import (
     ConsensusResult as BFTConsensusResult,
 )
+from maref.recursive.policy_prover import PolicyProver, ReachabilityProof
 
 try:
     from maref.recursive.distributed_crdt import (
@@ -703,6 +704,8 @@ __all__ = [
     "InteractionRisk",
     "Predicate",
     "build_default_capability_contracts",
+    "PolicyProver",
+    "ReachabilityProof",
     "Saga",
     "SagaState",
     "SagaStep",
@@ -839,6 +842,33 @@ __all__ = [
 # Lazy-loaded symbols from federated_saga_orchestrator. Importing at
 # module load time would create a circular dependency:
 #   maref.federation -> maref.orchestration -> maref.recursive -> federated_saga_orchestrator
+
+# Phase 2 自愈动作库与 Reflexion
+from maref.recursive.healing_actions import (
+    VERIFIERS,
+    HealingStrategy,
+    execute_healing,
+    route_strategy,
+)
+from maref.recursive.reflexion_bridge import (
+    build_reflection_context,
+    check_recurrence,
+    record_reflection,
+    search_reflections,
+)
+
+__all__ += [
+    # Phase 2 自愈动作库与 Reflexion 桥接
+    "VERIFIERS",
+    "HealingStrategy",
+    "execute_healing",
+    "route_strategy",
+    "build_reflection_context",
+    "check_recurrence",
+    "record_reflection",
+    "search_reflections",
+]
+
 _LAZY_FEDERATED_SAGA_EXPORTS = {
     "FederatedSagaOrchestrator",
     "FederatedSagaResult",

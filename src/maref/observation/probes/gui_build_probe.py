@@ -37,7 +37,7 @@ class GUIBuildProbe(BaseProbe):
         )
         self.gui_dir = gui_dir
 
-    def _run_pnpm(self, args: list[str], timeout: int = 120) -> tuple[int, str, str]:
+    def _run_pnpm(self, args: list[str], timeout: int = 30) -> tuple[int, str, str]:
         try:
             r = subprocess.run(
                 ["pnpm", *args],
@@ -64,19 +64,28 @@ class GUIBuildProbe(BaseProbe):
             self._readings.append(reading)
             return reading
 
-        lint_code, lint_out, lint_err = self._run_pnpm(["lint"])
-        ts_errors = self._count_ts_errors(lint_err + lint_out)
-
-        build_code, build_out, build_err = self._run_pnpm(["build"], timeout=300)
-        bundle_size = self._measure_bundle_size()
-
-        deps_code, deps_out, _ = self._run_pnpm(["outdated", "--json"])
-        stale_deps = self._parse_outdated(deps_out) if deps_code == 0 else -1
+        # 进化守护路径：短超时，避免 pnpm 挂起拖死整周期（A-2 根因 2026-09-23）
+        # FAST 跳过 build 时不得按失败计分——否则恒 build_code=-1 → value≈0.6
+        # 触发 gui_build WARNING 假 hypothesis 污染 vault（P0 2026-09-23）。
+        fast_mode = os.environ.get("MAREF_EVOLUTION_FAST") == "1"
+        if fast_mode:
+            lint_code, lint_out, lint_err = self._run_pnpm(["lint"], timeout=15)
+            ts_errors = self._count_ts_errors(lint_err + lint_out)
+            build_code, build_out, build_err = 0, "", "skipped (fast)"
+            bundle_size = self._measure_bundle_size()
+            stale_deps = -1
+        else:
+            lint_code, lint_out, lint_err = self._run_pnpm(["lint"], timeout=30)
+            ts_errors = self._count_ts_errors(lint_err + lint_out)
+            build_code, build_out, build_err = self._run_pnpm(["build"], timeout=60)
+            bundle_size = self._measure_bundle_size()
+            deps_code, deps_out, _ = self._run_pnpm(["outdated", "--json"], timeout=15)
+            stale_deps = self._parse_outdated(deps_out) if deps_code == 0 else -1
 
         value = 1.0
         if lint_code != 0:
             value -= 0.3
-        if build_code != 0:
+        if not fast_mode and build_code != 0:
             value -= 0.4
         if ts_errors > 0:
             value -= 0.1 * min(ts_errors, 5)
@@ -96,7 +105,8 @@ class GUIBuildProbe(BaseProbe):
             threshold=self.critical_threshold,
             context={
                 "lint_passes": lint_code == 0,
-                "build_success": build_code == 0,
+                "build_success": build_code == 0 if not fast_mode else None,
+                "build_skipped": fast_mode,
                 "ts_errors": ts_errors,
                 "bundle_size_kb": bundle_size,
                 "stale_dependencies": stale_deps,

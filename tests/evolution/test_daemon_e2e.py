@@ -8,6 +8,7 @@ import pytest
 
 from maref.evolution.daemon import DaemonConfig, EvolutionDaemon
 from maref.evolution.daily_loop import DailyEvolutionResult
+from maref.infra.state import OpenClawState
 
 
 @pytest.mark.slow
@@ -18,7 +19,7 @@ def test_daemon_run_once_increments_state(tmp_path: Path) -> None:
         dry_run=False,
         interval_hours=0.0,
     )
-    daemon = EvolutionDaemon(config)
+    daemon = EvolutionDaemon(config, store=OpenClawState("daemon_e2e", state_dir=tmp_path))
 
     fake_result = DailyEvolutionResult(
         day="2026-06-28",
@@ -44,7 +45,7 @@ def test_daemon_run_once_handles_none_result(tmp_path: Path) -> None:
         dry_run=False,
         interval_hours=0.0,
     )
-    daemon = EvolutionDaemon(config)
+    daemon = EvolutionDaemon(config, store=OpenClawState("daemon_e2e", state_dir=tmp_path))
 
     with patch.object(daemon._loop, "run_once", return_value=None):
         asyncio.run(daemon.run_once())

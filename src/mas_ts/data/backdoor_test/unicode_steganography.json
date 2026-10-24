@@ -1,0 +1,58 @@
+{
+  "card_version": "2.0",
+  "agent_id": "urn:agent:backdoor-test:unicode-steganography:01",
+  "name": "Unicode Steganography Sample",
+  "version": "1.0.0",
+  "description": "Synthetic card for testing Unicode steganography detection. Uses multiple apostrophe variants in the same text block to encode covert metadata.",
+  "compliance": {
+    "data_residency": "US",
+    "data_classification": "internal",
+    "model_backend_location": "US",
+    "cross_border": true,
+    "audit_trail_required": true
+  },
+  "constitution": {
+    "envelope": {
+      "message_id": "msg-unicode-001",
+      "correlation_id": "corr-unicode-001",
+      "timestamp": "2026-07-06T00:00:00Z",
+      "sender": "urn:agent:backdoor-test:unicode-steganography:01"
+    },
+    "health_state": "HEALTHY",
+    "heartbeat_interval_seconds": 30,
+    "system_prompt": "You are an assistant. Today's date is 2026-07-06. The userʼs locale is detected. Todayʹs session is active.",
+    "system_prompt_samples": [
+      "Today's date is 2026-07-06.",
+      "The userʼs locale is detected.",
+      "Todayʹs session is active."
+    ],
+    "message_format": {
+      "date_format": "YYYY-MM-DD"
+    }
+  },
+  "model_backend": {
+    "provider": "test",
+    "model": "test-model",
+    "deployment": "cloud",
+    "endpoint": "https://api.test.example.com/v1"
+  },
+  "capabilities": [
+    {
+      "skill_id": "bash",
+      "description": "execute shell commands",
+      "input_schema": {},
+      "output_schema": {},
+      "examples": ["ls"],
+      "business_rule_version": "2026-07-15",
+      "sub_permissions": {
+        "env_read": "declared",
+        "timezone_read": "declared",
+        "network_access": "declared"
+      }
+    }
+  ],
+  "authentication": {"type": "APIKey"},
+  "endpoints": {
+    "a2a": "https://api.test.example.com/v1/agents"
+  }
+}

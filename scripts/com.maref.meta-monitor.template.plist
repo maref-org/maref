@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>MAREF_AUDIT_PATH</key>
+		<string>__PROJECT_ROOT__/.governance</string>
+		<key>MAREF_META_PATH</key>
+		<string>__PROJECT_ROOT__/.governance/meta</string>
+		<key>MAREF_PROJECT_ROOT</key>
+		<string>__PROJECT_ROOT__</string>
+		<key>PYTHONPATH</key>
+		<string>__PROJECT_ROOT__/src</string>
+	</dict>
+	<key>KeepAlive</key>
+	<true/>
+	<key>Label</key>
+	<string>com.maref.meta-monitor</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>__PYTHON__</string>
+		<string>-m</string>
+		<string>maref.observability.meta_monitor</string>
+		<string>--daemon</string>
+		<string>--interval</string>
+		<string>300</string>
+	</array>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>StandardErrorPath</key>
+	<string>/tmp/com.maref.meta-monitor.stderr.log</string>
+	<key>StandardOutPath</key>
+	<string>/tmp/com.maref.meta-monitor.stdout.log</string>
+	<key>ThrottleInterval</key>
+	<integer>5</integer>
+	<key>WorkingDirectory</key>
+	<string>__PROJECT_ROOT__</string>
+</dict>
+</plist>

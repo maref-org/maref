@@ -27,6 +27,8 @@ from sidecar.collector import MockAgentAdapter, ObservationCollector
 from sidecar.config_router import router as config_router
 from sidecar.federation_router import router as federation_router
 from sidecar.gaas_router import router as gaas_router
+from sidecar.governance_ops_router import router as governance_ops_router
+from sidecar.governance_query_router import router as governance_query_router
 from sidecar.mcp_bridge import SIDECAR_MCP_TOOLS, SidecarMCPBridge
 from sidecar.mcp_gateway import MCPGateway, create_mcp_gateway_router
 from sidecar.monitor import CompositeMonitor
@@ -1050,6 +1052,8 @@ class SidecarFastAPI(FastAPI):
         self.include_router(telemetry_router)
         self.include_router(vaccine_router)
         self.include_router(proposal_router)
+        self.include_router(governance_query_router)
+        self.include_router(governance_ops_router)
         a2a_bridge = create_a2a_bridge()
         _signing_key = os.environ.get("MAREF_A2A_SIGNING_KEY")
         self.include_router(create_a2a_router(
@@ -1084,6 +1088,8 @@ def create_app(collector: ObservationCollector, monitor: CompositeMonitor, obs_b
     app.include_router(telemetry_router)
     app.include_router(vaccine_router)
     app.include_router(proposal_router)
+    app.include_router(governance_query_router)
+    app.include_router(governance_ops_router)
     a2a_bridge = create_a2a_bridge()
     _signing_key = os.environ.get("MAREF_A2A_SIGNING_KEY")
     app.include_router(create_a2a_router(

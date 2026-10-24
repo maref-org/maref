@@ -26,7 +26,12 @@ class HealthSnapshotWriter:
         interval_seconds: float = 60.0,
     ) -> None:
         if snapshot_path is None:
-            base = Path(os.environ.get("MAREF_AUDIT_PATH", ".governance"))
+            try:
+                from maref._paths import get_governance_base
+
+                base = get_governance_base()
+            except Exception:
+                base = Path(os.environ.get("MAREF_AUDIT_PATH", ".governance")).resolve()
             self._path = base / "health_snapshot.json"
         else:
             self._path = Path(snapshot_path)

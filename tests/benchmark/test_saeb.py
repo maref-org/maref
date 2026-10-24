@@ -232,22 +232,17 @@ def test_recursive_pipeline_chain() -> None:
     )
 
     proceed = diagnostician.check_and_trip(diagnosis)
-    assert proceed is True, "check_and_trip should return True when defects exist"
+    assert proceed is False, "Single system-health critical should fail fast"
     assert diagnostician._trip_count == 1, "Trip count should increment"
+    assert diagnostician._cb_state == "OPEN"
 
     check_again = diagnostician.check_and_trip(diagnosis)
-    assert check_again is True, "Should still allow fixing (trip_count < 4)"
-
-    for _ in range(2):
-        diagnostician.check_and_trip(diagnosis)
-    assert diagnostician._trip_count == 4
-
-    blocked = diagnostician.check_and_trip(diagnosis)
-    assert blocked is False, "Should trip after 4 critical detections"
-    assert diagnostician._cb_state == "OPEN"
+    assert check_again is False, "Open breaker should stay blocking"
+    assert diagnostician.is_blocked() is True
 
     diagnostician.close()
     assert diagnostician._cb_state == "CLOSED"
+    assert diagnostician.is_blocked() is False
 
 
 @pytest.fixture

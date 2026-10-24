@@ -1,0 +1,28 @@
+name: Dependency Audit
+
+# 依赖漏洞审计独立于 Release Gate：
+# - 当前存在已知传递依赖 CVE，直接阻断 PR 会使所有发布门禁红灯；
+# - 但也不能用 `|| true` / `continue-on-error` 伪装成通过；
+# - 因此保留一个会真实失败、按周运行的审计任务，修复完成后可并入 release-gate。
+on:
+  schedule:
+    - cron: "0 2 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pip-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          pip install -e ".[dev,sidecar,otel,a2a,orchestration,identity]"
+          pip install pip-audit
+      - name: pip-audit
+        run: pip-audit --desc on
