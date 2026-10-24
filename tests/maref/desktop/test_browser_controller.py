@@ -66,7 +66,8 @@ class TestBrowserResult:
 class TestBrowserController:
     def test_default_init(self) -> None:
         bc = BrowserController()
-        assert bc.dry_run is True
+        # 文档契约：未提供 dry_run/env 时默认 live mode
+        assert bc.dry_run is False
         assert bc.browser_type == BrowserType.CHROMIUM
 
     def test_dry_run_from_constructor(self) -> None:
@@ -92,7 +93,7 @@ class TestBrowserController:
         assert bc.is_safe_domain("not-a-url") is False
 
     def test_navigate_dry_run(self) -> None:
-        bc = BrowserController()
+        bc = BrowserController(dry_run=True)
         result = bc.navigate("https://docs.python.org")
         assert result.success is True
         assert "[DRY RUN]" in result.text

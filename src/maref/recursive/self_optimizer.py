@@ -110,6 +110,7 @@ class SelfOptimizer:
         adopt_threshold: float = 0.05,
         benchmark_fn: Callable[[], dict[str, float]] | None = None,
         apply_fn: Callable[[], None] | None = None,
+        benchmark_scope: str = "module",
     ) -> None:
         self._adopt_threshold = adopt_threshold
         self._hypotheses: list[OptimizationHypothesis] = []

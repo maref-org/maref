@@ -38,6 +38,13 @@ from maref.orchestration.task_graph import (
     TaskNode,
     TaskStatus,
 )
+from maref.orchestration.topology_policy import (
+    ERROR_AMPLIFICATION,
+    TopologyKind,
+    TopologyPolicy,
+    TopologyRecommendation,
+    preset_roles,
+)
 
 # Lazy module references for the federated plan executor.
 # Imported on first attribute access to avoid the circular dependency
@@ -83,6 +90,12 @@ __all__ = [
     "MergeResult",
     "Conflict",
     "ParallelStrategy",
+    # Topology-as-policy (P2-9)
+    "TopologyKind",
+    "TopologyPolicy",
+    "TopologyRecommendation",
+    "ERROR_AMPLIFICATION",
+    "preset_roles",
 ]
 
 _FEDERATED_EXPORTS = {

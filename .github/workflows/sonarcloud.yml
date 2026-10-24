@@ -17,11 +17,14 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install dependencies
-        run: pip install -e ".[all,dev,identity,orchestration,otel,a2a]"
+        run: pip install -e ".[ml,sidecar,dev,desktop,identity,orchestration,otel,a2a]"
       - name: Run tests with coverage
         run: |
-          coverage run -m pytest tests/ -q --timeout=120 -m "not integration and not chaos and not benchmark and not real" --ignore=tests/maref/compliance
-          coverage report --cov=src/maref --cov-report=xml:coverage.xml
+          # pytest-cov 单层收集(同 ci.yml)：coverage run -m pytest 与 pyproject
+          # addopts --cov(pytest-cov) 双层 coverage 会 collector 冲突。
+          # 测试选择与 ci.yml 对齐：slow/real 依赖本机 git 历史或硬件，
+          # desktop 为 macOS 套件，均不在 ubuntu 无头环境执行。
+          pytest tests/ -q --timeout=120 -m "not integration and not chaos and not benchmark and not slow and not real" --ignore=tests/maref/compliance --ignore=tests/desktop --ignore=tests/test_crypto.py --cov-report=xml:coverage.xml
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
         env:

@@ -379,13 +379,9 @@ class FeatureDevelopmentCycle:
                     f"Static Audit={score:.0f}: need more plan items ({plan_items}) or stages ({stages})"
                 )
             elif name == "Action Metrics":
-                parts.append(
-                    f"Action Metrics={score:.0f}: need more requirements covered ({reqs})"
-                )
+                parts.append(f"Action Metrics={score:.0f}: need more requirements covered ({reqs})")
             elif name == "E2E Metrics":
-                parts.append(
-                    f"E2E Metrics={score:.0f}: need more deployment stages ({stages})"
-                )
+                parts.append(f"E2E Metrics={score:.0f}: need more deployment stages ({stages})")
             else:
                 parts.append(f"{name}={score:.0f}: improve coverage")
         return "; ".join(parts[:3]) if parts else "All layers at target."

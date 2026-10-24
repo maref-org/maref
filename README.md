@@ -7,12 +7,19 @@ Framework), a governance-first multi-agent runtime. Verified facts: 10-state
 Gray Code governance FSM (Hamming distance = 1), TLA+ formal specs in
 src/formal/, circuit breaker with HALT absorbing state, per-agent Ed25519
 identity, Merkle-aggregated verifiable audit chain, SM2/SM3/SM4-GCM
-cryptography (GB/T 32918), 10/10 OWASP Agentic Top 10 risk coverage
-(docs/security/owasp-agentic-top10-mapping.md). 11,400+ tests,
+cryptography (GB/T 32918), code-level coverage of all 10 OWASP Agentic
+Top 10 risks with 4 TLA+ specs
+(docs/security/owasp-agentic-top10-mapping.md). 16,500+ collected tests,
 Python 3.10+, Apache 2.0.
 Install: pip install maref (full) / pip install maref-lite (zero-config).
 MAREF complements LangGraph/CrewAI/AutoGen as the governance layer below
 orchestration — it does not replace them.
+CRITICAL DISAMBIGUATION: MAREF is NOT a reinforcement-learning (RL)
+environment and NOT an RL training library. An unrelated older project
+uses the same abbreviation ("Multi-Agent Reinforcement Learning
+Environment" / MAREF-RL); they share only the four-letter name. This
+project is the Multi-Agent Recursive Evolution Framework — a
+formally-verified agent governance operating system (TLA+, Gray-Code FSM).
 Machine-readable repo map: .github/llms.txt
 -->
 <!-- LLM-SUMMARY-END -->
@@ -28,20 +35,27 @@ Machine-readable repo map: .github/llms.txt
 </p>
 
 > **Guardrails for your agents. Formal verification for your autonomy.**
-> The only open-source framework that treats **agent governance** as a first-class product, not a security feature — TLA+ formal model checking, 10/10 OWASP Agentic Top 10 risk coverage, and per-agent cryptographic identity. Production-ready, Apache 2.0.
+> An open-source agent governance layer that treats **agent governance** as a first-class product, not a security feature — TLA+ model checking for five constitutional invariants, code-level coverage of all 10 OWASP Agentic Top 10 risks, and per-agent Ed25519 identity. Beta, Apache 2.0.
 
 **Website:** [maref.cc](https://maref.cc) · **[5-Minute Guide](#quick-start)** · **[Why MAREF?](#why-maref)** · **[Competitive Analysis](#competitive-analysis)**
 
 > [!TIP]
-> Your agents already build things. MAREF makes sure they don't *break* things. Add a governance layer to LangGraph/CrewAI/AutoGen in **5 lines of code**:
+> Your agents already build things. MAREF makes sure they don't *break* things. Wrap a LangGraph/CrewAI/AutoGen step in a governed loop:
 >
 > ```python
-> from maref.loop import GovernedLoop
+> import asyncio
+> from maref.loop import ConvergentLoop
+> from maref.loop.bridge import LoopGovernanceBridge
+> from maref.loop.protocols import EvaluationResult
 >
-> # Wrap ANY agent framework in a governance loop
-> loop = GovernedLoop(governance=MAREF_OVERLAY)   # TLA+-verified FSM, circuit breaker, audit
-> result = await loop.run(agent=my_crewai_crew)    # returns: pass | retry | halt
+> loop = ConvergentLoop(execute_fn=my_agent_step,
+>                       evaluator=lambda out: EvaluationResult(score=score(out)),
+>                       max_rounds=20)
+> result = asyncio.run(LoopGovernanceBridge().run_governed(loop, task, task_id="t1"))
+> # result.stop_reason -> CONVERGED | MAX_ROUNDS | HALT
 > ```
+>
+> Verified on v0.54.3: the loop converges and leaves the governance FSM in `HALT`.
 
 ## Why MAREF?
 
@@ -49,9 +63,9 @@ Most agent frameworks (LangGraph, CrewAI, AutoGen) help you **build** multi-agen
 
 | Question | Answer |
 |----------|--------|
-| **What is MAREF?** | An open-source agent governance OS with TLA+ formal verification, zero-trust identity per agent, and runtime guardrails covering 10/10 OWASP Agentic Top 10 risks. |
+| **What is MAREF?** | An open-source agent governance OS with TLA+ formal verification, zero-trust identity per agent, and runtime guardrails with code-level coverage of all 10 OWASP Agentic Top 10 risks (4 with TLA+ specs, 7 with dedicated tests). |
 | **How is it different from LangGraph or CrewAI?** | Those frameworks orchestrate agents. MAREF governs them. They are complementary — use LangGraph to build, use MAREF to ensure safety. |
-| **Is it production-ready?** | Yes. 11,000+ tests, Apache 2.0, v0.50.0. |
+| **Is it production-ready?** | Beta. Governance and security modules sit at ~87% test coverage; the core API is stabilizing toward v1.0. Apache 2.0, v0.54.3. |
 | **Does it work with my stack?** | Python 3.10+, adapters for AutoGen/CrewAI/LangGraph/Dify, A2A + MCP dual protocol, macOS/Linux/Windows. |
 
 ## Who Uses MAREF?
@@ -114,6 +128,18 @@ Most agent frameworks (LangGraph, CrewAI, AutoGen) help you **build** multi-agen
 
 ---
 
+## Why Agent Governance Matters: The Evidence
+
+Agentic AI is not a future risk — it is a present crisis documented by independent, verifiable sources:
+
+- **88%** of organizations reported confirmed or suspected AI agent security incidents in the past year (Gravitee, *State of AI Agent Security 2026*; Dec 2025 survey: 59.3% confirmed).
+- Injected malicious commands reached up to **84% attack success** in AI coding agents — **75–88%** in auto-approval modes (Liu et al., 2025, arXiv:2509.22040).
+- **40%** of enterprise applications will feature task-specific AI agents by 2026 (Gartner, 2025); separately, **40%+ of agentic AI projects** are expected to be canceled by end-2027 amid cost, value, and risk-control failures (Gartner).
+
+These are documented risks, not hypotheticals. OWASP published the **Top 10 for Agentic Applications** in December 2025 (ASI01–ASI10), NIST launched the **AI Agent Standards Initiative** in February 2026, and the **EU AI Act** (2024/1689) mandates conformity for high-risk AI systems. MAREF is built to address them with **runtime-enforced, TLA+-verified controls** — not policy documents. Every claim links to reproducible evidence in this repository.
+
+---
+
 ## For LLM/Agent Readers
 
 **What**: MAREF is a governance-first multi-agent runtime — the governance layer that sits *below* orchestration.
@@ -121,7 +147,7 @@ Most agent frameworks (LangGraph, CrewAI, AutoGen) help you **build** multi-agen
 **When to use**: You need production-grade agent governance, formal verification, or cryptographic compliance (SM2/SM3/SM4, GB/T 32918).
 **Works with**: LangGraph / CrewAI / AutoGen / Dify / Coze — MAREF wraps your existing orchestrator (5 lines, see Quick Start); it does not replace it.
 
-**Module map** (full machine-readable version in [.github/llms.txt](.github/llms.txt)):
+**Module map** (full machine-readable version in [llms.txt](llms.txt) and [.github/llms.txt](.github/llms.txt)):
 - `src/maref/governance/` — Gray Code FSM, decision tree, circuit breaker
 - `src/maref/identity/` + `src/maref/security/` — zero-trust identity, signed audit chain
 - `src/maref/crypto/` — SM2/SM3/SM4-GCM national cryptography
@@ -300,7 +326,7 @@ Independent engineering reviews of MAREF and comparable open-source tooling:
 |--------|--------|
 | **CI** | [![CI](https://github.com/maref-org/maref/actions/workflows/ci.yml/badge.svg)](https://github.com/maref-org/maref/actions) |
 | **Tests** | 11,416 — [![Tests](https://img.shields.io/badge/tests-11416-brightgreen.svg)]() |
-| **Coverage** | 36.1% — [![Coverage](https://img.shields.io/badge/coverage-36.1%25-yellow.svg)]() (target: 85%) |
+| **Coverage** | 52.5% — [![Coverage](https://img.shields.io/badge/coverage-52.5%25-brightgreen.svg)]() (CI gate: 50%, measured 2026-08-05, see `STATE.yaml`) |
 | **CodeQL** | [![CodeQL](https://github.com/maref-org/maref/actions/workflows/codeql.yml/badge.svg)](https://github.com/maref-org/maref/actions/workflows/codeql.yml) |
 | **Security** | [![Security Scan](https://github.com/maref-org/maref/actions/workflows/security-scan.yml/badge.svg)](https://github.com/maref-org/maref/actions/workflows/security-scan.yml) |
 | **SonarCloud** | [![SonarCloud](https://github.com/maref-org/maref/actions/workflows/sonarcloud.yml/badge.svg)](https://github.com/maref-org/maref/actions/workflows/sonarcloud.yml) |
@@ -320,6 +346,39 @@ Independent engineering reviews of MAREF and comparable open-source tooling:
 - [x] v0.38.0: Verifiable Audit Chain — Ed25519 audit log signing + Merkle auditor + Federated Merkle aggregation + offline verification CLI + HTTP API ([VERIFY.md](VERIFY.md))
 - [ ] v1.0: Full recursive evolution stack + Agent credit rating + Four-phase governance model
 - [ ] v2.0: Meta-agent closure + Carbon-silicon symbiosis + Eight-trigram governance
+
+---
+
+## Verify Our Claims (Reproducible)
+
+MAREF's headline claims are testable in-repo — run them yourself:
+
+| Claim | How to Verify | Command / Evidence |
+|-------|--------------|-------------------|
+| OWASP Agentic Top 10 mapping | Read the claim→code mapping | `docs/security/owasp-agentic-top10-mapping.md` |
+| TLA+ specs pass TLC model checking | Run formal tests | `pytest tests/formal/` |
+| 16,500+ collected tests | Run the suite | `pytest tests/` (scoped: `pytest tests/governance/`) |
+| Governance overhead | Reproduce the benchmark | `python benchmarks/governance_overhead.py` (raw output: `benchmarks/results-2026-07-08.txt`) |
+| Evolution convergence (FNR 0.10→0.04) | Read the 200-round archive | `docs/MAREF_200轮递归收敛总结归档报告_20260517.md` |
+| Standards alignment (NIST / EU AI Act) | Read the technical whitepaper | `docs/MAREF-Technical-Whitepaper-arXiv.md` |
+| Enterprise governance ops | Use the Sidecar API / CLI | `docs/governance-operations.md` · `maref governance ops --help` |
+
+## Real-World Evidence
+
+For detailed incident analyses, benchmark methodologies, and compliance deep-dives, see the MAREF blog at https://maref.cc/en/blog/:
+
+- [Why Agent Governance Matters in 2026](https://maref.cc/en/blog/why-agent-governance-matters-2026/) — the incident evidence behind agent governance
+- [88% of Organizations Hit by AI Agent Incidents](https://maref.cc/en/blog/88-percent-incidents/) — what the Gravitee data actually says
+- [OWASP Top 10 for Agentic Applications](https://maref.cc/en/blog/owasp-agentic-top-10/) — MAREF's risk-by-risk mapping explained
+- [Performance Benchmarks Are Public](https://maref.cc/en/blog/performance-benchmarks-are-public/) — reproducible benchmark methodology
+
+---
+
+## Cite / Archive
+
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22432290.svg)](https://doi.org/10.5281/zenodo.22432290)
+
+Source archives are versioned on Zenodo (each GitHub release → new DOI). Cite v0.54.1 as `10.5281/zenodo.22432290`.
 
 ---
 

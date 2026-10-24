@@ -575,3 +575,66 @@ class TestAuditEntryExtended:
         )
         unified = entry.to_unified()
         assert unified.outcome is None
+
+
+class TestTailChainHashRead:
+    """O(1) tail-chain-hash read boundary cases (audit.py _last_chain_hash_from_file)."""
+
+    def test_no_file_returns_empty(self):
+        logger = AuditLogger(log_path="/nonexistent/path/audit.jsonl", hmac_key="k")
+        assert logger._last_chain_hash_from_file() == ""
+
+    def test_empty_file_returns_empty(self):
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False) as f:
+            path = f.name
+        logger = AuditLogger(log_path=path, hmac_key="k")
+        assert logger._last_chain_hash_from_file() == ""
+
+    def test_skips_trailing_blank_lines(self):
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False) as f:
+            path = f.name
+        logger = AuditLogger(log_path=path, hmac_key="k")
+        e1 = logger.log("event", "actor", "action")
+        with open(path, "a") as f:
+            f.write("\n\n")
+        logger2 = AuditLogger(log_path=path, hmac_key="k")
+        assert logger2._last_chain_hash_from_file() == e1.chain_hash
+
+    def test_last_valid_entry_after_malformed_tail(self):
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False) as f:
+            path = f.name
+        logger = AuditLogger(log_path=path, hmac_key="k")
+        e1 = logger.log("event", "actor", "action")
+        with open(path, "a") as f:
+            f.write("not valid json\n")
+        logger2 = AuditLogger(log_path=path, hmac_key="k")
+        # 尾部坏行应被跳过，链从最后一个有效条目延续
+        assert logger2._last_chain_hash_from_file() == e1.chain_hash
+
+    def test_reopen_chain_continues_from_tail(self):
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False) as f:
+            path = f.name
+        logger = AuditLogger(log_path=path, hmac_key="k")
+        e1 = logger.log("event_a", "actor", "action")
+        logger2 = AuditLogger(log_path=path, hmac_key="k")
+        e2 = logger2.log("event_b", "actor", "action")
+        assert e2.previous_hash == e1.chain_hash
+
+    def test_no_trailing_newline(self):
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False) as f:
+            path = f.name
+        logger = AuditLogger(log_path=path, hmac_key="k")
+        e1 = logger.log("event", "actor", "action")
+        Path(path).write_text(Path(path).read_text().rstrip("\n"))
+        logger2 = AuditLogger(log_path=path, hmac_key="k")
+        assert logger2._last_chain_hash_from_file() == e1.chain_hash
+
+    def test_huge_record_crossing_window_boundary(self):
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False) as f:
+            path = f.name
+        logger = AuditLogger(log_path=path, hmac_key="k")
+        e1 = logger.log("event", "actor", "action", details="x" * 200_000)
+        logger2 = AuditLogger(log_path=path, hmac_key="k")
+        e2 = logger2.log("event2", "actor", "action")
+        # >64KB 记录后的新条目仍能正确续链
+        assert e2.previous_hash == e1.chain_hash

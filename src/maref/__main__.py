@@ -9,7 +9,7 @@ from maref.integration.mcp_security import MCPSecurityGate
 from maref.integration.mcp_server import MCPServer
 from maref.integration.mcp_transport import MCPTransport
 from sidecar.exfiltration_probe import DataExfiltrationProbe
-from sidecar.mcp_bridge import MCPBridge
+from sidecar.mcp_bridge import SIDECAR_MCP_TOOLS, SidecarMCPBridge
 
 logger = logging.getLogger(__name__)
 
@@ -83,7 +83,7 @@ def create_server(host: str = "localhost", port: int = 8080) -> http.server.HTTP
         mcp_transport = MCPTransport()  # type: ignore[abstract]
         security_manager = MCPSecurityGate(allow_unverified_tokens=True)
         exfiltration_probe = DataExfiltrationProbe()
-        mcp_bridge = MCPBridge()
+        mcp_bridge = SidecarMCPBridge()
 
         class Handler(MCPHTTPHandler):
             def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -115,7 +115,9 @@ def run_stdio_server() -> None:
     try:
         from maref.integration.mcp_transport import JSONRPCRequest
 
-        mcp_server = MCPServer()
+        _security_gate = MCPSecurityGate(allow_unverified_tokens=True)
+        mcp_server = MCPServer(security_gate=_security_gate)
+        _register_governance_tools(mcp_server)
         for line in sys.stdin:
             line = line.strip()
             if not line:
@@ -137,6 +139,29 @@ def run_stdio_server() -> None:
     except Exception as e:
         logger.error(f"STDIO server error: {e}")
         raise
+
+
+def _register_governance_tools(mcp_server: MCPServer) -> None:
+    from sidecar.mcp_bridge import _CD_TOOLS
+
+    _bridge = SidecarMCPBridge()
+    for tool_def in SIDECAR_MCP_TOOLS:
+        name = tool_def.name
+        schema = tool_def.input_schema
+        desc = tool_def.description
+        mcp_server.register_tool(name, desc, schema, _make_handler(name, _bridge))
+    for tool_def in _CD_TOOLS:
+        name = tool_def.name
+        schema = tool_def.input_schema
+        desc = tool_def.description
+        mcp_server.register_tool(name, desc, schema, _make_handler(name, _bridge))
+
+
+def _make_handler(tool_name: str, bridge: SidecarMCPBridge):
+    def handler(args: dict[str, Any]) -> dict[str, Any]:
+        return bridge.handle_tool_call(tool_name, args)
+
+    return handler
 
 
 def main() -> None:

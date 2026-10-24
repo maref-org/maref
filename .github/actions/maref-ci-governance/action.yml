@@ -25,6 +25,16 @@ inputs:
     required: false
     default: ${{ github.token }}
 
+  trust-score-threshold:
+    description: "Minimum Trust Score (0-1) to pass in enforcing mode"
+    required: false
+    default: "0.7"
+
+  trust-score-mode:
+    description: "Trust Score mode: enforcing (fail below threshold), advisory (report only)"
+    required: false
+    default: "advisory"
+
 runs:
   using: "composite"
   steps:
@@ -45,6 +55,7 @@ runs:
         echo "🔍 Scanning PR changes for MAREF policy violations..."
         echo "Mode: ${{ inputs.mode }}"
         echo "Sidecar: ${{ inputs.sidecar-url }}"
+        echo "Trust Score threshold: ${{ inputs.trust-score-threshold }} (${{ inputs.trust-score-mode }})"
 
         PR_FILES=$(gh pr view ${{ github.event.pull_request.number }} \
           --json files --jq '.files[].path' 2>/dev/null || echo "")
@@ -55,6 +66,7 @@ runs:
         fi
 
         VIOLATIONS=0
+        TRUST_SCORE_VIOLATIONS=0
         for file in $PR_FILES; do
           echo "  Checking: $file"
 
@@ -94,6 +106,32 @@ runs:
           fi
         done
 
+        # Trust Score check (if sidecar supports it)
+        if [ "${{ inputs.trust-score-mode }}" = "enforcing" ] && [ "${{ inputs.mode }}" = "enforcing" ]; then
+          echo ""
+          echo "🔍 Checking Trust Score..."
+          TRUST_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "${{ inputs.sidecar-url }}/api/v1/trust-score" \
+            -H "Content-Type: application/json" \
+            -d "{\"actor\": \"ci-governance\", \"session_id\": \"${{ github.run_id }}\"}" 2>/dev/null) || TRUST_RESPONSE="0"
+
+          TRUST_HTTP=$(echo "$TRUST_RESPONSE" | tail -1)
+          TRUST_BODY=$(echo "$TRUST_RESPONSE" | head -n -1)
+
+          if [ "$TRUST_HTTP" = "200" ]; then
+            TRUST_SCORE=$(echo "$TRUST_BODY" | jq -r '.final_score // 0')
+            echo "  Trust Score: $TRUST_SCORE (threshold: ${{ inputs.trust-score-threshold }})"
+            # Compare using awk for float comparison
+            if awk -v score="$TRUST_SCORE" -v threshold="${{ inputs.trust-score-threshold }}" 'BEGIN { exit (score < threshold) ? 0 : 1 }'; then
+              echo "    ❌ Trust Score $TRUST_SCORE below threshold ${{ inputs.trust-score-threshold }}"
+              TRUST_SCORE_VIOLATIONS=1
+            else
+              echo "    ✅ Trust Score meets threshold"
+            fi
+          else
+            echo "  ⚠️  Trust Score endpoint unavailable (fail-open)"
+          fi
+        fi
+
         echo ""
         if [ $VIOLATIONS -gt 0 ]; then
           echo "❌ Found $VIOLATIONS policy violation(s)"
@@ -102,6 +140,9 @@ runs:
           else
             echo "⚠️  Advisory mode — not failing CI"
           fi
+        elif [ $TRUST_SCORE_VIOLATIONS -gt 0 ]; then
+          echo "❌ Trust Score below threshold"
+          exit 1
         else
           echo "✅ No policy violations detected"
         fi
@@ -119,6 +160,8 @@ runs:
         echo "| Mode | ${{ inputs.mode }} |" >> $GITHUB_STEP_SUMMARY
         echo "| Sidecar | ${{ inputs.sidecar-url }} |" >> $GITHUB_STEP_SUMMARY
         echo "| Fail-closed | ${{ inputs.fail-closed }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Trust Score Threshold | ${{ inputs.trust-score-threshold }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Trust Score Mode | ${{ inputs.trust-score-mode }} |" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "_MAREF CI Governance scan complete._" >> $GITHUB_STEP_SUMMARY
 

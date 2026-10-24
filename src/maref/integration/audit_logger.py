@@ -28,6 +28,7 @@ from typing import Any
 @dataclass
 class AuditRecord:
     """A single audit log record."""
+
     timestamp: float
     agent_id: str
     mcp_server: str
@@ -39,17 +40,20 @@ class AuditRecord:
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def to_json_line(self) -> str:
-        return json.dumps({
-            "timestamp": self.timestamp,
-            "agent_id": self.agent_id,
-            "mcp_server": self.mcp_server,
-            "tool_name": self.tool_name,
-            "verdict": self.verdict,
-            "args_hash": self.args_hash,
-            "risk_score": self.risk_score,
-            "latency_ms": self.latency_ms,
-            **self.metadata,
-        }, ensure_ascii=False)
+        return json.dumps(
+            {
+                "timestamp": self.timestamp,
+                "agent_id": self.agent_id,
+                "mcp_server": self.mcp_server,
+                "tool_name": self.tool_name,
+                "verdict": self.verdict,
+                "args_hash": self.args_hash,
+                "risk_score": self.risk_score,
+                "latency_ms": self.latency_ms,
+                **self.metadata,
+            },
+            ensure_ascii=False,
+        )
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> AuditRecord:
@@ -62,11 +66,21 @@ class AuditRecord:
             args_hash=data["args_hash"],
             risk_score=data.get("risk_score", 0.0),
             latency_ms=data.get("latency_ms", 0.0),
-            metadata={k: v for k, v in data.items() if k not in (
-                "timestamp", "agent_id", "mcp_server",
-                "tool_name", "verdict", "args_hash",
-                "risk_score", "latency_ms",
-            )},
+            metadata={
+                k: v
+                for k, v in data.items()
+                if k
+                not in (
+                    "timestamp",
+                    "agent_id",
+                    "mcp_server",
+                    "tool_name",
+                    "verdict",
+                    "args_hash",
+                    "risk_score",
+                    "latency_ms",
+                )
+            },
         )
 
 
@@ -97,6 +111,7 @@ class AuditLogger:
                     continue
         if _hmac_secret is None:
             import logging
+
             logging.getLogger(__name__).warning(
                 "No HMAC secret configured - MCP audit logging tamper protection disabled. "
                 "Set MAREF_HMAC_SECRET_KEY env var or create .maraf_hmac_key file."
@@ -116,9 +131,7 @@ class AuditLogger:
         latency_ms: float = 0.0,
         metadata: dict[str, Any] | None = None,
     ) -> AuditRecord:
-        args_hash = hashlib.sha256(
-            json.dumps(args or {}, sort_keys=True).encode()
-        ).hexdigest()[:16]
+        args_hash = hashlib.sha256(json.dumps(args or {}, sort_keys=True).encode()).hexdigest()[:16]
 
         record = AuditRecord(
             timestamp=time.time(),
@@ -234,6 +247,7 @@ class AuditLogger:
             size = self._current_log_file.stat().st_size
             if size >= self.max_file_size_bytes:
                 from datetime import datetime, timezone
+
                 ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
                 rotated = self._current_log_file.with_name(f"mcp_audit_{ts}.jsonl")
                 self._current_log_file.rename(rotated)
@@ -242,14 +256,17 @@ class AuditLogger:
     def _sign(self, record: AuditRecord) -> str:
         if self.hmac_secret is None:
             return ""
-        payload = json.dumps({
-            "timestamp": record.timestamp,
-            "agent_id": record.agent_id,
-            "mcp_server": record.mcp_server,
-            "tool_name": record.tool_name,
-            "verdict": record.verdict,
-            "args_hash": record.args_hash,
-        }, sort_keys=True)
+        payload = json.dumps(
+            {
+                "timestamp": record.timestamp,
+                "agent_id": record.agent_id,
+                "mcp_server": record.mcp_server,
+                "tool_name": record.tool_name,
+                "verdict": record.verdict,
+                "args_hash": record.args_hash,
+            },
+            sort_keys=True,
+        )
         return hmac.new(self.hmac_secret, payload.encode(), hashlib.sha256).hexdigest()
 
     @staticmethod

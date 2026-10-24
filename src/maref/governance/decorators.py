@@ -36,6 +36,20 @@ class GovernanceDeniedError(Exception):
         super().__init__(f"Governance denied: {reason}")
 
 
+class GovernanceAlternativeError(GovernanceDeniedError):
+    """Raised when @governed blocks an action but offers sanctioned alternatives.
+
+    Subclass of :class:`GovernanceDeniedError`, so callers that catch the base
+    class keep working; callers may inspect ``alternatives`` to replan instead of
+    dead-ending. This is the "sanctioned alternative" recovery path from
+    Verifier Tax (arXiv:2603.19328).
+    """
+
+    def __init__(self, reason: str = "", alternatives: list[Any] | None = None) -> None:
+        super().__init__(reason)
+        self.alternatives: list[Any] = list(alternatives or [])
+
+
 _default_pipeline: GovernancePipeline | None = None
 
 
@@ -101,7 +115,8 @@ def governed(
                     pass
                 logger.error(
                     "No governance pipeline set for @governed(%s) on %s — denying (fail-closed)",
-                    action_name, func.__qualname__,
+                    action_name,
+                    func.__qualname__,
                 )
                 raise GovernanceDeniedError(
                     f"no governance pipeline configured for {action_name} "
@@ -116,13 +131,17 @@ def governed(
             result = pipeline.govern(request)
 
             if result.verdict == Verdict.DENY:
+                if result.alternatives:
+                    raise GovernanceAlternativeError(result.reason, result.alternatives)
                 raise GovernanceDeniedError(result.reason)
 
             if result.verdict == Verdict.ASK_USER:
                 event = result.hitl_event_id
                 logger.info(
                     "HITL requested for %s on %s (event=%s)",
-                    action_name, func.__qualname__, event,
+                    action_name,
+                    func.__qualname__,
+                    event,
                 )
 
             return func(*args, **kwargs)

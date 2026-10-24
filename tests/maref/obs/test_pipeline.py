@@ -80,7 +80,11 @@ class TestObsPipeline:
             mock_client.post = AsyncMock(side_effect=httpx.ConnectError("mock failure"))
             mock_get.return_value = mock_client
             result = asyncio.run(pipeline._send_batch([{"event_sequence": 0}]))
-            assert not result
+            # G8 (INC-2026-08-13-001): 端点不可达时回退本地 SQLite 持久化，
+            # 批次不丢 → 返回 True（数据已持久化）。
+            assert result is True
+            pending = pipeline._get_pending_events()
+            assert len(pending) >= 1
 
     def test_send_batch_success(self, client_with_events: MarefObsClient) -> None:
         pipeline = ObsPipeline(client=client_with_events, batch_size=50, max_retries=1)
@@ -108,7 +112,8 @@ class TestObsPipeline:
             mock_client.post = failing_post
             mock_get.return_value = mock_client
             result = asyncio.run(pipeline._send_batch([{"event_sequence": 0}]))
-            assert not result
+            # 3 次重试耗尽后回退本地持久化（G8）→ True
+            assert result is True
             assert attempt_count == 3
 
     def test_start_stop(self, client: MarefObsClient) -> None:

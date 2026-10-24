@@ -25,6 +25,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
+from maref.governance.provenance import ProvenanceLabel, is_clean_label
+
 
 class GateVerdict(str, Enum):
     ALLOW = "ALLOW"
@@ -233,6 +235,7 @@ class DestructiveOperationGate:
         tool_name: str,
         args: dict[str, Any] | None = None,
         agent_id: str = "",
+        source_labels: list[str | ProvenanceLabel] | None = None,
     ) -> GateDecision:
         """Evaluate an operation against the destructive gate.
 
@@ -241,6 +244,10 @@ class DestructiveOperationGate:
             tool_name: The tool/function being called.
             args: Arguments to the operation.
             agent_id: ID of the agent attempting the operation.
+            source_labels: Optional provenance labels of the operation's inputs.
+                Any non-clean (untrusted/mixed) label forces BLOCK regardless of
+                severity — the P1-5 information-flow gate. Unknown labels are
+                fail-closed (treated as tainted).
 
         Returns:
             A :class:`GateDecision` with verdict and evidence.
@@ -299,6 +306,19 @@ class DestructiveOperationGate:
         elif severity >= self._hitl_threshold:
             verdict = GateVerdict.HITL_REQUIRED
             reason = f"Human confirmation required (severity={severity:.2f})"
+
+        # P1-5: information-flow gate — untrusted provenance forces BLOCK.
+        if verdict != GateVerdict.BLOCK and source_labels:
+            tainted = [
+                label.value if isinstance(label, ProvenanceLabel) else str(label)
+                for label in source_labels
+                if not is_clean_label(label)
+            ]
+            if tainted:
+                verdict = GateVerdict.BLOCK
+                reason = f"Untrusted provenance in inputs: {', '.join(tainted[:3])}"
+                severity = max(severity, 0.95)
+                matched_patterns.append("untrusted_provenance")
 
         decision = GateDecision(
             operation=operation,

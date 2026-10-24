@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+    MAREF 生产反馈 → 迭代燃料 管道 (P1.3)
+
+    职责: 治理审计/熔断事件 → convergence_history.jsonl + ExperienceStore 经验库
+          （真实治理数据回流为进化引擎的迭代燃料）
+
+    安装:
+      cp scripts/com.maref.production-feedback.plist.template \
+         ~/Library/LaunchAgents/com.maref.production-feedback.plist
+      launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.maref.production-feedback.plist
+    卸载:
+      launchctl bootout gui/$(id -u)/com.maref.production-feedback
+
+    时序: 02:30 (承 02:00 nightly-evolution 红蓝产出；供 06:00 daily-governance 消费)
+    依赖: /Volumes/1TB-M2 外置盘 (经 drive-wait.py 等待挂载)
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.maref.production-feedback</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/opt/homebrew/bin/python3</string>
+        <string>/Users/frankie/bin/drive-wait.py</string>
+        <string>/opt/homebrew/bin/python3</string>
+        <string>/Volumes/1TB-M2/public/maref/scripts/production_feedback_pipeline.py</string>
+        <string>--report</string>
+    </array>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>2</integer>
+        <key>Minute</key>
+        <integer>30</integer>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/frankie/Library/Logs/maref/production-feedback.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/frankie/Library/Logs/maref/production-feedback.err.log</string>
+
+    <key>WorkingDirectory</key>
+    <string>/Volumes/1TB-M2/public/maref</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>MAREF_RUNTIME_DIR</key>
+        <string>/Volumes/1TB-M2/openclaw</string>
+        <key>MAREF_EXPERIENCE_DB</key>
+        <string>/Volumes/1TB-M2/openclaw/.evolution_vault/experience.db</string>
+        <key>MAREF_REPORTS_DIR</key>
+        <string>/Volumes/1TB-M2/public/maref/reports</string>
+    </dict>
+</dict>
+</plist>

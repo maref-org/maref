@@ -8,6 +8,9 @@ from enum import Enum
 try:
     from PIL import Image
 except ImportError:
+    # Pillow 是可选依赖（desktop extra）。类型注解在 __future__ annotations
+    # 下延迟求值，无需运行时 Image；Pillow 缺失时 mypy 经 override 视 PIL 为
+    # Any，赋 None 不报错。
     Image = None
 
 

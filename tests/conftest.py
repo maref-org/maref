@@ -17,3 +17,18 @@ os.environb[b"MAREF_AUDIT_PATH"] = b"/tmp/maref-test-audit"
 os.environ["MAREF_AUDIT_PATH"] = "/tmp/maref-test-audit"
 os.environb[b"MAREF_GAAS_AUDIT_DIR"] = b"/tmp/maref-test-audit"
 os.environ["MAREF_GAAS_AUDIT_DIR"] = "/tmp/maref-test-audit"
+
+
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _restore_test_env_keys():
+    """每个测试后恢复 conftest 设定的密钥 env，防测试 pop 污染后续。
+
+    部分测试（如 test_cost_guard_opensource fixture teardown）会
+    pop MAREF_HMAC_SECRET_KEY 而未恢复，导致后续创建 AuditLogger
+    的测试顺序相关失败。此 autouse fixture 保证 key 恒存在。
+    """
+    yield
+    os.environ["MAREF_HMAC_SECRET_KEY"] = "test-key-insecure-not-for-production"

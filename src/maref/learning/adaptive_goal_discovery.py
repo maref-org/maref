@@ -4,6 +4,8 @@ targets from RSI results and validation records.
 L3 feature: PERCV-RSI-ACCEPT-L3-004 / P5.5
 """
 
+from __future__ import annotations
+
 import datetime
 from dataclasses import dataclass, field
 

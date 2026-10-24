@@ -5,14 +5,34 @@ on:
     types: [opened, synchronize]
 
 jobs:
-  governance:
+  governance-advisory:
+    name: "Governance Scan (advisory)"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: MAREF CI Governance Scan
+      - name: MAREF CI Governance Scan (advisory)
         uses: ./.github/actions/maref-ci-governance
         with:
           sidecar-url: "http://localhost:8000"
           mode: "advisory"
           fail-closed: "false"
+          trust-score-mode: "advisory"
+          trust-score-threshold: "0.7"
+
+  governance-enforcing:
+    name: "Governance Scan (enforcing) — Trust Score Enforcing Example"
+    runs-on: ubuntu-latest
+    # 仅在特定分支/标签触发 enforcing（如 release/* 或手动触发）
+    if: github.event_name == 'pull_request' && (contains(github.head_ref, 'release') || github.event.pull_request.labels.*.name == 'enforce-governance')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: MAREF CI Governance Scan (enforcing + Trust Score)
+        uses: ./.github/actions/maref-ci-governance
+        with:
+          sidecar-url: "http://localhost:8000"
+          mode: "enforcing"
+          fail-closed: "true"
+          trust-score-mode: "enforcing"
+          trust-score-threshold: "0.7"

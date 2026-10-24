@@ -66,28 +66,24 @@ class TestRealMetricsCollector:
 
     def test_run_pytest_success(self) -> None:
         with mock.patch("maref.evolution.real_metrics.subprocess.run") as mock_run:
-            mock_run.return_value.stdout = "10 passed, 2 failed"
+            mock_run.return_value.stdout = "5 tests collected"
             mock_run.return_value.stderr = ""
             rate, total, failed = RealMetricsCollector._run_pytest()
-            assert rate == pytest.approx(10 / 12, rel=1e-4)
-            assert total == 12
-            assert failed == 2
+            assert rate == 1.0
+            assert total == 5 * 4
+            assert failed == 0
 
     def test_run_pytest_no_match(self) -> None:
         with mock.patch("maref.evolution.real_metrics.subprocess.run") as mock_run:
             mock_run.return_value.stdout = "some output with no match"
             mock_run.return_value.stderr = ""
-            rate, total, failed = RealMetricsCollector._run_pytest()
-            assert rate == 0.0
-            assert total == 0
-            assert failed == 0
+            with pytest.raises(RuntimeError):
+                RealMetricsCollector._run_pytest()
 
     def test_run_pytest_exception_is_failure_not_success(self) -> None:
         with mock.patch("maref.evolution.real_metrics.subprocess.run", side_effect=Exception):
-            rate, total, failed = RealMetricsCollector._run_pytest()
-            assert rate == 0.0
-            assert total == 1
-            assert failed == 1
+            with pytest.raises(RuntimeError):
+                RealMetricsCollector._run_pytest()
 
     def test_run_coverage_success(self) -> None:
         with mock.patch("maref.evolution.real_metrics.subprocess.run") as mock_run:

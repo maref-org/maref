@@ -53,6 +53,18 @@ class TestGoalInferencer:
         assert risk.concealment_level in ("medium", "high")
         assert len(risk.findings) > 0
 
+    def test_control_subgoal_chinese(self) -> None:
+        # 中文-first 语料：控制/欺骗关键词缺失会让安全检测静默失效（F4）
+        gi = GoalInferencer()
+        report = _make_report(["整理", "文档",
+                               "绕过", "审计", "隐藏", "日志",
+                               "规避", "监管", "上报"])
+        dag = gi.expand_goals(report)
+        risk = gi.detect_control_subgoal(dag)
+        assert risk.control_goal_count > 0
+        assert risk.risk_score > 0
+        assert risk.concealment_level in ("medium", "high")
+
     def test_direct_control_action(self) -> None:
         gi = GoalInferencer()
         report = _make_report(["bypass", "security", "to", "get", "access",

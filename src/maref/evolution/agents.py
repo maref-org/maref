@@ -323,12 +323,15 @@ class ShareGroupConfig:
     share_mode: ShareMode = ShareMode.FULL_SHARING
     aggregation_method: str = "mean"
     """How to aggregate gradients: 'mean', 'sum', or 'weighted_mean'."""
+    shared_features: list[str] = field(default_factory=list)
+    """Features shared across agents in PARTIAL_SHARING mode. Empty = auto-detect common features."""
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "group_id": self.group_id,
             "share_mode": self.share_mode.value,
             "aggregation_method": self.aggregation_method,
+            "shared_features": list(self.shared_features),
         }
 
 
@@ -339,7 +342,10 @@ class ShareGroup:
     Supports three sharing modes:
     - FULL_SHARING: All agents share identical weights; gradients are aggregated.
     - FULL_SEPARATION: Agents keep independent weights (group acts as organizer only).
-    - PARTIAL_SHARING: Reserved for future layer-level sharing control.
+    - PARTIAL_SHARING: Shared features use aggregated gradients; independent
+      features use damped per-agent gradients. Shared features can be
+      explicitly configured or auto-detected as the intersection of all
+      agents' policy_features.
 
     Usage:
         group = ShareGroup("detectors", ShareMode.FULL_SHARING)
@@ -368,6 +374,13 @@ class ShareGroup:
     @property
     def agent_count(self) -> int:
         return len(self._agents)
+
+    def _detect_shared_features(self) -> set[str]:
+        """Detect features common to all agents for PARTIAL_SHARING mode."""
+        if not self._agents:
+            return set()
+        feature_sets = [set(a.policy_features) for a in self._agents.values()]
+        return set.intersection(*feature_sets) if feature_sets else set()
 
     def add_agent(self, agent: GovernanceAgent) -> None:
         """Add a governance agent to this sharing group."""
@@ -472,8 +485,20 @@ class ShareGroup:
                 agent.update_learning_rate(learning_rate)
                 per_agent_grad = {f: aggregated_gradient.get(f, 0.0) for f in agent.policy_features}
                 updated = agent.step_gradient(per_agent_grad)
-            else:
-                per_agent_grad = {f: aggregated_gradient.get(f, 0.0) for f in agent.policy_features}
+            else:  # PARTIAL_SHARING
+                # Determine which features are shared
+                if self._config.shared_features:
+                    shared_set = set(self._config.shared_features)
+                else:
+                    shared_set = self._detect_shared_features()
+
+                # Split gradient: shared features use aggregated, others use damped
+                per_agent_grad = {}
+                for f in agent.policy_features:
+                    if f in shared_set:
+                        per_agent_grad[f] = aggregated_gradient.get(f, 0.0)
+                    else:
+                        per_agent_grad[f] = aggregated_gradient.get(f, 0.0) * 0.5
                 updated = agent.step_gradient(per_agent_grad)
 
             results[agent.agent_id] = updated
@@ -485,6 +510,8 @@ class ShareGroup:
             "group_id": self.group_id,
             "share_mode": self.share_mode.value,
             "aggregation_method": self._config.aggregation_method,
+            "shared_features": list(self._config.shared_features),
+            "detected_shared_features": sorted(self._detect_shared_features()),
             "agent_count": self.agent_count,
             "agents": {aid: agent.get_stats() for aid, agent in self._agents.items()},
         }

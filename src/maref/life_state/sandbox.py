@@ -180,7 +180,7 @@ class SeccompFilterBackend(SandboxBackend):
     def execute_sandboxed(self, command: list[str], policy: Any = None) -> dict[str, Any]:
         filter_rules = self._generate_filter(policy)
         try:
-            import seccomp  # type: ignore[import-not-found]
+            import seccomp
         except ImportError:
             return {"status": "unavailable", "command": command, "blocked": True}
 

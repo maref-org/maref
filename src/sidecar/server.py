@@ -24,15 +24,21 @@ from maref.recursive.cost_tracker import CostTracker
 from maref.tool.registry import ToolRegistry
 from sidecar.api_auth import AuthMiddleware, _register_route_scope, require_auth
 from sidecar.collector import MockAgentAdapter, ObservationCollector
+from sidecar.config_router import router as config_router
 from sidecar.federation_router import router as federation_router
 from sidecar.gaas_router import router as gaas_router
+from sidecar.governance_ops_router import router as governance_ops_router
+from sidecar.governance_query_router import router as governance_query_router
 from sidecar.mcp_bridge import SIDECAR_MCP_TOOLS, SidecarMCPBridge
 from sidecar.mcp_gateway import MCPGateway, create_mcp_gateway_router
 from sidecar.monitor import CompositeMonitor
 from sidecar.obs_bridge import ObsBridge
 from sidecar.org_governance_router import router as org_governance_router
 from sidecar.platform_router import router as platform_router
+from sidecar.proposal_router import router as proposal_router
 from sidecar.report_router import router as report_router
+from sidecar.telemetry_router import router as telemetry_router
+from sidecar.vaccine_router import router as vaccine_router
 
 _CORS_ORIGINS: list[str] = [
     origin.strip()
@@ -1036,11 +1042,18 @@ class SidecarFastAPI(FastAPI):
         )
         if allow_unauthenticated is None:
             allow_unauthenticated = _default_allow_unauthenticated()
-        self.add_middleware(AuthMiddleware, allow_unauthenticated=allow_unauthenticated)
+        self.add_middleware(AuthMiddleware, allow_unauthenticated=allow_unauthenticated)  # type: ignore[arg-type]
         self.add_middleware(SecurityHeadersMiddleware)
+        self.include_router(config_router)
         self.include_router(gaas_router)
+        self.include_router(report_router)
         self.include_router(platform_router)
         self.include_router(org_governance_router)
+        self.include_router(telemetry_router)
+        self.include_router(vaccine_router)
+        self.include_router(proposal_router)
+        self.include_router(governance_query_router)
+        self.include_router(governance_ops_router)
         a2a_bridge = create_a2a_bridge()
         _signing_key = os.environ.get("MAREF_A2A_SIGNING_KEY")
         self.include_router(create_a2a_router(
@@ -1065,12 +1078,18 @@ def create_app(collector: ObservationCollector, monitor: CompositeMonitor, obs_b
     )
     if allow_unauthenticated is None:
         allow_unauthenticated = _default_allow_unauthenticated()
-    app.add_middleware(AuthMiddleware, allow_unauthenticated=allow_unauthenticated)
+    app.add_middleware(AuthMiddleware, allow_unauthenticated=allow_unauthenticated)  # type: ignore[arg-type]
     app.add_middleware(SecurityHeadersMiddleware)
+    app.include_router(config_router)
     app.include_router(gaas_router)
     app.include_router(report_router)
     app.include_router(platform_router)
     app.include_router(org_governance_router)
+    app.include_router(telemetry_router)
+    app.include_router(vaccine_router)
+    app.include_router(proposal_router)
+    app.include_router(governance_query_router)
+    app.include_router(governance_ops_router)
     a2a_bridge = create_a2a_bridge()
     _signing_key = os.environ.get("MAREF_A2A_SIGNING_KEY")
     app.include_router(create_a2a_router(

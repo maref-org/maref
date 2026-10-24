@@ -1,0 +1,217 @@
+#!/usr/bin/env python3
+"""积压提案 SLA 治理 (P-08) + P2-8 A-x 审计 backlog 注入"""
+import json
+import os
+from datetime import datetime, timezone
+
+from maref_config import AUDIT_LOG, REPO_DIR, report_path
+from maref_config import RECURSIVE_AUDIT_LOG as RECURSIVE_LOG
+
+
+def load_entries(path):
+    entries = []
+    if not os.path.exists(path):
+        return entries
+    with open(path) as f:
+        for line in f:
+            try:
+                entries.append(json.loads(line.strip()))
+            except Exception:
+                pass
+    return entries
+
+def _parse_timestamp(ts):
+    """兼容 float unix 与 ISO 字符串（P2-8 修复: 旧版 fromisoformat 对 float 全部 skip）。"""
+    if ts is None:
+        return None
+    if isinstance(ts, (int, float)):
+        try:
+            return datetime.fromtimestamp(float(ts), tz=timezone.utc)
+        except (OSError, OverflowError, ValueError):
+            return None
+    s = str(ts).replace("Z", "+00:00")
+    try:
+        return datetime.fromisoformat(s)
+    except ValueError:
+        try:
+            return datetime.fromtimestamp(float(ts), tz=timezone.utc)
+        except (OSError, OverflowError, ValueError, TypeError):
+            return None
+
+def _age_hours(t):
+    now = datetime.now(timezone.utc)
+    if t.tzinfo is None:
+        t = t.replace(tzinfo=timezone.utc)
+    return (now - t).total_seconds() / 3600
+
+def _known_audit_backlog():
+    """P2-8: 根因报告 A-x 未进提案流时的兜底工单（有状态 JSON 则动态年龄）。"""
+    items = []
+    # A-2: 进化引擎停滞
+    evo_path = REPO_DIR / "reports" / "evolution_daemon_status.json"
+    try:
+        evo = json.loads(evo_path.read_text()) if evo_path.exists() else {}
+        status = evo.get("status", {})
+        hours_stale = float(status.get("hours_stale") or 0)
+        # RECENTLY_STOPPED 且 <24h 属于正常静默窗口，不进入高危 backlog。
+        if (
+            not status.get("daemon_running", False)
+            and hours_stale
+            and (not evo.get("healthy", False) or hours_stale > 24)
+        ):
+            items.append({
+                "id": "A-2",
+                "action": "evolution_daemon_restart",
+                "risk": "high",
+                "age_hours": round(float(status["hours_stale"]), 1),
+                "source": "audit_rootcause_backlog",
+                "detail": f"进化守护进程停滞 {status.get('days_stale', '?')} 天",
+            })
+    except Exception:
+        items.append({
+            "id": "A-2",
+            "action": "evolution_daemon_restart",
+            "risk": "high",
+            "age_hours": 1777.0,
+            "source": "audit_rootcause_backlog",
+            "detail": "进化守护进程停滞（状态 JSON 不可读）",
+        })
+    # A-4: coding agent 治理 KPI 全 0（输出文件为 coding_agents_status.json 复数）
+    ca_path = REPO_DIR / "reports" / "coding_agents_status.json"
+    if not ca_path.exists():
+        ca_path = REPO_DIR / "reports" / "coding_agent_status.json"
+    try:
+        ca = json.loads(ca_path.read_text()) if ca_path.exists() else {}
+        if isinstance(ca.get("status"), dict):
+            ca = {**ca, **ca["status"]}
+        gkpi = ca.get("global_kpi") or {}
+        kpi_zero = (
+            ca.get("kpi_24h_all_zero") is True
+            or gkpi.get("tool_calls_total") == 0
+            or ca.get("total_24h") == 0
+            or ca.get("calls_24h") == 0
+        )
+        agents = ca.get("agents") or []
+        reachable_fail = ca.get("sidecar_reachable") is False or any(
+            isinstance(a, dict) and (a.get("checks") or {}).get("sidecar_reachable") is False
+            for a in agents
+            if isinstance(a, dict)
+        )
+        if kpi_zero or reachable_fail:
+            age = ca.get("hours_stale") or ca.get("age_hours") or 168.0
+            items.append({
+                "id": "A-4",
+                "action": "coding_agent_governance_kpi",
+                "risk": "medium",
+                "age_hours": round(float(age) or 168.0, 1),
+                "source": "audit_rootcause_backlog",
+                "detail": "24h coding agent 治理调用为 0 / sidecar_reachable 失败",
+            })
+    except Exception:
+        # 报告缺失也注入（根因 A-4 实况）
+        items.append({
+            "id": "A-4",
+            "action": "coding_agent_governance_kpi",
+            "risk": "medium",
+            "age_hours": 168.0,
+            "source": "audit_rootcause_backlog",
+            "detail": "coding agent 状态报告缺失 / 24h KPI 未知",
+        })
+    return items
+
+def analyze_backlog():
+    audit = load_entries(AUDIT_LOG)
+    recursive = load_entries(RECURSIVE_LOG)
+
+    backlog = {"high": [], "medium": [], "low": [], "unknown": []}
+
+    for entry in audit + recursive:
+        ts = entry.get('timestamp')
+        t = _parse_timestamp(ts)
+        if t is None:
+            continue
+        age_hours = _age_hours(t)
+
+        event_type = entry.get('event_type', 'unknown')
+        if event_type == 'governance_decision':
+            details = entry.get('details', {})
+            risk = "unknown"
+            if isinstance(details, dict):
+                risk = details.get('risk_level', 'unknown')
+            elif isinstance(details, str) and 'high' in details.lower():
+                risk = 'high'
+
+            item = {
+                "id": entry.get('id', 'unknown'),
+                "age_hours": round(age_hours, 1),
+                "action": entry.get('action', 'unknown'),
+                "risk": risk,
+            }
+            if age_hours > 168 and risk == "high":
+                backlog["high"].append(item)
+            elif age_hours > 336:
+                backlog["medium"].append(item)
+            elif age_hours > 168:
+                backlog["low"].append(item)
+
+    # P2-8: 注入已知 A-x 审计工单（去重 by id）
+    known_ids = {i["id"] for bucket in backlog.values() for i in bucket}
+    for kn in _known_audit_backlog():
+        if kn["id"] in known_ids:
+            continue
+        if kn["risk"] == "high":
+            backlog["high"].append(kn)
+        elif kn["risk"] == "medium":
+            backlog["medium"].append(kn)
+        else:
+            backlog["unknown"].append(kn)
+
+    print("=" * 60)
+    print("积压提案 SLA 治理报告 (P-08 + P2-8 A-x 注入)")
+    print("=" * 60)
+
+    print("\n--- 积压分布 ---")
+    total_backlog = sum(len(v) for v in backlog.values())
+    print(f"总积压: {total_backlog}")
+    print(f"  高危 (>7d 或 A-x high): {len(backlog['high'])}")
+    print(f"  中危 (>14d 或 A-x medium): {len(backlog['medium'])}")
+    print(f"  低危 (>7d): {len(backlog['low'])}")
+    print(f"  未知风险: {len(backlog['unknown'])}")
+
+    print("\n--- SLA 目标 ---")
+    print("高危积压 7d 清零率目标: 100%")
+    breached = [
+        item for item in backlog["high"]
+        if float(item.get("age_hours") or 0) > 168
+    ]
+    print(f"当前高危积压: {len(backlog['high'])} (超 7d: {len(breached)})")
+    clearance = "✅ 达标" if not breached else f"⚠️ {len(breached)} 条超 SLA 待清零"
+    print(f"7d 清零状态: {clearance}")
+
+    if backlog['high']:
+        print("\n--- 高危积压详情 (前5条) ---")
+        for item in backlog['high'][:5]:
+            print(f"  ID: {item['id']}, 积压: {item['age_hours']}h, 操作: {item['action']}")
+            if item.get('source') == 'audit_rootcause_backlog':
+                print(f"    (来源: 审计根因 backlog) {item.get('detail', '')}")
+
+    output_path = str(report_path("backlog_sla_report.json"))
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    with open(output_path, 'w') as f:
+        json.dump({
+            "audit_date": datetime.now().isoformat(),
+            "total_backlog": total_backlog,
+            "high_risk_count": len(backlog['high']),
+            "sla_breached_count": len(breached),
+            "sla_target": "高危7d清零率100%",
+            "sla_met": not breached,
+            # 口径说明（v0.54.3 起）：sla_met 判"是否存在 >7d 的高危项"，
+            # 而非"高危清单是否为空"；<7d 的高危项仍保留在 high_risk_count。
+            "sla_semantics": "breached_high_risk_items_older_than_168h",
+            "backlog": {k: v[:10] for k, v in backlog.items()},
+            "p2_injected": [i["id"] for b in backlog.values() for i in b if i.get("source") == "audit_rootcause_backlog"],
+        }, f, indent=2, ensure_ascii=False)
+    print(f"\n报告已保存: {output_path}")
+
+if __name__ == "__main__":
+    analyze_backlog()

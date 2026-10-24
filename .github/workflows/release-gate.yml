@@ -16,7 +16,19 @@ jobs:
         run: cargo install cargo-audit
       - name: Audit Rust dependencies
         working-directory: ./gui/src-tauri
-        run: cargo audit
+        run: |
+          # 2026-10-19 临时风险接受，2026-11-19 复审：
+          # rustls 0.23.43 为当前最新稳定版，4 条公告均无已发布修复；
+          # zip 4.6.1 为 tauri-plugin-updater 2.x 的 4.x 约束上限，修复仅在 9.x。
+          # 上游发布兼容修复后必须移除对应 --ignore。
+          cargo audit \
+            --ignore RUSTSEC-2026-0346 \
+            --ignore RUSTSEC-2026-0285 \
+            --ignore RUSTSEC-2026-0348 \
+            --ignore RUSTSEC-2026-0349 \
+            --ignore RUSTSEC-2026-0367 \
+            --ignore RUSTSEC-2026-0368 \
+            --ignore RUSTSEC-2026-0369
 
   gate-integration-coverage:
     runs-on: ubuntu-latest
@@ -28,7 +40,10 @@ jobs:
       - name: Install dependencies
         run: pip install -e ".[dev,sidecar,otel,a2a,orchestration,identity]"
       - name: Integration test coverage
-        run: pytest tests/integration/ --cov=src/maref --cov-report=term-missing || true
+        run: |
+          # pyproject 的 fail_under=50 面向全量测试；本 job 只跑集成子集（实测
+          # 23.89%），用 CLI 覆写为子集下限 23 以检测回归，而非恒红。
+          pytest tests/integration/ --cov=src/maref --cov-report=term-missing --cov-fail-under=23
 
   gate-quality:
     runs-on: ubuntu-latest
@@ -40,7 +55,13 @@ jobs:
       - name: Install dependencies
         run: pip install -e ".[dev,sidecar,otel,a2a,orchestration,identity]"
       - name: Ruff lint
-        run: ruff check src/maref src/maref_lite
+        run: ruff check src/
+      - name: Mypy
+        run: mypy src/maref src/maref_lite src/sidecar
+      - name: Evidence gate unit tests
+        run: pytest tests/cli/test_evidence_gate.py tests/observability/test_audit_health_check.py -q --no-cov
+      - name: Claim integrity
+        run: python scripts/claim_integrity_gate.py
       - name: No hardcoded paths
         run: |
           if grep -rn "/Volumes/" src/ --include="*.py"; then
@@ -87,10 +108,11 @@ jobs:
         run: |
           pip install -e ".[dev,sidecar,otel,a2a,orchestration,identity]"
           pip install bandit
-      - name: Bandit SAST
-        run: bandit -r src/ -s B105,B108,B110,B104,B608,B615 -ll || true
-      - name: pip-audit
-        run: pip-audit || true
+      - name: Bandit SAST (High gate)
+        # G3 标准是 0 Critical / 0 High；Medium 只报告不阻断。
+        run: bandit -r src/ -s B105,B108,B110,B104,B608,B615 -lll
+      - name: Security tests
+        run: pytest tests/security -q --no-cov
       - name: Governance hook check
         run: bash scripts/ci-governance-check.sh
 
@@ -108,3 +130,8 @@ jobs:
         run: pytest tests/benchmark/test_saeb.py -v --tb=short -x --cov-fail-under=0
         env:
           MAREF_FEDERATED_AUDIT_KEY: ${{ secrets.MAREF_FEDERATED_AUDIT_KEY || 'ci-placeholder-key' }}
+      - name: Audit chain append benchmark
+        run: |
+          # 审计链 O(1) 追加性能回归守卫(>1ms/append 报警)。见
+          # benchmarks/audit_chain_append.py。非 pytest, 独立脚本。
+          python benchmarks/audit_chain_append.py
