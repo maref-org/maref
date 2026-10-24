@@ -30,9 +30,11 @@ jobs:
           GH_REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
         run: |
-          # requirements 类更新的 body 不含 update-type 块，不能只认 patch/minor。
-          meta=$(gh pr view "$PR" --json title,body --jq '.title + "\n" + .body')
-          if echo "$meta" | grep -q 'version-update:semver-major'; then
+          # update-type 元数据在 Dependabot 提交信息的 trailer 里，不在 PR body；
+          # 旧实现只查 title/body，守卫从未命中，major 更新也被开启 auto-merge。
+          if gh pr view "$PR" --json commits \
+              --jq '[.commits[].messageBody // ""] | join("\n")' \
+              | grep -q 'version-update:semver-major'; then
             echo "skip: major update"
             exit 0
           fi
