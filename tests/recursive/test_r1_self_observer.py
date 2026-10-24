@@ -1,9 +1,33 @@
 from __future__ import annotations
 
+import subprocess
+from pathlib import Path
+
 import pytest
 
 from maref.observation.probes import ProbeReading
 from maref.recursive.self_observer import SelfObserver, SystemSnapshot
+
+
+def _git(repo: Path, *args: str) -> None:
+    subprocess.run(
+        ["git", "-c", "user.name=test", "-c", "user.email=test@example.com", *args],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+
+
+@pytest.fixture
+def tagged_repo(tmp_path: Path) -> Path:
+    """合成一个带 9 个 tag 的临时仓库，避免断言依赖宿主/远端仓库的 tag 数。"""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(repo, "init", "-q")
+    _git(repo, "commit", "--allow-empty", "-qm", "init")
+    for i in range(9):
+        _git(repo, "tag", f"v0.0.{i}")
+    return repo
 
 
 class TestSelfObserver:
@@ -33,10 +57,10 @@ class TestSelfObserver:
         assert "coverage_pct" in stats
 
     @pytest.mark.slow
-    def test_observe_git_returns_tags(self, observer: SelfObserver) -> None:
-        git_stats = observer.observe_git()
-        assert len(git_stats["tags"]) >= 9, f"Expected >=9 tags, got {len(git_stats['tags'])}"
-        assert "v0.52.0" in git_stats["tags"]
+    def test_observe_git_returns_tags(self, tagged_repo: Path) -> None:
+        git_stats = SelfObserver(root_path=tagged_repo).observe_git()
+        assert len(git_stats["tags"]) == 9
+        assert "v0.0.8" in git_stats["tags"]
 
     @pytest.mark.slow
     def test_snapshot_includes_module_graph(self, observer: SelfObserver) -> None:
@@ -49,9 +73,9 @@ class TestSelfObserver:
         assert snapshot.test_stats["total"] >= 649
 
     @pytest.mark.slow
-    def test_snapshot_includes_git_stats(self, observer: SelfObserver) -> None:
-        snapshot = observer.snapshot()
-        assert len(snapshot.git_stats["tags"]) >= 9
+    def test_snapshot_includes_git_stats(self, tagged_repo: Path) -> None:
+        snapshot = SelfObserver(root_path=tagged_repo).snapshot(collect_only=True)
+        assert len(snapshot.git_stats["tags"]) == 9
 
     @pytest.mark.slow
     def test_snapshot_probe_readings_normal(self, observer: SelfObserver) -> None:

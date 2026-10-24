@@ -173,9 +173,7 @@ class SocialContentGate:
 
         if request.media_types:
             unsupported = [
-                media
-                for media in request.media_types
-                if media not in policy.allowed_media
+                media for media in request.media_types if media not in policy.allowed_media
             ]
             if unsupported:
                 reasons.append(f"unsupported media types: {', '.join(sorted(set(unsupported)))}")
