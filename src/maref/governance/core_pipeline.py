@@ -102,6 +102,13 @@ class GovernanceRequest:
     session_id: str = ""
     source_ip: str = ""
     delegations: list[str] = field(default_factory=list)
+    # Evidence-chain linkage (P0-A/P0-B): route -> interaction -> decision.
+    trace_id: str = ""
+    model_route_id: str = ""
+    interaction_id: str = ""
+    model_version: str = ""
+    detector_set_hash: str = ""
+    jurisdiction: str = ""
 
 
 @dataclass
@@ -116,6 +123,33 @@ class GovernanceResult:
     risk_score: float = 0.0
     latency_ms: int = 0
     alternatives: list[Any] = field(default_factory=list)
+    policy_version: str = ""
+    policy_epoch: str = ""
+    evidence_id: str = ""
+    policy_pack_id: str = ""
+    policy_pack_version: str = ""
+    policy_pack_hash: str = ""
+
+
+@dataclass
+class ExtensionRuleHit:
+    """A policy-pack hit. Extension rules may escalate, never downgrade."""
+
+    verdict: Verdict
+    reason: str
+    matched_rule: str
+    policy_pack_id: str = ""
+    policy_pack_version: str = ""
+    policy_pack_hash: str = ""
+    hitl_tier: Any | None = None
+
+
+def _verdict_rank(verdict: Verdict) -> int:
+    return {
+        Verdict.ALLOW: 0,
+        Verdict.ASK_USER: 1,
+        Verdict.DENY: 2,
+    }[verdict]
 
 
 class GovernancePipeline:
@@ -161,6 +195,10 @@ class GovernancePipeline:
         # 未提供时使用 safety_metrics.default_alternatives_for 规则表。
         alternative_provider: Callable[[GovernanceRequest, GovernanceResult], Iterable[Any]]
         | None = None,
+        policy_version: str = "core-pipeline-v1",
+        policy_epoch: str = "",
+        extension_rules: list[tuple[int, Callable[[GovernanceRequest], ExtensionRuleHit | None]]]
+        | None = None,
     ):
         from maref.integration.hitl import HITLRouter as _HITLRouter
 
@@ -171,6 +209,7 @@ class GovernancePipeline:
         self._cb_check_callback = cb_check_callback
         self._cb_record_callback = cb_record_callback
         self._policy_rules = policy_rules or self._default_policy_rules()
+        self._extension_rules = extension_rules or []
         # TrustBoundaryManager (v0.47 S9): mandatory pre-action boundary gate.
         # Injected via duck typing so core_pipeline does not hard-depend on
         # maref.governance.trust_boundary.
@@ -180,6 +219,8 @@ class GovernancePipeline:
         self._budget_breaker = budget_breaker
         self._destructive_gate = destructive_gate
         self._alternative_provider = alternative_provider
+        self._policy_version = policy_version
+        self._policy_epoch = policy_epoch
 
     @staticmethod
     def _default_policy_rules() -> list[
@@ -247,6 +288,25 @@ class GovernancePipeline:
             (0, p3_default_allow),
         ]
 
+    def _evaluate_extension_rules(self, req: GovernanceRequest) -> ExtensionRuleHit | None:
+        best: ExtensionRuleHit | None = None
+        best_priority = -1
+        for priority, rule in sorted(self._extension_rules, key=lambda item: item[0], reverse=True):
+            hit = rule(req)
+            if hit is None:
+                continue
+            if (
+                best is None
+                or _verdict_rank(hit.verdict) > _verdict_rank(best.verdict)
+                or (
+                    _verdict_rank(hit.verdict) == _verdict_rank(best.verdict)
+                    and priority > best_priority
+                )
+            ):
+                best = hit
+                best_priority = priority
+        return best
+
     def govern(self, req: GovernanceRequest) -> GovernanceResult:
         """Execute the governance pipeline and attach sanctioned alternatives on DENY.
 
@@ -254,6 +314,10 @@ class GovernancePipeline:
         把动作级拦截升级为可恢复的任务级治理，避免 Verifier Tax 式假安全。
         """
         result = self._govern_impl(req)
+        if not result.policy_version:
+            result.policy_version = self._policy_version
+        if not result.policy_epoch:
+            result.policy_epoch = self._policy_epoch
         if result.verdict == Verdict.DENY:
             provider = self._alternative_provider
             alternatives = (
@@ -469,6 +533,15 @@ class GovernancePipeline:
             verdict = Verdict.DENY
             reason = "No matching policy"
 
+        pack_hit: ExtensionRuleHit | None = None
+        if self._extension_rules and verdict != Verdict.DENY:
+            pack_hit = self._evaluate_extension_rules(req)
+            if pack_hit is not None and _verdict_rank(pack_hit.verdict) > _verdict_rank(verdict):
+                verdict = pack_hit.verdict
+                reason = pack_hit.reason
+                matched_rule = pack_hit.matched_rule
+                hitl_tier = pack_hit.hitl_tier
+
         # 5. HITL routing
         hitl_event_id = ""
         if verdict == Verdict.ASK_USER and hitl_tier:
@@ -541,6 +614,9 @@ class GovernancePipeline:
             hitl_tier=hitl_tier if verdict == Verdict.ASK_USER else None,
             hitl_event_id=hitl_event_id,
             matched_rule=matched_rule,
+            policy_pack_id=pack_hit.policy_pack_id if pack_hit else "",
+            policy_pack_version=pack_hit.policy_pack_version if pack_hit else "",
+            policy_pack_hash=pack_hit.policy_pack_hash if pack_hit else "",
         )
 
         # 6. Audit callback

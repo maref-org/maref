@@ -37,23 +37,25 @@ logger = logging.getLogger("maref.circuit_breaker")
 
 # ── 常量 ────────────────────────────────────────────────────
 
-ROLLING_WINDOW = 50          # 每个 agent 保留最近 50 条 action 记录
-DEFAULT_MAX_REPEATS = 3      # 相同签名重复 N 次触发警告
+ROLLING_WINDOW = 50  # 每个 agent 保留最近 50 条 action 记录
+DEFAULT_MAX_REPEATS = 3  # 相同签名重复 N 次触发警告
 DEFAULT_PROGRESS_THRESHOLD = 0.3  # 多样性比率低于此值视为卡死
-REPEAT_WINDOW = 10           # 在最近 10 次操作中检测重复
-TOKEN_COST_PER_REDUNDANT = 500    # 每次冗余操作估算 token 消耗
-COST_PER_TOKEN = 0.000003    # 估算每 token 成本 (USD)
+REPEAT_WINDOW = 10  # 在最近 10 次操作中检测重复
+TOKEN_COST_PER_REDUNDANT = 500  # 每次冗余操作估算 token 消耗
+COST_PER_TOKEN = 0.000003  # 估算每 token 成本 (USD)
 
 
 class BreakerLevel(str, Enum):
     """Circuit breaker 三档动作。"""
-    WARN = "warn"                     # 允许但警告
-    BLOCK = "block"                   # 阻止执行
-    ESCALATE = "escalate"             # 阻止 + 上报人类
+
+    WARN = "warn"  # 允许但警告
+    BLOCK = "block"  # 阻止执行
+    ESCALATE = "escalate"  # 阻止 + 上报人类
 
 
 class StuckPattern(str, Enum):
     """卡死模式分类。"""
+
     HEALTHY = "healthy"
     INSUFFICIENT_DATA = "insufficient_data"
     EXACT_REPEAT = "exact_repeat"
@@ -67,6 +69,7 @@ class StuckPattern(str, Enum):
 @dataclass
 class ActionRecord:
     """一次 tool call 的记录。"""
+
     tool_name: str
     args: dict[str, Any]
     signature: str = ""
@@ -94,6 +97,7 @@ class ActionRecord:
 @dataclass
 class BreakerConfig:
     """断路器的配置。"""
+
     max_repeats: int = DEFAULT_MAX_REPEATS
     level: BreakerLevel = BreakerLevel.WARN
 
@@ -101,6 +105,7 @@ class BreakerConfig:
 @dataclass
 class StuckReport:
     """卡死分析报告。"""
+
     is_stuck: bool = False
     confidence: float = 0.0
     pattern: str = StuckPattern.HEALTHY.value
@@ -144,6 +149,7 @@ class ActionPatternTracker:
         if use_persistence:
             try:
                 from maref.infra.state import OpenClawState
+
                 self._state = OpenClawState(f"cb_{agent_id}")
             except ImportError:
                 logger.warning("OpenClawState 不可用，回退到内存模式")
@@ -151,7 +157,9 @@ class ActionPatternTracker:
 
         logger.debug(
             "ActionPatternTracker[%s] 初始化 (persist=%s, threshold=%.2f)",
-            agent_id, use_persistence, progress_threshold,
+            agent_id,
+            use_persistence,
+            progress_threshold,
         )
 
     def log_action(
@@ -184,13 +192,15 @@ class ActionPatternTracker:
         if not self._state:
             return
         actions = self._state.get("action_log", [])
-        actions.append({
-            "tool_name": record.tool_name,
-            "signature": record.signature,
-            "sig_key": record.sig_key,
-            "result_preview": record.result_preview,
-            "timestamp": record.timestamp,
-        })
+        actions.append(
+            {
+                "tool_name": record.tool_name,
+                "signature": record.signature,
+                "sig_key": record.sig_key,
+                "result_preview": record.result_preview,
+                "timestamp": record.timestamp,
+            }
+        )
         # 滚动窗口
         if len(actions) > ROLLING_WINDOW:
             actions = actions[-ROLLING_WINDOW:]
@@ -211,7 +221,7 @@ class ActionPatternTracker:
                 None,
             )
             warning = (
-                f"Action \"{repeated_sig}\" 重复 {max_repeat} 次 "
+                f'Action "{repeated_sig}" 重复 {max_repeat} 次 '
                 f"(最近 {REPEAT_WINDOW} 次操作中) — 可能进入循环"
             )
 
@@ -261,6 +271,7 @@ class CircuitBreaker:
         if use_persistence:
             try:
                 from maref.infra.state import OpenClawState
+
                 self._state = OpenClawState(f"cb_{agent_id}")
                 saved = self._state.get("breaker_config")
                 if saved:
@@ -302,7 +313,7 @@ class CircuitBreaker:
 
         # 断路器触发
         tool_display = tool_name
-        msg = f"\"{tool_display}\" 已用相同参数调用 {times_seen} 次 (限额: {self.max_repeats})"
+        msg = f'"{tool_display}" 已用相同参数调用 {times_seen} 次 (限额: {self.max_repeats})'
 
         if self.level == BreakerLevel.BLOCK:
             return {
@@ -325,20 +336,27 @@ class CircuitBreaker:
             "suggestion": "建议修改参数或换用其他工具。",
         }
 
-    def update_config(self, max_repeats: int | None = None, level: BreakerLevel | None = None) -> None:
+    def update_config(
+        self, max_repeats: int | None = None, level: BreakerLevel | None = None
+    ) -> None:
         """动态更新断路器配置。"""
         if max_repeats is not None:
             self.max_repeats = max_repeats
         if level is not None:
             self.level = level
         if self._use_persistence and self._state:
-            self._state.set("breaker_config", {
-                "max_repeats": self.max_repeats,
-                "level": self.level.value,
-            })
+            self._state.set(
+                "breaker_config",
+                {
+                    "max_repeats": self.max_repeats,
+                    "level": self.level.value,
+                },
+            )
         logger.info(
             "断路器 [%s] 配置更新: max_repeats=%d, level=%s",
-            self.agent_id, self.max_repeats, self.level.value,
+            self.agent_id,
+            self.max_repeats,
+            self.level.value,
         )
 
 
@@ -474,7 +492,7 @@ class StuckDetector:
             top_repeated = str(repeated[0]["signature"]) if repeated else "unknown"
             tool_name_only = top_repeated.split(":")[0]
             suggestion = (
-                f"Agent 反复调用 \"{tool_name_only}\" (相同参数 {max_repeat_in_window}/{REPEAT_WINDOW} 次)。"
+                f'Agent 反复调用 "{tool_name_only}" (相同参数 {max_repeat_in_window}/{REPEAT_WINDOW} 次)。'
                 f"建议: (1) 换用不同参数 (2) 换工具 (3) 拆分子任务 (4) 上报阻塞。"
                 f"已浪费约 {token_waste:,} tokens (${cost_waste:.4f})。"
             )
@@ -522,13 +540,15 @@ def format_report(report: dict[str, Any]) -> str:
     """将 StuckReport 格式化为可读文本。"""
     lines = []
     lines.append(f"📊 Agent 卡死分析报告 — {report.get('total_actions', 0)} 次操作")
-    lines.append(f"{'='*50}")
+    lines.append(f"{'=' * 50}")
     lines.append(f"  状态:       {'🔴 卡死' if report['is_stuck'] else '✅ 正常'}")
     lines.append(f"  置信度:     {report.get('confidence', 0):.0%}")
     lines.append(f"  模式:       {report.get('pattern', 'unknown')}")
     lines.append(f"  多样性比率: {report.get('diversity_ratio', 1.0):.2f}")
     lines.append(f"  冗余操作:   {report.get('redundant_actions', 0)} 次")
-    lines.append(f"  浪费 tokens: ~{report.get('estimated_token_waste', 0):,} (${report.get('estimated_cost_waste_usd', 0):.4f})")
+    lines.append(
+        f"  浪费 tokens: ~{report.get('estimated_token_waste', 0):,} (${report.get('estimated_cost_waste_usd', 0):.4f})"
+    )
     lines.append(f"  断路器:     {'触发' if report.get('breaker_triggered') else '未触发'}")
     lines.append("")
     lines.append(f"  建议: {report.get('suggestion', 'N/A')}")
@@ -564,9 +584,9 @@ if __name__ == "__main__":
                 "同样的内容",
             )
             if i < 3:
-                print(f"  [{i+1}/15] 正常")
+                print(f"  [{i + 1}/15] 正常")
             else:
-                print(f"  [{i+1}/15] {result['pattern']['warning'] or '正常'}")
+                print(f"  [{i + 1}/15] {result['pattern']['warning'] or '正常'}")
             time.sleep(0.1)
         print()
         report = detector.analyze()

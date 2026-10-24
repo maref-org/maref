@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import subprocess
 import sys
 import time
@@ -39,6 +40,7 @@ STAGNATION_MAX_HISTORY = 10  # 保留最近 N 张截图 OCR 文本
 SILENCE_MULTIPLIER = 2  # 静默判定 = 2 × 步时延 (默认步时延 60s → 120s)
 LOOP_K = 3  # 指纹重复 K 次判循环
 STEP_LATENCY_DEFAULT = 60  # 默认步时延 (秒)
+ALERT_COOLDOWN_S = 21600  # 同类告警 6h 冷却：空闲期 silence 常态误报不挤占 state.alerts
 
 # 状态文件
 STATE_DIR = REPO_ROOT / ".openclaw" / "stagnation_watcher"
@@ -238,7 +240,7 @@ def _record_failure_event(signal: str, detail: str, screenshot: Path | None = No
             "--source",
             "stagnation_watcher",
             "--signature",
-            f"stagnation_watcher:{signal}:{hashlib.md5(detail.encode()).hexdigest()[:8]}",
+            f"stagnation_watcher:{signal}:{hashlib.md5(detail.encode(), usedforsecurity=False).hexdigest()[:8]}",
             "--detail",
             detail,
             "--auto-screenshot",  # 也会自动归档最近截图
@@ -259,20 +261,17 @@ def run_check(step_latency: int = STEP_LATENCY_DEFAULT) -> dict:
     # 1. stagnation
     is_stag, stag_detail, stag_shot = _check_stagnation(state)
     if is_stag:
-        _record_failure_event("stagnation", stag_detail, stag_shot)
-        alerts.append({"type": "stagnation", "detail": stag_detail, "ts": _now_iso()})
+        _emit_alert(state, alerts, "stagnation", stag_detail, stag_shot)
 
     # 2. silence
     is_sil, sil_detail = _check_silence(state, step_latency)
     if is_sil:
-        _record_failure_event("silence", sil_detail)
-        alerts.append({"type": "silence", "detail": sil_detail, "ts": _now_iso()})
+        _emit_alert(state, alerts, "silence", sil_detail)
 
     # 3. loop
     is_loop, loop_detail, loop_fp = _check_loop()
     if is_loop:
-        _record_failure_event("loop", loop_detail)
-        alerts.append({"type": "loop", "detail": loop_detail, "ts": _now_iso()})
+        _emit_alert(state, alerts, "loop", loop_detail)
 
     state["last_check"] = _now_iso()
     if alerts:
@@ -282,6 +281,25 @@ def run_check(step_latency: int = STEP_LATENCY_DEFAULT) -> dict:
     _save_state(state)
 
     return {"checks": ["stagnation", "silence", "loop"], "alerts": alerts}
+
+
+def _emit_alert(
+    state: dict, alerts: list, type_: str, detail: str, screenshot: Path | None = None
+) -> None:
+    """告警出⼝：同类告警 6h 冷却（防空闲期 silence 常态误报刷屏）→ 入 failure_event_bus。"""
+    cd = state.setdefault("alert_cooldown", {})
+    # 冷却键抹平动态数字（秒数等），同类模式共用一个冷却窗
+    sig = f"{type_}:{re.sub(r'[0-9]+', 'n', str(detail))[:120]}"
+    now = time.time()
+    last = cd.get(sig, 0)
+    # 清理过期冷却键，防 state 膨胀
+    for k in [k for k, t in cd.items() if now - t > ALERT_COOLDOWN_S * 4]:
+        cd.pop(k, None)
+    if now - last < ALERT_COOLDOWN_S:
+        return
+    cd[sig] = now
+    _record_failure_event(type_, detail, screenshot)
+    alerts.append({"type": type_, "detail": detail, "ts": _now_iso()})
 
 
 def main() -> int:

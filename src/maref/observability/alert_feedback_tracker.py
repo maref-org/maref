@@ -32,6 +32,8 @@ class AlertRecord:
     fixed_at: float | None = None
     verified_at: float | None = None
     fix_description: str = ""
+    closure_reason: str = ""
+    closure_evidence: str = ""
     repeat_count: int = 0
     subsystem: str = ""
     check_id: str = ""
@@ -77,6 +79,8 @@ class AlertRecord:
             "fixed_at": self.fixed_at,
             "verified_at": self.verified_at,
             "fix_description": self.fix_description,
+            "closure_reason": self.closure_reason,
+            "closure_evidence": self.closure_evidence,
             "repeat_count": self.repeat_count,
             "subsystem": self.subsystem,
             "check_id": self.check_id,
@@ -102,7 +106,7 @@ class AlertFeedbackTracker:
 
                 meta_base = get_meta_base()
             except Exception:
-                meta_base = Path(os.environ.get("MAREF_META_PATH", ".openclaw")).resolve()
+                meta_base = Path(os.environ.get("MAREF_META_PATH", ".governance/meta")).resolve()
             state_path = meta_base / "alert_feedback_state.json"
         self._path = Path(state_path)
         self._path.parent.mkdir(parents=True, exist_ok=True)
@@ -169,7 +173,6 @@ class AlertFeedbackTracker:
                 and existing.severity == severity
                 and existing.check_id == check_id
                 and existing.is_open
-                and now - existing.triggered_at < 600
             ):
                 existing.repeat_count += 1
                 self._save()
@@ -218,26 +221,86 @@ class AlertFeedbackTracker:
         self._save()
         return True
 
-    def resolve_by_check(self, check_id: str, description: str = "") -> int:
+    def close_alert(
+        self,
+        alert_id: str,
+        reason: str,
+        evidence: str = "",
+        description: str = "",
+    ) -> bool:
+        """Close one alert with an explicit reason and evidence trail."""
+        record = self._alerts.get(alert_id)
+        if record is None or not record.is_open:
+            return False
+        now = time.time()
+        record.fixed_at = record.fixed_at or now
+        record.verified_at = now
+        record.fix_description = description or reason
+        record.closure_reason = reason
+        record.closure_evidence = evidence
+        self._save()
+        return True
+
+    def reopen_alert(self, alert_id: str, reason: str = "") -> bool:
+        """Re-open a mistakenly closed alert (audit correction)."""
+        record = self._alerts.get(alert_id)
+        if record is None or record.is_open:
+            return False
+        record.fixed_at = None
+        record.verified_at = None
+        record.fix_description = ""
+        record.closure_reason = reason
+        record.closure_evidence = ""
+        self._save()
+        return True
+
+    def bulk_close(
+        self,
+        alert_ids: list[str],
+        reason: str,
+        evidence: str = "",
+        description: str = "",
+    ) -> int:
+        """Close multiple alerts with one attribution record."""
+        resolved = 0
+        now = time.time()
+        for alert_id in alert_ids:
+            record = self._alerts.get(alert_id)
+            if record is None or not record.is_open:
+                continue
+            record.fixed_at = record.fixed_at or now
+            record.verified_at = now
+            record.fix_description = description or reason
+            record.closure_reason = reason
+            record.closure_evidence = evidence
+            resolved += 1
+        if resolved:
+            self._save()
+        return resolved
+
+    def resolve_by_check(self, check_id: str, description: str = "", evidence: str = "") -> int:
         """Auto-close all open alerts belonging to a recovered check.
 
         Marks each matching open alert as fixed+verified (feedback loop
         closure). Returns the number of alerts resolved.
         """
         resolved = 0
+        now = time.time()
         for record in self._alerts.values():
             if record.check_id == check_id and record.is_open:
                 if record.fixed_at is None:
-                    record.fixed_at = time.time()
+                    record.fixed_at = now
                     record.fix_description = description or "check recovered"
                 if record.verified_at is None:
-                    record.verified_at = time.time()
+                    record.verified_at = now
+                record.closure_reason = description or "check recovered"
+                record.closure_evidence = evidence
                 resolved += 1
         if resolved:
             self._save()
         return resolved
 
-    def resolve_all_open(self, description: str = "") -> int:
+    def resolve_all_open(self, description: str = "", evidence: str = "") -> int:
         """Close every currently-open alert (used after remediation).
 
         Returns the number of alerts resolved.
@@ -251,29 +314,38 @@ class AlertFeedbackTracker:
                     record.fix_description = description or "remediation applied"
                 if record.verified_at is None:
                     record.verified_at = now
+                record.closure_reason = description or "remediation applied"
+                record.closure_evidence = evidence
                 resolved += 1
         if resolved:
             self._save()
         return resolved
 
-    def resolve_legacy_open(self, description: str = "") -> int:
-        """Close open alerts that predate check_id tracking.
+    def resolve_legacy_open(
+        self,
+        description: str = "",
+        evidence: str = "",
+        max_age_hours: float = 24.0,
+    ) -> int:
+        """Close *old* open alerts that predate check_id tracking.
 
         Before ``check_id`` was introduced every recorded alert carried an
-        empty ``check_id``; those records can never match a recovered check,
-        so they would keep M2 permanently failing. This one-shot migration
-        closes exactly those legacy records, leaving modern (check_id-bearing)
-        alerts untouched.
+        empty ``check_id``. A one-shot migration is needed, but it must not
+        swallow a current alert (e.g. M4 telemetry) that merely lacks a
+        check_id. Only records older than ``max_age_hours`` are closed.
         """
         resolved = 0
         now = time.time()
+        cutoff = now - max_age_hours * 3600
         for record in self._alerts.values():
-            if record.is_open and record.check_id == "":
+            if record.is_open and record.check_id == "" and record.triggered_at < cutoff:
                 if record.fixed_at is None:
                     record.fixed_at = now
                     record.fix_description = description or "legacy alert consumed"
                 if record.verified_at is None:
                     record.verified_at = now
+                record.closure_reason = description or "legacy alert consumed"
+                record.closure_evidence = evidence
                 resolved += 1
         if resolved:
             self._save()
@@ -312,7 +384,10 @@ class AlertFeedbackTracker:
                 name_repeats[record.name] = name_counts[record.name]
 
         total = sum(name_counts.values())
-        repeat_total = sum(c for c in name_counts.values() if c > 1)
+        # Count only occurrences beyond the first per name. A single
+        # long-running incident is not a repeat; a second record means the
+        # alert recurred after the previous one was closed.
+        repeat_total = sum(c - 1 for c in name_counts.values() if c > 1)
         repeat_names = len(name_repeats)
         return {
             "total_alerts": total,
@@ -379,6 +454,20 @@ class AlertFeedbackTracker:
             "healthy": recovery_rate >= 0.90 or total == 0,
         }
 
+    def mttr_hours(self, window_hours: float = 72) -> dict[str, Any]:
+        """Mean time to repair/verify for alerts closed in the window."""
+        cutoff = time.time() - window_hours * 3600
+        durations = [
+            r.time_to_verify
+            for r in self._alerts.values()
+            if r.verified_at is not None and r.verified_at > cutoff and r.time_to_verify is not None
+        ]
+        return {
+            "closed_alerts": len(durations),
+            "mttr_hours": round(sum(durations) / len(durations) / 3600, 2) if durations else None,
+            "window_hours": window_hours,
+        }
+
     def summary(self) -> dict[str, Any]:
         """Return a comprehensive summary for M2 reporting."""
         return {
@@ -387,4 +476,5 @@ class AlertFeedbackTracker:
             "repeat_alert_rate": self.repeat_alert_rate(),
             "alert_recovery": self.alert_recovery_rate(),
             "alert_disappearance": self.check_alert_disappearance(),
+            "mttr": self.mttr_hours(),
         }

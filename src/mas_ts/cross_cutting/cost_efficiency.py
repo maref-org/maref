@@ -276,10 +276,7 @@ def aggregate_cost_metrics(runs: list[dict[str, Any]]) -> dict[str, Any]:
 
     # Calculate 95th percentile
     p95_index = int(n * 0.95)
-    if p95_index >= n:
-        cpt_p95 = sorted_cpt[-1]
-    else:
-        cpt_p95 = sorted_cpt[p95_index]
+    cpt_p95 = sorted_cpt[-1] if p95_index >= n else sorted_cpt[p95_index]
 
     # Calculate coefficient of variation
     mean = sum(cpt_values) / n

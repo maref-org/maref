@@ -7,9 +7,10 @@
   record   写一行结构化失败/摩擦信号 + fingerprint + 截图归档 + agent_bus 广播
   resolve  标记自愈成功（供 MTTR / 自愈率）
   escalate 标记升级人工
+  judge    <fp> --needed/--not-needed [--minutes N] 升级决策人工评审（升级精度/人工分钟）
   list     按 fp / signal / 时间窗列出事件
   replay   <fp> 回放: 事件 + 截图 + 轨迹步
-  stats    四指标日查（自愈率/复发率/升级率/MTTR）
+  stats    四指标 + 三扩展指标（升级精度/人工分钟[proxy]/归因准确率）
 
 退出码: 0 成功 / 1 参数或数据错误 / 2 目标不存在
 """
@@ -26,12 +27,16 @@ import statistics
 import sys
 import time
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-# py<3.11 无 datetime.UTC（py3.10 target 兼容）：统一走 timezone.utc
-UTC = timezone.utc
+if sys.version_info >= (3, 11):
+    from datetime import UTC
+else:  # pragma: no cover
+    from datetime import timezone
+
+    UTC = timezone.utc
 
 ROOT = Path(__file__).resolve().parent.parent
 # 环境变量可覆盖（测试沙箱/隔离演练用；不设则落仓库默认目录）
@@ -75,6 +80,44 @@ def normalize_signature(text: str) -> str:
 def make_fingerprint(signal: str, signature: str) -> str:
     material = f"{signal}|{normalize_signature(signature)}"
     return hashlib.sha256(material.encode("utf-8")).hexdigest()[:FP_LEN]
+
+
+def _judge_file() -> Path:
+    """升级决策评审账本（动态基于 EVENTS_DIR，self-check 沙箱自动跟随）。"""
+    return EVENTS_DIR / "judge_reviews.jsonl"
+
+
+def _attr_file() -> Path:
+    """归因人工复核账本（failure_attribution.verify 同文件写入）。"""
+    return EVENTS_DIR / "attribution_reviews.jsonl"
+
+
+def _append_jsonl(path: Path, row: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+
+def _load_jsonl(path: Path, since: datetime | None = None) -> list[dict]:
+    if not path.exists():
+        return []
+    out = []
+    for ln in path.read_text(errors="replace").splitlines():
+        ln = ln.strip()
+        if not ln:
+            continue
+        try:
+            rec = json.loads(ln)
+        except json.JSONDecodeError:
+            continue
+        if since is not None:
+            try:
+                if datetime.fromisoformat(str(rec.get("ts", "")).replace("Z", "+00:00")) < since:
+                    continue
+            except ValueError:
+                continue
+        out.append(rec)
+    return out
 
 
 def _now_iso() -> str:
@@ -252,6 +295,30 @@ def record(
     return {"skipped": False, "event": rec}
 
 
+def judge(fp: str, verdict: str, minutes: float = 0.0, reviewer: str = "human") -> dict:
+    """升级决策人工评审（战略 §6 escalation_precision / human_minutes 数据源）。
+
+    needed = 该次升级人工判断正确；not_needed = 升级为误报/过度升级。
+    minutes = 本次评审/处置花费的人工分钟（估算值，stats 标注 proxy）。
+    """
+    if verdict not in ("needed", "not_needed"):
+        raise ValueError("verdict 必须 needed / not_needed")
+    if minutes < 0:
+        raise ValueError("minutes 不能为负")
+    rows = load_events(fp=fp, collapse=True)
+    if not rows:
+        return {"error": "not_found", "fingerprint": fp}
+    row = {
+        "fp": fp,
+        "verdict": verdict,
+        "minutes": round(float(minutes), 2),
+        "reviewer": reviewer,
+        "ts": _now_iso(),
+    }
+    _append_jsonl(_judge_file(), row)
+    return row
+
+
 def mark(fp: str, outcome: str, actor: str = "", note: str = "") -> dict:
     if outcome not in ("recovered", "escalated", "unresolved"):
         raise ValueError("outcome 只支持 recovered / escalated / unresolved")
@@ -354,6 +421,26 @@ def stats(days: int = 0) -> dict:
     if deltas:
         mttr_min = round(statistics.median(deltas), 2)
 
+    # ── 批次 A3 扩展指标（战略 §6）─────────────────────────────
+    jrows = _load_jsonl(_judge_file(), since=since)
+    n_needed = sum(1 for j in jrows if j.get("verdict") == "needed")
+    n_not = sum(1 for j in jrows if j.get("verdict") == "not_needed")
+    n_judge = n_needed + n_not
+    escalation_precision = round(n_needed / n_judge, 4) if n_judge else None
+
+    minutes_total = round(sum(float(j.get("minutes") or 0) for j in jrows), 2)
+    win_days = days or None
+    # 无评审数据 = 未采集（null），有数据才按窗口出值（区别"真 0 分钟"与"没跑度量"）
+    human_minutes_per_day = (
+        round(minutes_total / win_days, 2) if (win_days and win_days > 0 and n_judge) else None
+    )
+
+    arows = _load_jsonl(_attr_file(), since=since)
+    n_correct = sum(1 for a in arows if a.get("verdict") == "correct")
+    n_wrong = sum(1 for a in arows if a.get("verdict") == "wrong")
+    n_attr = n_correct + n_wrong
+    attribution_accuracy = round(n_correct / n_attr, 4) if n_attr else None
+
     return {
         "window_days": days or "all",
         "total_events": len(rows),
@@ -364,15 +451,54 @@ def stats(days: int = 0) -> dict:
         "escalation_rate": round(escalated / total_fail, 4) if total_fail else None,
         "mttr_minutes": mttr_min,
         "screenshot_coverage": screenshot_coverage,
+        "escalation_precision": escalation_precision,
+        "human_minutes_per_day": human_minutes_per_day,
+        "human_minutes_is_proxy": True,
+        "attribution_accuracy": attribution_accuracy,
         "denominators": {
             "self_heal": resolved,
             "recurrence": total_fail,
             "escalation": total_fail,
             "mttr": len(deltas),
             "screenshot": total_fail,
+            "judge_precision": n_judge,
+            "human_minutes_days": win_days,
+            "attribution": n_attr,
         },
-        "note": "分母为 0 时指标诚实返回 null（战略§6：不假 0）",
+        "note": "分母为 0 时指标诚实返回 null（战略§6：不假 0）；human_minutes 为人工估算 proxy",
     }
+
+
+def write_report(res: dict, date_s: str = "") -> Path:
+    """A5: 每日指标报告落 .openclaw/reports/failure_bus/YYYY-MM-DD.md（同日覆盖，幂等）。"""
+    date_s = date_s or datetime.now(UTC).strftime("%Y-%m-%d")
+    out_dir = ROOT / ".openclaw" / "reports" / "failure_bus"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    d = res["denominators"]
+    lines = [
+        f"# 失败总线日报 {date_s}",
+        "",
+        f"窗口: {res['window_days']} 天  事件: {res['total_events']} (failure {res['failure_events']})",
+        "",
+        "| 指标 | 值 | 分母 |",
+        "|---|---|---|",
+        f"| 自愈率 | {res['self_heal_rate']} | {d['self_heal']} |",
+        f"| 复发率 | {res['recurrence_rate']} | {d['recurrence']} |",
+        f"| 升级率 | {res['escalation_rate']} | {d['escalation']} |",
+        f"| MTTR (min) | {res['mttr_minutes']} | {d['mttr']} |",
+        f"| 截图覆盖率 | {res['screenshot_coverage']} | {d['screenshot']} |",
+        f"| 升级精度 | {res['escalation_precision']} | {d['judge_precision']} |",
+        f"| 人工分钟/日 (proxy) | {res['human_minutes_per_day']} | {d['human_minutes_days']} |",
+        f"| 归因准确率 | {res['attribution_accuracy']} | {d['attribution']} |",
+        "",
+        f"outcome: {res['outcome']}",
+        "",
+        f"> {res['note']}",
+        "",
+    ]
+    fp = out_dir / f"{date_s}.md"
+    fp.write_text("\n".join(lines), encoding="utf-8")
+    return fp
 
 
 def record_from_rewards(rows: list[dict]) -> dict:
@@ -474,6 +600,14 @@ def main() -> int:
     p.add_argument("--to", default="human")
     p.add_argument("--note", default="")
 
+    p = sub.add_parser("judge", help="升级决策人工评审（升级精度/人工分钟数据源）")
+    p.add_argument("fp")
+    g = p.add_mutually_exclusive_group(required=True)
+    g.add_argument("--needed", action="store_true", help="升级判断正确")
+    g.add_argument("--not-needed", action="store_true", help="升级为误报/过度升级")
+    p.add_argument("--minutes", type=float, default=0.0, help="本次处置人工分钟（估算）")
+    p.add_argument("--by", default="human", help="评审人")
+
     p = sub.add_parser("list", help="列出事件")
     p.add_argument("--fp", default="")
     p.add_argument("--signal", default="", choices=SIGNALS)
@@ -485,9 +619,14 @@ def main() -> int:
     p.add_argument("fp")
     p.add_argument("--json", action="store_true")
 
-    p = sub.add_parser("stats", help="四指标")
+    p = sub.add_parser("stats", help="四指标 + 三扩展指标")
     p.add_argument("--days", type=int, default=7)
     p.add_argument("--json", action="store_true")
+    p.add_argument(
+        "--write-report",
+        action="store_true",
+        help="落 .openclaw/reports/failure_bus/YYYY-MM-DD.md（A5 日报）",
+    )
 
     sub.add_parser("self-check", help="自检（隔离临时目录）")
 
@@ -526,6 +665,16 @@ def main() -> int:
         )
         print(json.dumps(res, ensure_ascii=False, indent=2, default=str))
         return 0 if res.get("updated") else 2
+
+    if args.cmd == "judge":
+        res = judge(
+            args.fp,
+            "needed" if args.needed else "not_needed",
+            minutes=args.minutes,
+            reviewer=args.by,
+        )
+        print(json.dumps(res, ensure_ascii=False, indent=2, default=str))
+        return 2 if res.get("error") else 0
 
     if args.cmd == "list":
         since = datetime.now(UTC) - timedelta(days=args.days) if args.days else None
@@ -569,6 +718,8 @@ def main() -> int:
 
     if args.cmd == "stats":
         res = stats(days=args.days)
+        if args.write_report:
+            res["report_path"] = str(write_report(res))
         if args.json:
             print(json.dumps(res, ensure_ascii=False, indent=2))
         else:
@@ -579,6 +730,15 @@ def main() -> int:
             print(f"  复发率: {res['recurrence_rate']} (n={res['denominators']['recurrence']})")
             print(f"  升级率: {res['escalation_rate']} (n={res['denominators']['escalation']})")
             print(f"  MTTR:   {res['mttr_minutes']} min (n={res['denominators']['mttr']})")
+            print(
+                f"  升级精度: {res['escalation_precision']} (n={res['denominators']['judge_precision']})"
+            )
+            print(
+                f"  人工分钟/日: {res['human_minutes_per_day']} proxy (days={res['denominators']['human_minutes_days']})"
+            )
+            print(
+                f"  归因准确率: {res['attribution_accuracy']} (n={res['denominators']['attribution']})"
+            )
             print(f"  outcome: {res['outcome']}")
         return 0
 

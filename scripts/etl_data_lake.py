@@ -32,7 +32,7 @@ except ImportError:
     DUCKDB_AVAILABLE = False
     print("⚠️  duckdb 未安装，ETL 功能受限 (pip install duckdb)")
 
-LAKE_ROOT = Path(os.environ.get("MAREF_GOVERNANCE_LAKE", "/Volumes/1TB-M2/maref-governance-lake"))
+LAKE_ROOT = Path(os.environ.get("MAREF_GOVERNANCE_LAKE", Path(__file__).resolve().parents[3] / "maref-governance-lake"))
 
 
 TABLE_CONFIGS = {

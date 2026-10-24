@@ -13,15 +13,51 @@ import json
 import re
 import sys
 import time
-from datetime import UTC, datetime, timedelta
-from pathlib import Path
+from datetime import datetime, timedelta
 
-ROOT = Path(__file__).resolve().parent.parent
-OBS_FILE = ROOT / ".openclaw" / "mem_assets" / "observations.jsonl"
-LESSONS_FILE = ROOT / ".openclaw" / "lessons" / "lessons.jsonl"
-TEMP_FILE = ROOT / ".openclaw" / "memory_temperature" / "state.json"
+if sys.version_info >= (3, 11):
+    from datetime import UTC
+else:  # pragma: no cover
+    from datetime import timezone
+
+    UTC = timezone.utc
+
+from pathlib import Path
+from typing import Any
+
+from maref._paths import (
+    get_legacy_memory_base,
+    get_memory_base,
+    get_project_root,
+)
+
+ROOT = get_project_root()
+MEMORY_BASE = get_memory_base()
+LEGACY_MEMORY_BASE = get_legacy_memory_base()
+OBS_FILE = MEMORY_BASE / "mem_assets" / "observations.jsonl"
+LESSONS_FILE = MEMORY_BASE / "lessons" / "lessons.jsonl"
+TEMP_FILE = MEMORY_BASE / "memory_temperature" / "state.json"
+LEGACY_OBS_FILE = LEGACY_MEMORY_BASE / "mem_assets" / "observations.jsonl"
+LEGACY_LESSONS_FILE = LEGACY_MEMORY_BASE / "lessons" / "lessons.jsonl"
 
 _DEFAULT_LIMIT = 10
+
+
+def _read_jsonl(primary: Path, legacy: Path) -> list[dict]:
+    """Read JSONL from the SSOT path, falling back to legacy read-only path."""
+    path = primary if primary.exists() else legacy
+    if not path.exists():
+        return []
+    records: list[dict] = []
+    for line in path.read_text(errors="replace").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            records.append(json.loads(line))
+        except json.JSONDecodeError:
+            continue
+    return records
 
 
 def _lvl(trust: str | None) -> int:
@@ -33,33 +69,11 @@ def _lvl(trust: str | None) -> int:
 
 
 def _load_assets() -> list[dict]:
-    if not OBS_FILE.exists():
-        return []
-    assets = []
-    for ln in OBS_FILE.read_text(errors="replace").splitlines():
-        ln = ln.strip()
-        if not ln:
-            continue
-        try:
-            assets.append(json.loads(ln))
-        except json.JSONDecodeError:
-            continue
-    return assets
+    return _read_jsonl(OBS_FILE, LEGACY_OBS_FILE)
 
 
 def _load_lessons() -> list[dict]:
-    if not LESSONS_FILE.exists():
-        return []
-    lessons = []
-    for ln in LESSONS_FILE.read_text(errors="replace").splitlines():
-        ln = ln.strip()
-        if not ln:
-            continue
-        try:
-            lessons.append(json.loads(ln))
-        except json.JSONDecodeError:
-            continue
-    return lessons
+    return _read_jsonl(LESSONS_FILE, LEGACY_LESSONS_FILE)
 
 
 def _score_asset(asset: dict, tokens: list[str]) -> float:
@@ -109,7 +123,7 @@ def search_reflections(
     assets = _load_assets()
     lessons = _load_lessons()
 
-    results = []
+    results: list[dict[str, Any]] = []
 
     # 搜 assets
     for a in assets:

@@ -154,6 +154,7 @@ class TestAlertFeedbackTracker:
         """Legacy (empty check_id) open alerts are closed, modern ones kept."""
         tracker = AlertFeedbackTracker(state_path=tmp_path / "state.json")
         legacy = tracker.record_alert("Legacy", "critical", "old")  # check_id=""
+        legacy.triggered_at -= 90000  # older than the migration cutoff
         modern = tracker.record_alert(
             "Modern", "critical", "new", check_id="health_snapshot_freshness",
         )
@@ -162,6 +163,13 @@ class TestAlertFeedbackTracker:
         by_id = {r.alert_id: r for r in tracker.get_alerts()}
         assert not by_id[legacy.alert_id].is_open
         assert by_id[modern.alert_id].is_open
+
+    def test_resolve_legacy_open_keeps_recent_empty_check_id(self, tmp_path: Path) -> None:
+        """A current alert without check_id (e.g. M4) must not be auto-closed."""
+        tracker = AlertFeedbackTracker(state_path=tmp_path / "state.json")
+        alert = tracker.record_alert("Current", "warning", "now")
+        assert tracker.resolve_legacy_open() == 0
+        assert alert.is_open
 
     def test_resolve_legacy_open_noop_when_none(self, tmp_path: Path) -> None:
         tracker = AlertFeedbackTracker(state_path=tmp_path / "state.json")

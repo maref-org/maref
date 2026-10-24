@@ -15,12 +15,11 @@ import hmac
 import json
 import logging
 import os
-import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, HTTPException, Request
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/telemetry")
@@ -222,7 +221,7 @@ async def telemetry_ingest(request: Request) -> dict[str, Any]:
     try:
         payload = await request.json()
     except Exception:
-        raise HTTPException(status_code=400, detail="Invalid JSON body")
+        raise HTTPException(status_code=400, detail="Invalid JSON body") from None
 
     # 1. 基础 Schema 校验
     ok, err = _validate_schema(payload, TELEMETRY_SCHEMA)
@@ -300,7 +299,7 @@ async def telemetry_ingest_batch(request: Request) -> dict[str, Any]:
     try:
         payload = await request.json()
     except Exception:
-        raise HTTPException(status_code=400, detail="Invalid JSON body")
+        raise HTTPException(status_code=400, detail="Invalid JSON body") from None
 
     if not isinstance(payload, list):
         raise HTTPException(status_code=400, detail="Batch endpoint expects JSON array")
@@ -324,7 +323,7 @@ async def telemetry_ingest_batch(request: Request) -> dict[str, Any]:
         results.append({"status": "ok"})
 
     # 批量写入
-    valid_entries = [item for item, r in zip(payload, results) if r["status"] == "ok"]
+    valid_entries = [item for item, r in zip(payload, results, strict=True) if r["status"] == "ok"]
     success, failed = _write_batch(valid_entries)
 
     return {"total": len(payload), "accepted": success, "rejected": failed, "details": results}

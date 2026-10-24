@@ -56,20 +56,34 @@ class TestM0HealthSnapshotFreshness:
 class TestM0AuditLogGrowth:
     def test_recent_audit_log_passes(self, tmp_path: Path) -> None:
         log = tmp_path / "audit.jsonl"
-        log.write_text(json.dumps({
-            "event_type": "governance_decision", "timestamp": time.time(),
-            "actor": "test", "action": "file.read",
-        }) + "\n")
+        log.write_text(
+            json.dumps(
+                {
+                    "event_type": "governance_decision",
+                    "timestamp": time.time(),
+                    "actor": "test",
+                    "action": "file.read",
+                }
+            )
+            + "\n"
+        )
         result = check_audit_log_growth(max_age=300.0, audit_base=tmp_path)
         assert result["passed"] is True
         assert result["newest_event_type"] == "governance_decision"
 
     def test_stale_audit_log_fails(self, tmp_path: Path) -> None:
         log = tmp_path / "audit.jsonl"
-        log.write_text(json.dumps({
-            "event_type": "governance_decision", "timestamp": time.time() - 600,
-            "actor": "test", "action": "file.read",
-        }) + "\n")
+        log.write_text(
+            json.dumps(
+                {
+                    "event_type": "governance_decision",
+                    "timestamp": time.time() - 600,
+                    "actor": "test",
+                    "action": "file.read",
+                }
+            )
+            + "\n"
+        )
         result = check_audit_log_growth(max_age=60.0, audit_base=tmp_path)
         assert result["passed"] is False
 
@@ -152,6 +166,7 @@ class TestM0HmacKey:
 class TestM0ManagedAgents:
     def test_configures_plist_list(self) -> None:
         from maref.observability.meta_monitor import check_managed_agents
+
         result = check_managed_agents()
         assert "configured" in result
         assert "plist_count" in result
@@ -215,8 +230,9 @@ class TestM2NotificationStaleness:
     def test_old_open_alert_fails(self, tmp_path: Path) -> None:
         """An open alert aged >72h must fail the staleness check."""
 
-        with patch.object(meta_monitor, "_get_alert_tracker",
-                          return_value=self._stale_tracker(age_hours=73)):
+        with patch.object(
+            meta_monitor, "_get_alert_tracker", return_value=self._stale_tracker(age_hours=73)
+        ):
             result = check_notification_staleness(notifications_dir=tmp_path / "notifications")
         assert result["passed"] is False
         assert result["stale_72h"] == 1
@@ -224,11 +240,34 @@ class TestM2NotificationStaleness:
     def test_old_open_alert_24h_warns(self, tmp_path: Path) -> None:
         """An open alert aged 25h must not fail but be tracked as stale_24h."""
 
-        with patch.object(meta_monitor, "_get_alert_tracker",
-                          return_value=self._stale_tracker(age_hours=25)):
+        with patch.object(
+            meta_monitor, "_get_alert_tracker", return_value=self._stale_tracker(age_hours=25)
+        ):
             result = check_notification_staleness(notifications_dir=tmp_path / "notifications")
         assert result["passed"] is True
         assert result["stale_24h"] == 1
+
+
+class TestM2FeedbackClosure:
+    def test_m4_recovery_closes_telemetry_alert(self) -> None:
+        from maref.observability.alert_feedback_tracker import AlertFeedbackTracker
+
+        tracker = AlertFeedbackTracker(state_path=tempfile.mktemp(suffix=".json"))
+        tracker.record_alert(
+            name="M4 Telemetry Liveness",
+            severity="warning",
+            message="no events",
+            check_id="telemetry_liveness",
+        )
+        with patch.object(meta_monitor, "_get_alert_tracker", return_value=tracker):
+            resolved = meta_monitor._resolve_recovered_checks(
+                {"checks": {}},
+                {"chain_integrity": {"passed": True}},
+                {"notification_staleness": {"passed": True, "stale_24h": 0}},
+                {"passed": True},
+            )
+        assert resolved == 1
+        assert tracker.get_open_alerts() == []
 
 
 class TestM2NotificationCleanup:
@@ -239,11 +278,15 @@ class TestM2NotificationCleanup:
 
         tracker = AlertFeedbackTracker(state_path=tempfile.mktemp(suffix=".json"))
         tracker.record_alert(
-            name="Open Alert", severity="critical", message="open",
+            name="Open Alert",
+            severity="critical",
+            message="open",
             check_id="open_check",
         )
         tracker.record_alert(
-            name="Closed Alert", severity="warning", message="closed",
+            name="Closed Alert",
+            severity="warning",
+            message="closed",
             check_id="closed_check",
         )
         # Resolve only the closed one.
@@ -253,16 +296,25 @@ class TestM2NotificationCleanup:
         ndir.mkdir(parents=True)
         for check_id, name in (("open_check", "open"), ("closed_check", "closed")):
             f = ndir / f"{check_id}.json"
-            f.write_text(json.dumps({
-                "title": name, "severity": "critical", "check_id": check_id,
-                "timestamp": time.time(), "source": "meta-monitor",
-            }))
+            f.write_text(
+                json.dumps(
+                    {
+                        "title": name,
+                        "severity": "critical",
+                        "check_id": check_id,
+                        "timestamp": time.time(),
+                        "source": "meta-monitor",
+                    }
+                )
+            )
             # Age it past the cleanup window.
             old = time.time() - 2 * 3600
             os.utime(f, (old, old))
 
-        with patch.object(meta_monitor, "_get_alert_tracker", return_value=tracker), \
-                patch.object(meta_monitor, "_notifications_dir", return_value=ndir):
+        with (
+            patch.object(meta_monitor, "_get_alert_tracker", return_value=tracker),
+            patch.object(meta_monitor, "_notifications_dir", return_value=ndir),
+        ):
             removed = _cleanup_notifications(max_age_hours=1.0)
 
         assert removed == 1
@@ -276,7 +328,9 @@ class TestM2NotificationCleanup:
 
         tracker = AlertFeedbackTracker(state_path=tempfile.mktemp(suffix=".json"))
         tracker.record_alert(
-            name="Fresh", severity="warning", message="fresh",
+            name="Fresh",
+            severity="warning",
+            message="fresh",
             check_id="fresh_check",
         )
         tracker.resolve_by_check("fresh_check")
@@ -284,13 +338,22 @@ class TestM2NotificationCleanup:
         ndir = tmp_path / "notifications"
         ndir.mkdir(parents=True)
         f = ndir / "fresh.json"
-        f.write_text(json.dumps({
-            "title": "Fresh", "severity": "warning", "check_id": "fresh_check",
-            "timestamp": time.time(), "source": "meta-monitor",
-        }))
+        f.write_text(
+            json.dumps(
+                {
+                    "title": "Fresh",
+                    "severity": "warning",
+                    "check_id": "fresh_check",
+                    "timestamp": time.time(),
+                    "source": "meta-monitor",
+                }
+            )
+        )
 
-        with patch.object(meta_monitor, "_get_alert_tracker", return_value=tracker), \
-                patch.object(meta_monitor, "_notifications_dir", return_value=ndir):
+        with (
+            patch.object(meta_monitor, "_get_alert_tracker", return_value=tracker),
+            patch.object(meta_monitor, "_notifications_dir", return_value=ndir),
+        ):
             removed = _cleanup_notifications(max_age_hours=1.0)
 
         assert removed == 0
@@ -322,12 +385,14 @@ class TestAuditPathRegistry:
             assert entry.file_pattern
 
     def test_verify_path_consistency_detects_missing_paths(self) -> None:
-        register(AuditPathEntry(
-            subsystem="__test_missing__",
-            description="test always-missing path",
-            write_path="/tmp/__maref_test_nonexistent__/data.json",
-            read_paths=("/tmp/__maref_test_nonexistent__/data.json",),
-        ))
+        register(
+            AuditPathEntry(
+                subsystem="__test_missing__",
+                description="test always-missing path",
+                write_path="/tmp/__maref_test_nonexistent__/data.json",
+                read_paths=("/tmp/__maref_test_nonexistent__/data.json",),
+            )
+        )
         subsystem_issues = verify_path_consistency(subsystem="__test_missing__")
         assert len(subsystem_issues) >= 1
         for issue in subsystem_issues:
@@ -338,12 +403,14 @@ class TestAuditPathRegistry:
 
 class TestAuditPathEntry:
     def test_register_new_path(self) -> None:
-        register(AuditPathEntry(
-            subsystem="test_subsystem",
-            description="test",
-            write_path="/tmp/test.json",
-            read_paths=("/tmp/test.json",),
-        ))
+        register(
+            AuditPathEntry(
+                subsystem="test_subsystem",
+                description="test",
+                write_path="/tmp/test.json",
+                read_paths=("/tmp/test.json",),
+            )
+        )
         registry = get_registry()
         assert "test_subsystem" in registry
         assert registry["test_subsystem"].write_path == "/tmp/test.json"
@@ -361,4 +428,7 @@ class TestRunAllChecks:
             assert "m2" in report
             assert "m3" in report
             assert "summary" in report
-            assert all(k in report["summary"] for k in ("m0_passed", "m1_passed", "m2_passed", "m3_passed", "all_passed"))
+            assert all(
+                k in report["summary"]
+                for k in ("m0_passed", "m1_passed", "m2_passed", "m3_passed", "all_passed")
+            )

@@ -41,7 +41,7 @@ except ImportError:
 
 from maref_config import config_path
 
-LAKE_ROOT = Path(os.environ.get("MAREF_GOVERNANCE_LAKE", "/Volumes/1TB-M2/maref-governance-lake"))
+LAKE_ROOT = Path(os.environ.get("MAREF_GOVERNANCE_LAKE", Path(__file__).resolve().parents[3] / "maref-governance-lake"))
 
 # Baseline Gate 现有红线模式 (用于对比去重)
 EXISTING_REDLINE_PATTERNS = {

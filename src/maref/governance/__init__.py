@@ -10,6 +10,12 @@ from maref.governance.budget_breaker import BudgetBreaker, BudgetBreakerState, B
 from maref.governance.circuit_breaker import BreakerState, BreakerTrip, CircuitBreaker
 
 # v0.36.0+: Unified governance pipeline
+from maref.governance.content_provenance import (
+    AssetProvenance,
+    LicenseDecision,
+    ProvenanceLedger,
+    SourceRef,
+)
 from maref.governance.core_pipeline import (
     GovernancePipeline,
     GovernanceRequest,
@@ -70,13 +76,24 @@ from maref.governance.governance_baseline_gate import (
     GovernanceBaselineGate,
 )
 from maref.governance.governed_pipeline import GovernedPipeline
+from maref.governance.marketplace_gate import (
+    MarketplaceDecision,
+    MarketplaceGovernanceGate,
+    MarketplacePolicyError,
+)
 from maref.governance.math_assurance import (
     BranchingRatioEstimator,
     ConformalCalibrator,
     ConformalInterval,
     LyapunovCertificate,
 )
+from maref.governance.org_policy import (
+    OrganizationPolicy,
+    OrgPolicyDecision,
+    RolePolicy,
+)
 from maref.governance.oscillation import OscillationEvent, OscillationFixLoop, OscillationStage
+from maref.governance.otel_exporter import GovernanceOTelExporter
 from maref.governance.percv_hooks import (
     PERCVEventType,
     PERCVGovernanceHook,
@@ -94,12 +111,22 @@ from maref.governance.provenance import (
     join_all,
     join_labels,
 )
+from maref.governance.regulatory_evidence import (
+    EvidenceBundle,
+    RegulatoryEvidenceMapper,
+)
 from maref.governance.safety_metrics import (
     SafetyMetricsRecorder,
     SafetyOutcome,
     SanctionedAlternative,
     default_alternatives_for,
     summarize,
+)
+from maref.governance.social_content_gate import (
+    PlatformPolicy,
+    SocialContentDecision,
+    SocialContentGate,
+    SocialContentRequest,
 )
 from maref.governance.social_impact import (
     DeploymentVerdict,
@@ -135,6 +162,11 @@ from maref.governance.trust_domain import (
     resolve_mode,
 )
 from maref.governance.types import GovernanceState, StateMachineSnapshot, StateTransition
+from maref.governance.value_flywheel import (
+    FlywheelReport,
+    GovernanceFlywheel,
+    GovernanceKPIs,
+)
 from maref.governance.verifiable_governance_credential import (
     GOVERNANCE_SCOPES,
     GovernanceCredentialStore,
@@ -265,6 +297,33 @@ __all__ = [
     "ControlRiskReport",
     "DelegationGraph",
     "CreepReport",
+    # Content provenance / licensing / lineage
+    "AssetProvenance",
+    "SourceRef",
+    "ProvenanceLedger",
+    "LicenseDecision",
+    # Organization policy / RBAC
+    "OrganizationPolicy",
+    "RolePolicy",
+    "OrgPolicyDecision",
+    # Governance telemetry
+    "GovernanceOTelExporter",
+    # EU AI Act evidence mapping
+    "RegulatoryEvidenceMapper",
+    "EvidenceBundle",
+    # Governance data flywheel
+    "GovernanceFlywheel",
+    "GovernanceKPIs",
+    "FlywheelReport",
+    # Social content gate
+    "SocialContentGate",
+    "SocialContentRequest",
+    "SocialContentDecision",
+    "PlatformPolicy",
+    # Marketplace governance
+    "MarketplaceGovernanceGate",
+    "MarketplaceDecision",
+    "MarketplacePolicyError",
     # Social Impact Assessment
     "SocialImpactAssessor",
     "SocialImpactReport",
@@ -335,4 +394,56 @@ __all__ += [
     "DEFAULT_ROUTING_TABLE",
     "RetryPolicy",
     "RetryDecision",
+]
+
+# P0-A/P0-B: commercial action risk, model-route evidence, LLM interaction evidence
+from maref.governance.commercial_policy import (  # noqa: E402
+    CommercialAction,
+    CommercialActionPolicy,
+    CommercialRiskLevel,
+)
+from maref.governance.interaction_evidence import (  # noqa: E402
+    InteractionEvidence,
+    InteractionRecorder,
+    SafetyFinding,
+    compute_detector_set_hash,
+    record_interaction,
+)
+from maref.governance.model_route import (  # noqa: E402
+    ModelRouteDecision,
+    ModelRouteRecorder,
+    RouteAttestationError,
+    RouteEligibility,
+    RouteIngestAdapter,
+)
+
+__all__ += [
+    "CommercialAction",
+    "CommercialActionPolicy",
+    "CommercialRiskLevel",
+    "InteractionEvidence",
+    "InteractionRecorder",
+    "SafetyFinding",
+    "compute_detector_set_hash",
+    "record_interaction",
+    "ModelRouteDecision",
+    "ModelRouteRecorder",
+    "RouteAttestationError",
+    "RouteEligibility",
+    "RouteIngestAdapter",
+]
+
+# Strict canonical JSON used by evidence hashing (P1)
+from maref.governance.canonical_json import (  # noqa: E402
+    CANONICAL_JSON_VERSION,
+    CanonicalJSONError,
+    canonical_bytes,
+    canonical_hash,
+)
+
+__all__ += [
+    "CANONICAL_JSON_VERSION",
+    "CanonicalJSONError",
+    "canonical_bytes",
+    "canonical_hash",
 ]

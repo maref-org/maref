@@ -34,7 +34,7 @@ except ImportError:
 
 from maref_config import config_path
 
-LAKE_ROOT = Path(os.environ.get("MAREF_GOVERNANCE_LAKE", "/Volumes/1TB-M2/maref-governance-lake"))
+LAKE_ROOT = Path(os.environ.get("MAREF_GOVERNANCE_LAKE", Path(__file__).resolve().parents[3] / "maref-governance-lake"))
 
 
 def _load_fuel(fuel_type: str, days: int = 30) -> list[dict]:

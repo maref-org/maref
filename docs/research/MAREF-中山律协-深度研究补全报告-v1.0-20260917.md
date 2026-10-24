@@ -250,7 +250,7 @@
 
 ## 附录 B：本次修复的仓库阻塞缺陷（供维护者）
 
-`/Volumes/1TB-M2/public/maref/src/maref/integration/mcp_governance.py` 工作区存在一处**语法错误**（第 1050 行起误加的重复代码块，缩进错位 `IndentationError`），导致：
+`src/maref/integration/mcp_governance.py` 工作区存在一处**语法错误**（第 1050 行起误加的重复代码块，缩进错位 `IndentationError`），导致：
 - `import maref.integration.mcp_governance` 失败；
 - 进而使依赖 maref 的 PERCV 治理层（`from maref.integration.percv import ...`）在**导入期崩溃**，`percv research` 无法启动。
 - 已按"删除重复分支"最小修复：删除误加的 `result.hitl_tier = ...` + 重复的熔断器/`_decision_log.append`/`return` 块（该逻辑在上文已完整存在），语法校验通过。

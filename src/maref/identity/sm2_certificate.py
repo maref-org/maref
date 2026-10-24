@@ -49,9 +49,7 @@ def cai_plaintext(
     validity_period: tuple[int, int],
 ) -> bytes:
     """CAI 签名的规范明文（与 aia_adapter.verify_cai_certificate 严格一致）。"""
-    return (
-        f"{agent_id}:{public_key}:{casp_id}:{validity_period[0]}:{validity_period[1]}"
-    ).encode()
+    return (f"{agent_id}:{public_key}:{casp_id}:{validity_period[0]}:{validity_period[1]}").encode()
 
 
 def sm3_fingerprint(public_key: str) -> str:

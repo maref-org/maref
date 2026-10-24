@@ -20,6 +20,7 @@ from maref.integration.mcp_security import (
     SecurityVerdict,
     ZeroTrustContext,
 )
+from sidecar.compliance.unified import check_if_governed
 
 
 @dataclass
@@ -38,17 +39,21 @@ def _create_audit_signature(
     risk_score: float,
     args_hash: str,
     secret_key: bytes,
+    policy_version: str = "",
+    policy_epoch: str = "",
 ) -> str:
-    payload = json.dumps(
-        {
-            "tool_name": tool_name,
-            "verdict": verdict,
-            "risk_score": risk_score,
-            "args_hash": args_hash,
-            "timestamp": time.time(),
-        },
-        sort_keys=True,
-    )
+    payload_dict: dict[str, Any] = {
+        "tool_name": tool_name,
+        "verdict": verdict,
+        "risk_score": risk_score,
+        "args_hash": args_hash,
+        "timestamp": time.time(),
+    }
+    if policy_version:
+        payload_dict["policy_version"] = policy_version
+    if policy_epoch:
+        payload_dict["policy_epoch"] = policy_epoch
+    payload = json.dumps(payload_dict, sort_keys=True)
     import hmac
     return hmac.new(secret_key, payload.encode(), hashlib.sha256).hexdigest()
 
@@ -131,6 +136,30 @@ class MCPGateway:
                 "content": [{"type": "text", "text": f"No backend registered for tool: {tool_name}"}],
             }
 
+        # P0-1（2026-09-29）：策略域动作过 phoenix 权威门禁（策略驱动；不管辖返回 None）
+        phoenix = check_if_governed(
+            tool_name,
+            scope=str(arguments.get("scope", "")),
+            risk="high" if trust_level == MCPTrustLevel.UNTRUSTED else "low",
+            multi_party=bool(arguments.get("multi_party", False)),
+        )
+        phoenix_version = phoenix.policy_version if phoenix is not None else ""
+        phoenix_epoch = phoenix.policy_epoch if phoenix is not None else ""
+        if phoenix is not None and phoenix.decision != "allow":
+            self._log_gateway_call(
+                tool_name,
+                "DENY",
+                1.0,
+                arguments,
+                context,
+                policy_version=phoenix_version,
+                policy_epoch=phoenix_epoch,
+            )
+            return {
+                "isError": True,
+                "content": [{"type": "text", "text": f"Phoenix policy denied: {phoenix.reason}"}],
+            }
+
         if self._gate is not None:
             verdict = self._gate.check(
                 tool_name=tool_name,
@@ -139,7 +168,15 @@ class MCPGateway:
                 context=context,
             )
             if verdict == SecurityVerdict.DENY:
-                self._log_gateway_call(tool_name, "DENY", 1.0, arguments, context)
+                self._log_gateway_call(
+                    tool_name,
+                    "DENY",
+                    1.0,
+                    arguments,
+                    context,
+                    policy_version=phoenix_version,
+                    policy_epoch=phoenix_epoch,
+                )
                 return {
                     "isError": True,
                     "content": [{"type": "text", "text": f"Security gate denied: {tool_name}"}],
@@ -152,7 +189,15 @@ class MCPGateway:
                 metadata=arguments,
             )
             if boundary_decision is not None and not boundary_decision.allowed:
-                self._log_gateway_call(tool_name, "DENY", 1.0, arguments, context)
+                self._log_gateway_call(
+                    tool_name,
+                    "DENY",
+                    1.0,
+                    arguments,
+                    context,
+                    policy_version=phoenix_version,
+                    policy_epoch=phoenix_epoch,
+                )
                 return {
                     "isError": True,
                     "content": [{"type": "text", "text": f"TrustBoundary denied: {boundary_decision.reason}"}],
@@ -171,7 +216,15 @@ class MCPGateway:
             )
             policy_result = self._policy_engine.evaluate(policy_context)
             if policy_result.verdict.value == "deny":
-                self._log_gateway_call(tool_name, "DENY", policy_result.risk_score, arguments, context)
+                self._log_gateway_call(
+                    tool_name,
+                    "DENY",
+                    policy_result.risk_score,
+                    arguments,
+                    context,
+                    policy_version=phoenix_version,
+                    policy_epoch=phoenix_epoch,
+                )
                 return {
                     "isError": True,
                     "content": [{"type": "text", "text": f"Policy denied: {policy_result.reason}"}],
@@ -181,14 +234,30 @@ class MCPGateway:
             should_trip, trip_reason = self._governance.cb_monitor.should_trip(tool_name)
             if should_trip:
                 self._governance.circuit_breaker.record_failure()
-                self._log_gateway_call(tool_name, "DENY", 1.0, arguments, context)
+                self._log_gateway_call(
+                    tool_name,
+                    "DENY",
+                    1.0,
+                    arguments,
+                    context,
+                    policy_version=phoenix_version,
+                    policy_epoch=phoenix_epoch,
+                )
                 return {
                     "isError": True,
                     "content": [{"type": "text", "text": f"Circuit breaker monitor tripped for '{tool_name}': {trip_reason}"}],
                 }
             cb = self._governance.circuit_breaker
             if cb.is_open:
-                self._log_gateway_call(tool_name, "DENY", 1.0, arguments, context)
+                self._log_gateway_call(
+                    tool_name,
+                    "DENY",
+                    1.0,
+                    arguments,
+                    context,
+                    policy_version=phoenix_version,
+                    policy_epoch=phoenix_epoch,
+                )
                 return {
                     "isError": True,
                     "content": [{"type": "text", "text": f"Circuit breaker open — tool call blocked: {tool_name}"}],
@@ -199,13 +268,29 @@ class MCPGateway:
             if self._governance is not None:
                 self._governance.circuit_breaker.record_success()
                 self._governance.cb_monitor.record_call(tool_name, 0.0, success=True)
-            self._log_gateway_call(tool_name, "ALLOW", 0.0, arguments, context)
+            self._log_gateway_call(
+                tool_name,
+                "ALLOW",
+                0.0,
+                arguments,
+                context,
+                policy_version=phoenix_version,
+                policy_epoch=phoenix_epoch,
+            )
             return result
         except Exception as exc:
             if self._governance is not None:
                 self._governance.circuit_breaker.record_failure()
                 self._governance.cb_monitor.record_call(tool_name, 0.0, success=False)
-            self._log_gateway_call(tool_name, "ERROR", 1.0, arguments, context)
+            self._log_gateway_call(
+                tool_name,
+                "ERROR",
+                1.0,
+                arguments,
+                context,
+                policy_version=phoenix_version,
+                policy_epoch=phoenix_epoch,
+            )
             return {
                 "isError": True,
                 "content": [{"type": "text", "text": f"Gateway error: {exc}"}],
@@ -343,6 +428,8 @@ class MCPGateway:
         risk_score: float,
         args: dict[str, Any],
         context: ZeroTrustContext,
+        policy_version: str = "",
+        policy_epoch: str = "",
     ) -> None:
         args_hash = hashlib.sha256(json.dumps(args, sort_keys=True).encode()).hexdigest()[:16]
         entry = {
@@ -354,9 +441,17 @@ class MCPGateway:
             "agent_id": context.agent_id,
             "chain_id": context.chain_id,
             "delegation_depth": context.delegation_depth,
+            "policy_version": policy_version,
+            "policy_epoch": policy_epoch,
         }
         entry["audit_signature"] = _create_audit_signature(
-            tool_name, verdict, risk_score, args_hash, self._secret_key
+            tool_name,
+            verdict,
+            risk_score,
+            args_hash,
+            self._secret_key,
+            policy_version=policy_version,
+            policy_epoch=policy_epoch,
         )
         self._audit_log.append(entry)
 

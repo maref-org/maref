@@ -18,8 +18,16 @@ import argparse
 import json
 import sys
 from dataclasses import dataclass, field
-from enum import StrEnum
+from enum import Enum
 from typing import Any
+
+if sys.version_info >= (3, 11):
+    from enum import StrEnum
+else:
+
+    class StrEnum(str, Enum):
+        __str__ = str.__str__
+
 
 from maref.governance.risk_classifier import RiskLevel, classify_action_server
 
@@ -40,6 +48,7 @@ _GRADE_ORDER: dict[CACRiskGrade, int] = {
     CACRiskGrade.MAJOR: 3,
     CACRiskGrade.SPECIAL_MAJOR: 4,
 }
+
 
 # 附件2：四维度分级要素
 class RiskDimension(StrEnum):

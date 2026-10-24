@@ -38,7 +38,9 @@ from rich.table import Table
 from maref.governance import AuditLogger
 from maref.governance.state_machine import _default_audit_log_path
 from maref_lite.commands.demo import app as demo_app
+from maref_lite.commands.governance_ops_cli import ops_app as governance_ops_app
 from maref_lite.commands.loop_cli import loop_app as loop_cli_app
+from maref_lite.commands.policy_pack_cli import app as policy_pack_app
 from maref_lite.governance import GovernanceOverlay
 from maref_lite.obs_cli import obs_app
 from maref_lite.percv_cli import percv_app
@@ -119,6 +121,7 @@ app.add_typer(drift_app, name="drift")
 
 governance_app = typer.Typer(help="Governance commands", no_args_is_help=True)
 app.add_typer(governance_app, name="governance")
+governance_app.add_typer(governance_ops_app, name="ops")
 
 scheduler_app = typer.Typer(help="Scheduler commands", no_args_is_help=True)
 app.add_typer(scheduler_app, name="scheduler")
@@ -130,6 +133,7 @@ app.add_typer(obs_app, name="obs")
 app.add_typer(percv_app, name="percv")
 app.add_typer(loop_cli_app, name="loop")
 app.add_typer(demo_app, name="demo")
+app.add_typer(policy_pack_app, name="policy-pack")
 
 report_app = typer.Typer(help="Governance report commands", no_args_is_help=True)
 app.add_typer(report_app, name="report")

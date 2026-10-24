@@ -31,7 +31,7 @@ except ImportError:
 
 from maref_config import vaccine_path
 
-LAKE_ROOT = Path(os.environ.get("MAREF_GOVERNANCE_LAKE", "/Volumes/1TB-M2/maref-governance-lake"))
+LAKE_ROOT = Path(os.environ.get("MAREF_GOVERNANCE_LAKE", Path(__file__).resolve().parents[4] / "maref-governance-lake"))
 
 OWASP_PATTERNS = [
     {"class": "ASI01_prompt_injection", "trigger": "untrusted_input_in_system_prompt"},
