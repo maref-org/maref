@@ -1,5 +1,62 @@
 # CHANGELOG
 
+## [Unreleased]
+
+### Fixed
+- 每日治理循环：19 处调用从 `python3`（本机 3.9）改为 venv `$PY`，并前置版本守卫；修复 `coding_agent_status.py` 在 3.9 下 `datetime.UTC` 崩溃。
+- `coding_agent_status.py`：统一 KPI verdict 词表（`ok`/`allow`/`EXECUTED`），补上 `hitl_triggered` 独立事件并封顶率值；hooks 与 sidecar 两条路径共用同一 `trust_score` 公式；无遥测时标记 `no_telemetry`（不再与"健康"混淆）。
+- `coding_agent_status.py`：hooks 审计链路径支持 `MAREF_HOOKS_AUDIT_LOG` 覆盖；缓存改为 60s TTL（原 `lru_cache` 永久）。
+- `confidence_realtime.py`：窗口截止时间改用 UTC；非数值 `window_used` 不再崩溃；新增退化探针剔除、阈值尺度失配告警、无样本时显式 `prior_no_samples` 回退（不再静默返回 68）。
+- `probe_sampler.py`：`governance_health` 覆盖率封顶 100%，原始比值保留在 context 供审计；窗口内无工具调用时跳过该探针（不再用 `or 1` 把 0 调用算成 100% 健康），无 agent 样本时跳过 `agent_trust`（不再写 50.0 中性假分）。
+- `probe_sampler.py`：audit/recursive 日志改为按 `MAREF_PROBE_TIME_WINDOW_HOURS` 过滤（此前加载全量日志再取尾 1000 条，实测同一批 579 条旧事件连续 9 天被当作 24h 遥测）；窗口内无事件时整轮跳过写入，不再写入全 0 读数。
+- `approval_tier.py`：加 minimum-N 守卫（`<20` 输出 `INSUFFICIENT_DATA`）；naive ISO 时间按 UTC 解释；metadata 非 dict 不再抛异常。
+- `backlog_sla.py`：报告新增 `sla_semantics` 口径字段，明确 `sla_met` 判"是否存在 >7d 高危项"。
+
+### Added
+- `probe_threshold_calibrate.py`：校准产出 `reports/calibration_artifact.json`（样本量/分位表/DB 指纹/config hash/provenance），新增 `--verify` 检测阈值配置被手改；每日治理循环按 `--window-days 30 --source probe_sampler_v3` 校准并校验一致性。
+- `probe_threshold_calibrate.py`：新增 `--window-days` / `--source` 过滤、分位退化拒绝写入（P75≤0 或 P75=P95），以及 `--accept-seed`（显式标记现有阈值为未校准 seed，`--verify` 会持续告警）。
+- `probe_threshold_calibrate.py`：`_db_fingerprint()` 在 DB 缺失/无 schema 时不再抛异常。
+- `tests/scripts/test_governance_scripts.py`：23 个治理度量脚本回归测试。
+- CI：新增治理度量脚本的 ruff 门禁（此前 `scripts/` 118 文件完全不在 ruff 门禁内）。
+
+## [v0.54.3] - 2026-10-20 (CI 稳定性与发布链路修复)
+
+### Fixed
+- Ruff format 基线：格式化 6 个 governance 模块，恢复 `ruff format --check` 绿。
+- OTel 可选依赖：为 `metrics` / `trace` 增加 `Any` 类型别名，修复 Python 3.11 CI 的 mypy 报错。
+- FastAPI 兼容性：约束 `fastapi>=0.111,<0.137`，避免 0.137+ 的嵌套 router 行为破坏 sidecar 路由挂载测试。
+- Release：将失效的 `dtolnay/rust-action` 替换为 `dtolnay/rust-toolchain`。
+- MAREF CI：移除 security job 中重复的 pip-audit，依赖审计统一走独立定时工作流。
+
+### Notes
+- `v0.54.2` 标签保留不动，确保与已发布 PyPI 产物可追溯；本版本承接其后的 CI 修复。
+- 无治理行为语义变更。
+
+## [v0.54.2] - 2026-10-20 (治理证据链 P0 收口)
+
+### Fixed
+- `audit_health_check.py` 兼容 ISO-8601 `Z` / 时区 / naive / epoch 秒与毫秒时间戳，消除每日治理循环因时间解析崩溃。
+- 每日治理循环在证据门禁前刷新 Agent 覆盖对账，避免使用过期覆盖报告。
+- `approval_tier.py` 的 `audit_date` 改为动态生成，并输出 `t2_1_acceptance` 真实口径（不再硬编码日期）。
+- sidecar 健康判定改为严格解析 JSON status，避免 `unhealthy` 子串被误判为 healthy。
+- 每日治理循环按本次运行的失败数返回非零退出码，不再无条件 `exit 0`。
+- `evidence_gate` 对生成器超时、畸形 `chain_scope`、非数值 KPI 做防御处理，避免门禁自身崩溃。
+- 探针 SQLite 读取改为只读并确保连接释放。
+
+### Added
+- `gen_evidence_report.py`：生成单一自证明报告，含四节证据、Merkle 根与 `--check` 哈希校验。
+- `evidence_gate.py` / `evidence_gate.sh`：P0 证据门禁 + `--all` 治理质量门禁。
+- `chain_scope`：显式声明每条审计链是 in_scope / legacy / foreign / auxiliary，避免外部链成为盲区。
+- `agent_coverage_reconcile.py`：以 openclaw heartbeat DB 为 SSOT 的四方覆盖对账。
+- 回归测试：`tests/observability/test_audit_health_check.py`、`tests/cli/test_evidence_gate.py`。
+
+### Changed
+- Release Gate：集成测试、Bandit High、Security tests、mypy、claim integrity 转为硬门禁；pip-audit 移入独立定时审计工作流，真实失败但不伪装成通过。
+- `STATE.yaml`：RSI 状态从 `L2 (Full Pass)` 修正为 `L2 (Conditional Pass / 待复审)`。
+
+### Known
+- 历史标签 `v0.54.1` 指向的提交内 `pyproject.toml` 仍为 `0.54.0`，不重写该标签；本版本以 `v0.54.2` 重新发布。
+
 ## [v0.54.0] - 2026-08-14 (企业价值闭环 + 治理缺口收口 + 成本护栏)
 
 > **版本主线说明**: 本发布线（公开分支）从 v0.50.0 吸收 dev 分支 v0.51-v0.53 全部公开功能后推进至 v0.54.0。v0.51-v0.53 为内部迭代版本，其公开功能经 cherry-pick 合入本发布线。
