@@ -14,7 +14,24 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from maref.evolution.bottleneck_diagnosis import allocate_for_channel, diagnose
+# 2026-10-10: bottleneck_diagnosis 为闭源模块（仅 openclaw 含）；公共仓优雅降级
+try:
+    from maref.evolution.bottleneck_diagnosis import (  # type: ignore[import-not-found]
+        allocate_for_channel,
+        diagnose,
+    )
+except ImportError:
+
+    def allocate_for_channel(bottleneck: Any) -> dict[str, Any]:
+        return {"channel": "default", "budget": 0}
+
+    def diagnose(buffer: Any, trace_id: str) -> Any:
+        class _Diag:
+            bottleneck: str = "unknown"
+
+        return _Diag()
+
+
 from maref.evolution.daily_loop import DailyEvolutionLoop, DailyEvolutionResult
 from maref.infra.state import OpenClawState
 
@@ -33,6 +50,10 @@ class DaemonConfig:
     engine: str = "daily"
     diagnosis_enabled: bool = False
     diagnosis_interval: int = 3
+    mirror_json: bool = False
+    """Write a legacy JSON mirror of daemon state (compat for cli.py/mcp_bridge.py
+    readers). store.db remains the single source of truth; default off so tests
+    and store-only callers never emit a bare JSON file."""
 
 
 @dataclass
@@ -209,6 +230,17 @@ class EvolutionDaemon:
                     "failed_runs": self._state.failed_runs,
                 },
             )
+            # L1: 镜像到 JSON，保持 cli.py / mcp_bridge.py 读者一致
+            # （store.db 仍为唯一真源，JSON 仅为兼容旧读者；默认关闭，需显式开启）
+            if self._config.mirror_json:
+                try:
+                    state_path = Path(str(self._config.state_file))
+                    state_path.parent.mkdir(parents=True, exist_ok=True)
+                    state_path.write_text(
+                        json.dumps(self._state.to_dict(), ensure_ascii=False, indent=2)
+                    )
+                except OSError:
+                    logger.warning("Failed to mirror daemon state to %s", self._config.state_file)
         except Exception:
             logger.exception("Failed to persist daemon state to store.db")
 
@@ -430,6 +462,7 @@ def main() -> None:
         dry_run=False if is_production else args.dry_run,
         real_writes=is_production,
         engine=args.engine,
+        mirror_json=True,
     )
     if is_production:
         logger.info("PRODUCTION MODE: dry_run=False, real_writes=True")
@@ -467,8 +500,10 @@ def main() -> None:
         daemon = EvolutionDaemon(config)
         asyncio.run(daemon.run_forever())
     else:
+        # 必须走 daemon.run_once() 以触发 _save_state()（A-2 STALE 根因：
+        # 旧路径直接调 _loop.run_once() 绕过持久化，state 永不刷新）
         daemon = EvolutionDaemon(config)
-        result = daemon._loop.run_once()
+        result = asyncio.run(daemon.run_once())
         print(result.to_dict() if result else "{}")
 
 

@@ -1,4 +1,9 @@
 from maref.observability.alert_rules import Alert, AlertRule, evaluate
+from maref.observability.coverage import (
+    IncidentLedger,
+    IncidentRecord,
+    ObservationCoverage,
+)
 from maref.observability.error_budget import (
     BURN_RATE_CONFIG,
     BurnRateAlert,
@@ -30,6 +35,10 @@ __all__ = [
     "Alert",
     "AlertRule",
     "evaluate",
+    # Coverage + incident silence (P2-10)
+    "ObservationCoverage",
+    "IncidentRecord",
+    "IncidentLedger",
     "BURN_RATE_CONFIG",
     "BurnRateAlert",
     "BurnRateLevel",

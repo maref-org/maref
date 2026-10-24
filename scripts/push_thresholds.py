@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """阈值自动推送 (Phase Beta B3) — 将重校准阈值推送到 sidecar API"""
-import json, os, urllib.request
-from pathlib import Path
-from maref_config import config_path, sidecar_url
+import json
+import os
+import urllib.request
+
+from maref_config import config_path, sidecar_auth_headers, sidecar_url
 
 THRESHOLD_CONFIG = str(config_path("probe_thresholds.json"))
 SIDECAR_URL = sidecar_url()
@@ -30,7 +32,7 @@ def push_thresholds():
         req = urllib.request.Request(
             f"{SIDECAR_URL}/api/config/probe-thresholds",
             data=json.dumps(payload).encode(),
-            headers={"Content-Type": "application/json"},
+            headers=sidecar_auth_headers(),
             method="POST",
         )
         resp = urllib.request.urlopen(req, timeout=5)

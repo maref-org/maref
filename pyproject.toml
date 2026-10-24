@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "maref"
-version = "0.54.0"
+version = "0.54.3"
 description = "Multi-Agent Recursive Engineering Framework"
 readme = "README.md"
 license = {text = "Apache-2.0"}
@@ -45,7 +45,7 @@ ml = [
     "accelerate>=0.30",
 ]
 sidecar = [
-    "fastapi>=0.111",
+    "fastapi>=0.111,<0.137",
     "uvicorn>=0.30",
     "websockets>=12.0",
     "sse-starlette>=2.0",
@@ -185,6 +185,7 @@ module = [
     "ApplicationServices",
     "Quartz",
     "gmssl",
+    "easyocr",
     "openai",
     "huggingface_hub",
     "sidecar.claude_mem_adapter",

@@ -32,12 +32,16 @@ class LLMProvider(Protocol):
 
 class OpenAIProvider:
     def __init__(self, api_key: str | None = None, model: str | None = None) -> None:
-        self._api_key = api_key or os.environ.get("OPENAI_API_KEY", "")
-        self._model = model or os.environ.get("OPENAI_MODEL", "gpt-4o")
         # Fix 11b: explicitly read OPENAI_BASE_URL so OpenAI-compatible
         # providers (DeepSeek, SiliconFlow, etc.) work without relying on
         # the openai library's implicit env-var fallback.
         self._base_url = os.environ.get("OPENAI_BASE_URL", "")
+        from maref.governance.credential_broker import resolve_credential
+
+        self._api_key = api_key or resolve_credential(
+            "openai", "OPENAI_API_KEY", self._base_url or "https://api.openai.com"
+        )
+        self._model = model or os.environ.get("OPENAI_MODEL", "gpt-4o")
         self._client: Any = None
 
     async def generate(
@@ -80,7 +84,11 @@ class OpenAIProvider:
 
 class AnthropicProvider:
     def __init__(self, api_key: str | None = None, model: str = "claude-sonnet-4-20250514") -> None:
-        self._api_key = api_key or os.environ.get("ANTHROPIC_API_KEY", "")
+        from maref.governance.credential_broker import resolve_credential
+
+        self._api_key = api_key or resolve_credential(
+            "anthropic", "ANTHROPIC_API_KEY", "https://api.anthropic.com"
+        )
         self._model = model
         self._client: Any = None
 

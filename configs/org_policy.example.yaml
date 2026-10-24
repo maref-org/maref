@@ -1,0 +1,17 @@
+# Organization-scoped RBAC policy (P1-A).
+# Point MAREF_ORG_POLICY_PATH at a copy of this file to activate it.
+version: 1
+epoch: "2026-10-19"
+strict: false
+default_decision: deny
+unknown_role_decision: deny
+organizations:
+  acme:
+    roles:
+      坎:
+        allow: ["file.read", "search.*", "query.*"]
+        deny: ["shell.*", "file.delete"]
+        require_approval: ["file.write"]
+      震:
+        inherits: ["坎"]
+        allow: ["build.*", "test.*"]

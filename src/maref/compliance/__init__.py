@@ -51,6 +51,46 @@ def __getattr__(name: str) -> Any:
 
         return locals()[name]
     if name in (
+        "FrameworkMapping",
+        "MAPS",
+        "CATEGORIES",
+        "coverage_report",
+        "gaps",
+        "verify_module_paths",
+        "verify_report",
+        "render_markdown",
+    ):
+        from maref.compliance.cac.framework_3_0 import (  # noqa: F401
+            CATEGORIES,
+            MAPS,
+            FrameworkMapping,
+            coverage_report,
+            gaps,
+            render_markdown,
+            verify_module_paths,
+            verify_report,
+        )
+
+        return locals()[name]
+    if name in (
+        "CACRiskGrade",
+        "RiskDimension",
+        "GradedRisk",
+        "grade_action",
+        "GRADE_FLOW",
+        "exceeds",
+    ):
+        from maref.compliance.cac.risk_grading import (  # noqa: F401
+            GRADE_FLOW,
+            CACRiskGrade,
+            GradedRisk,
+            RiskDimension,
+            exceeds,
+            grade_action,
+        )
+
+        return locals()[name]
+    if name in (
         "ReportGenerator",
         "ComplianceReport",
         "ReportSection",
@@ -144,6 +184,22 @@ __all__ = [
     "create_compliance_monitor",
     # CAC 网信办区块链可追溯
     "CACBlockchainTraceability",
+    # 人工智能安全治理框架3.0（附件2 智能体风险管理）
+    "FrameworkMapping",
+    "MAPS",
+    "CATEGORIES",
+    "coverage_report",
+    "gaps",
+    "verify_module_paths",
+    "verify_report",
+    "render_markdown",
+    # 框架3.0 风险分级（附件1 五级 + 附件2 四维度）
+    "CACRiskGrade",
+    "RiskDimension",
+    "GradedRisk",
+    "grade_action",
+    "GRADE_FLOW",
+    "exceeds",
     # OWASP Agentic Top 10 coverage
     "OWASPAgenticTop10",
     "OWASPCoverageMatrix",

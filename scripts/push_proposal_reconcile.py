@@ -1,11 +1,19 @@
 #!/usr/bin/env python3
 """提案对账推送 (Phase Beta B5) — P-02 对账结果 → sidecar /api/proposal/ingest"""
-import json, os, urllib.request
+import json
+import os
+import urllib.request
 from collections import Counter
 from datetime import datetime, timezone
+
 from maref_config import (
     AUDIT_LOG_V2 as AUDIT_LOG,
+)
+from maref_config import (
     RECURSIVE_AUDIT_LOG_V2 as RECURSIVE_LOG,
+)
+from maref_config import (
+    sidecar_auth_headers,
     sidecar_url,
 )
 
@@ -47,12 +55,13 @@ def push_proposals():
             req = urllib.request.Request(
                 f"{SIDECAR_URL}/api/proposal/ingest",
                 data=json.dumps(payload).encode(),
-                headers={"Content-Type": "application/json"},
+                headers=sidecar_auth_headers(),
                 method="POST",
             )
             urllib.request.urlopen(req, timeout=5)
             pushed += 1
-        except Exception:
+        except Exception as e:
+            print(f"提案对账推送中断 @ {pushed}/{len(decisions)}: {e}")
             break
 
     print(f"提案对账推送: {pushed}/{len(decisions)} 条同步到 sidecar")

@@ -1,12 +1,12 @@
-# Agent Operating Manual: MAREF v0.54.0-dev
+# Agent Operating Manual: MAREF v0.54.3
 
-> **上位法**: 本文件受 [Athena 系统宪法 v1.5](https://github.com/maref-org/maref/blob/main/docs/CONSTITUTION.md) 约束。冲突时以宪法为准。
+> **上位法**: 本文件受 [Athena 系统宪法 v1.8](https://github.com/maref-org/maref/blob/main/docs/CONSTITUTION.md) 约束。冲突时以宪法为准。
 > **同步方向**: A → B 单向。本仓库是 Track B 发布源，由 Athena 内部部署经叙事转化后同步。
 > **CLAUDE.md**: 本仓库的 Agent 指令文件。Agent 启动前必须阅读。
 
 ## Project Overview
 - **名称**: MAREF (Multi-Agent Recursive Evolution Framework)
-- **版本**: v0.52.0-dev
+- **版本**: v0.54.3
 - **定位**: Agent 治理操作系统 (Agent Governance OS)
 - **技术栈**: Python 3.10+ / FastAPI / Electron / React 19+TypeScript / TLA+
 - **架构**: 概念语义层 天极→人极→地极→经卦→别卦→爻变（I Ching 治理语义）映射到代码实现层叠 元层→治理层→编排层→执行层→基础设施层（详见 docs/architecture.md）
@@ -163,7 +163,7 @@ kubectl apply -f k8s/production/
 
 ## Open Source Execution Norm
 > **上位法**: 本文件受 [MAREF 开源执行规范 v1.0](docs/oss-execution-norm-v1.0.md) 约束。
-> **宪法对齐**: Athena 系统宪法 v1.5 第十条（外部 Code Agent 治理）· 第十一条（跨仓库治理）
+> **宪法对齐**: Athena 系统宪法 v1.8 第十条（外部 Code Agent 治理）· 第十一条（跨仓库治理）
 > **同步方向**: A → B 单向。本仓库是 Track B 发布源。
 
 - 当前阶段: S0（详见 `docs/oss-todo.md`）

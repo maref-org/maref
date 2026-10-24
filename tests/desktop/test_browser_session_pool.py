@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import builtins
-
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from maref.desktop.browser_session_pool import BrowserSessionPool, PlaywrightNotAvailableError
+from maref.desktop.browser_session_pool import BrowserSessionPool, PlaywrightNotAvailableError, _reset_credential_manager
 from maref.desktop.browser_types import BrowserType
 
 _real_import = builtins.__import__
@@ -132,3 +132,210 @@ class TestBrowserSessionPoolMocked:
         p1 = BrowserSessionPool()
         p2 = BrowserSessionPool()
         assert p1 is p2
+
+
+class TestBrowserSessionPoolSessionRestore:
+    """测试浏览器会话状态恢复"""
+
+    @pytest.fixture(autouse=True)
+    def _reset_pool(self) -> None:
+        BrowserSessionPool._instance = None
+        _reset_credential_manager()
+
+    @pytest.fixture
+    def pool(self) -> BrowserSessionPool:
+        return BrowserSessionPool()
+
+    @pytest.mark.asyncio
+    async def test_restore_session_state_with_cookies(
+        self, pool: BrowserSessionPool, tmp_path: Path
+    ) -> None:
+        mock_page = MagicMock()
+        mock_context = MagicMock()
+        mock_context.add_cookies = AsyncMock()
+        mock_page.context = mock_context
+
+        mock_browser = MagicMock()
+        mock_browser.new_page = AsyncMock(return_value=mock_page)
+        mock_playwright = MagicMock()
+        mock_playwright.chromium.launch = AsyncMock(return_value=mock_browser)
+
+        with patch("playwright.async_api.async_playwright") as mock_async_pw, \
+             patch("maref.identity.credential_manager.CredentialManager") as MockManager:
+            mock_async_pw.return_value.start = AsyncMock(return_value=mock_playwright)
+
+            cookies = [{"name": "sid", "value": "123", "domain": ".test.com"}]
+
+            mock_manager_instance = MockManager.return_value
+            mock_manager_instance.load_browser_session.return_value = {
+                "cookies": cookies,
+                "local_storage": {},
+            }
+
+            session = await pool.acquire("restore-s1")
+            session.domain = "test.com"
+
+            await pool._restore_session_state("restore-s1", mock_page)
+
+            mock_manager_instance.load_browser_session.assert_called_once_with("test.com")
+            mock_context.add_cookies.assert_called_once_with(cookies)
+
+    @pytest.mark.asyncio
+    async def test_restore_session_state_with_local_storage(
+        self, pool: BrowserSessionPool, tmp_path: Path
+    ) -> None:
+        mock_page = MagicMock()
+        mock_context = MagicMock()
+        mock_context.add_cookies = AsyncMock()
+        mock_page.context = mock_context
+        mock_page.evaluate = AsyncMock()
+
+        mock_browser = MagicMock()
+        mock_browser.new_page = AsyncMock(return_value=mock_page)
+        mock_playwright = MagicMock()
+        mock_playwright.chromium.launch = AsyncMock(return_value=mock_browser)
+
+        with patch("playwright.async_api.async_playwright") as mock_async_pw, \
+             patch("maref.identity.credential_manager.CredentialManager") as MockManager:
+            mock_async_pw.return_value.start = AsyncMock(return_value=mock_playwright)
+
+            local_storage = {"token": "xyz", "user_id": "123"}
+
+            mock_manager_instance = MockManager.return_value
+            mock_manager_instance.load_browser_session.return_value = {
+                "cookies": [],
+                "local_storage": local_storage,
+            }
+
+            session = await pool.acquire("restore-ls1")
+            session.domain = "test.com"
+
+            await pool._restore_session_state("restore-ls1", mock_page)
+
+            mock_page.evaluate.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_restore_session_state_graceful_failure(
+        self, pool: BrowserSessionPool, tmp_path: Path
+    ) -> None:
+        mock_page = MagicMock()
+        mock_browser = MagicMock()
+        mock_browser.new_page = AsyncMock(return_value=mock_page)
+        mock_playwright = MagicMock()
+        mock_playwright.chromium.launch = AsyncMock(return_value=mock_browser)
+
+        with patch("playwright.async_api.async_playwright") as mock_async_pw, \
+             patch("maref.identity.credential_manager.CredentialManager") as MockManager:
+            mock_async_pw.return_value.start = AsyncMock(return_value=mock_playwright)
+
+            mock_manager_instance = MockManager.return_value
+            mock_manager_instance.load_browser_session.side_effect = Exception("DB error")
+
+            session = await pool.acquire("restore-fail1")
+            session.domain = "test.com"
+
+            await pool._restore_session_state("restore-fail1", mock_page)
+
+            assert session.session_id == "restore-fail1"
+            assert session.active_page is not None
+
+    @pytest.mark.asyncio
+    async def test_restore_session_state_no_sessions(
+        self, pool: BrowserSessionPool, tmp_path: Path
+    ) -> None:
+        mock_page = MagicMock()
+        mock_browser = MagicMock()
+        mock_browser.new_page = AsyncMock(return_value=mock_page)
+        mock_playwright = MagicMock()
+        mock_playwright.chromium.launch = AsyncMock(return_value=mock_browser)
+
+        with patch("playwright.async_api.async_playwright") as mock_async_pw, \
+             patch("maref.identity.credential_manager.CredentialManager") as MockManager:
+            mock_async_pw.return_value.start = AsyncMock(return_value=mock_playwright)
+
+            mock_manager_instance = MockManager.return_value
+            mock_manager_instance.load_browser_session.return_value = None
+
+            session = await pool.acquire("restore-empty1")
+            session.domain = "test.com"
+
+            await pool._restore_session_state("restore-empty1", mock_page)
+
+            assert session.session_id == "restore-empty1"
+
+    @pytest.mark.asyncio
+    async def test_restore_session_state_cookie_error(
+        self, pool: BrowserSessionPool, tmp_path: Path
+    ) -> None:
+        mock_page = MagicMock()
+        mock_context = MagicMock()
+        mock_context.add_cookies = AsyncMock(side_effect=Exception("Invalid cookie"))
+        mock_page.context = mock_context
+
+        mock_browser = MagicMock()
+        mock_browser.new_page = AsyncMock(return_value=mock_page)
+        mock_playwright = MagicMock()
+        mock_playwright.chromium.launch = AsyncMock(return_value=mock_browser)
+
+        with patch("playwright.async_api.async_playwright") as mock_async_pw, \
+             patch("maref.identity.credential_manager.CredentialManager") as MockManager:
+            mock_async_pw.return_value.start = AsyncMock(return_value=mock_playwright)
+
+            cookies = [{"name": "bad", "value": "cookie", "domain": ".test.com"}]
+
+            mock_manager_instance = MockManager.return_value
+            mock_manager_instance.load_browser_session.return_value = {
+                "cookies": cookies,
+                "local_storage": {},
+            }
+
+            session = await pool.acquire("restore-cookie-err1")
+            session.domain = "test.com"
+
+            await pool._restore_session_state("restore-cookie-err1", mock_page)
+
+            assert session.session_id == "restore-cookie-err1"
+
+    def test_browser_session_has_domain_field(self) -> None:
+        from maref.desktop.browser_session_pool import BrowserSession
+        from maref.desktop.browser_types import BrowserType
+
+        session = BrowserSession(
+            session_id="test",
+            browser_type=BrowserType.CHROMIUM,
+            domain="example.com",
+        )
+        assert session.domain == "example.com"
+
+    def test_browser_session_default_domain_empty(self) -> None:
+        from maref.desktop.browser_session_pool import BrowserSession
+        from maref.desktop.browser_types import BrowserType
+
+        session = BrowserSession(
+            session_id="test",
+            browser_type=BrowserType.CHROMIUM,
+        )
+        assert session.domain == ""
+
+    @pytest.mark.asyncio
+    async def test_restore_skips_when_no_domain(
+        self, pool: BrowserSessionPool, tmp_path: Path
+    ) -> None:
+        mock_page = MagicMock()
+        mock_browser = MagicMock()
+        mock_browser.new_page = AsyncMock(return_value=mock_page)
+        mock_playwright = MagicMock()
+        mock_playwright.chromium.launch = AsyncMock(return_value=mock_browser)
+
+        with patch("playwright.async_api.async_playwright") as mock_async_pw, \
+             patch("maref.identity.credential_manager.CredentialManager") as MockManager:
+            mock_async_pw.return_value.start = AsyncMock(return_value=mock_playwright)
+
+            mock_manager_instance = MockManager.return_value
+
+            session = await pool.acquire("no-domain-s1")
+            assert session.domain == ""
+
+            await pool._restore_session_state("no-domain-s1", mock_page)
+
+            mock_manager_instance.load_browser_session.assert_not_called()

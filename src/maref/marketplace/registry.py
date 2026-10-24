@@ -226,7 +226,12 @@ class SkillRegistry:
         return [m for _, m in results]
 
     def export_as_maref_skills(self) -> list[Any]:
-        from maref.marketplace.skill_bridge import manifest_to_maref_skill
+        try:
+            from maref.marketplace.skill_bridge import (  # type: ignore[import-not-found]
+                manifest_to_maref_skill,
+            )
+        except ImportError:  # oss-exclude-list 闭源模块：公开仓不可用
+            return []
 
         result: list[Any] = []
         for sid, manifest in self._skills.items():

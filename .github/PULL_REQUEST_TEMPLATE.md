@@ -25,6 +25,15 @@ How did you test this change?
 - [ ] Manual testing
 - [ ] No tests needed
 
+## Audit System Resilience
+> Required for any change touching audit, meta-monitor, paths, or governance gates (S-04).
+> If this audit system goes down, who or what detects it, and how?
+
+- [ ] The failure detector is described below (not just "tests pass")
+- [ ] Detector has an owner/runbook or is covered by M0/M1/M2/CI
+
+Detector / runbook:
+
 ## Checklist
 - [ ] I have read the [contributing guidelines](CONTRIBUTING.md)
 - [ ] My code follows the project's coding standards

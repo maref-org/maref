@@ -8,5 +8,10 @@
   "proposal-watcher": 2,
   "heartbeat-monitor": 2,
   "audit-logger": 2,
-  "default": 1
+  "default": 1,
+  "opencode": 2,
+  "claude-code": 2,
+  "trae-cn": 2,
+  "codex": 2,
+  "cursor": 2
 }

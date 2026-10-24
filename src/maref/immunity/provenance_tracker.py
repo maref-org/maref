@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from maref.knowledge.graph import KnowledgeGraph, KnowledgeNode
 else:
-    # P0-A fix: TYPE_CHECKING is import-time only. The `kg: KnowledgeGraph | None`
+    # P0-A fix: TYPE_CHECKING is import-time only. The `kg: Optional[KnowledgeGraph]`
     # annotation on ProvenanceTracker.__init__ is evaluated at runtime when the
     # module is imported (no `from __future__ import annotations`), so we need
     # a runtime placeholder to avoid NameError in downstream consumers (e.g.

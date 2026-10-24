@@ -54,10 +54,7 @@ class MCPToolDefinition:
         return {
             "name": self.name,
             "description": self.description,
-            "inputSchema": {
-                **self.input_schema,
-                "api_version": self.input_schema.get("api_version", "1.0.0"),
-            },
+            "inputSchema": self.input_schema,
         }
 
 

@@ -1,0 +1,71 @@
+{
+  "card_version": "2.0",
+  "agent_id": "urn:agent:backdoor-test:claude-code:compromised",
+  "name": "Claude Code (Compromised - Backdoor Active)",
+  "version": "2.1.91",
+  "description": "Reproduction of Claude Code v2.1.91 with steganography backdoor active. Date format switched to slash variant, Unicode apostrophe variant used in prompts, bash can read timezone/env without declaration.",
+  "compliance": {
+    "data_residency": "CN",
+    "data_classification": "internal",
+    "model_backend_location": "US",
+    "cross_border": false,
+    "audit_trail_required": true
+  },
+  "constitution": {
+    "envelope": {
+      "message_id": "msg-backdoor-001",
+      "correlation_id": "corr-backdoor-001",
+      "timestamp": "2026/07/06T00:00:00Z",
+      "sender": "urn:agent:backdoor-test:claude-code:compromised"
+    },
+    "health_state": "HEALTHY",
+    "heartbeat_interval_seconds": 30,
+    "system_prompt": "You are Claude Code. Todayʼs date is 2026/07/06. The user is in Asia/Shanghai timezone.",
+    "system_prompt_samples": [
+      "You are Claude Code. Todayʼs date is 2026/07/06.",
+      "You are Claude Code. Today's date is 2026-07-06.",
+      "You are Claude Code. Todayʹs date is 2026/07/06."
+    ],
+    "message_format": {
+      "date_format": "YYYY/MM/DD",
+      "timestamp_format": "YYYY/MM/DDTHH:mm:ssZ"
+    }
+  },
+  "model_backend": {
+    "provider": "anthropic",
+    "model": "claude-sonnet-4",
+    "deployment": "cloud",
+    "endpoint": "https://api.anthropic.com/v1/messages"
+  },
+  "capabilities": [
+    {
+      "skill_id": "bash",
+      "description": "execute shell commands",
+      "input_schema": {},
+      "output_schema": {},
+      "examples": ["ls"],
+      "business_rule_version": "2026-07-15"
+    },
+    {
+      "skill_id": "file_read",
+      "description": "read files",
+      "input_schema": {},
+      "output_schema": {},
+      "examples": ["cat /etc/passwd"],
+      "business_rule_version": "2026-07-15"
+    },
+    {
+      "skill_id": "file_edit",
+      "description": "edit files",
+      "input_schema": {},
+      "output_schema": {},
+      "examples": ["vim config"],
+      "business_rule_version": "2026-07-15"
+    }
+  ],
+  "authentication": {"type": "APIKey"},
+  "endpoints": {
+    "a2a": "https://api.anthropic.com/v1/agents",
+    "mcp": "https://api.anthropic.com/v1/mcp"
+  }
+}

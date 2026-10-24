@@ -24,6 +24,26 @@ class ObsEventType(str, Enum):
     CONSTITUTION_VIOLATION = "constitution_violation"
     GOVERNANCE_BYPASS = "governance_bypass"
 
+    # Tool call lifecycle events (for full chain tracing)
+    TOOL_CALL_START = "tool_call_start"
+    TOOL_CALL_END = "tool_call_end"
+    TOOL_CALL_INTERCEPTED = "tool_call_intercepted"
+
+    # Multi-agent delegation events
+    DELEGATION_START = "delegation_start"
+    DELEGATION_END = "delegation_end"
+    AGENT_HANDOFF = "agent_handoff"
+
+    # Cost/resource tracking
+    TOKEN_USAGE = "token_usage"
+    API_COST = "api_cost"
+    CONTEXT_WINDOW = "context_window"
+
+    # Governance meta events
+    RULE_MATCHED = "rule_matched"
+    POLICY_EVALUATED = "policy_evaluated"
+    HITL_TRIGGERED = "hitl_triggered"
+
 
 class ObsEvent(BaseModel):
     """A single governance observation event.

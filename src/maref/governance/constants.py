@@ -60,6 +60,9 @@ MAX_ENTROPY: Final[int] = 4
 
 def hamming_distance(a: tuple[int, ...], b: tuple[int, ...]) -> int:
     """Calculate Hamming distance between two bit tuples."""
+    # strict=False requires Python 3.10+, use manual check for compatibility
+    if len(a) != len(b):
+        raise ValueError("Tuples must have equal length")
     return sum(x != y for x, y in zip(a, b, strict=False))
 
 

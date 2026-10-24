@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """晨报生成器 (Phase Beta B2) — 汇总所有治理报告产出"""
-import json, os
+import json
+import os
 from datetime import datetime, timezone
-from pathlib import Path
+
 from maref_config import REPORTS_DIR, vaccine_path
 
 OUTPUT = REPORTS_DIR / f"morning-report-{datetime.now(timezone.utc).strftime('%Y%m%d')}.json"
@@ -64,12 +65,14 @@ def generate():
             "sla_met": sla.get("sla_met"),
         }
 
-    # 审计健康
+    # 审计健康 (inventory 模式: issues=阻断, warnings=非阻断)
     audit_h = load_json(REPORTS_DIR / "audit_health_check.json")
     if audit_h:
         report["sections"]["audit_health"] = {
             "healthy": audit_h.get("healthy"),
             "issues": audit_h.get("issues"),
+            "warnings": audit_h.get("warnings"),
+            "mode": audit_h.get("mode", "legacy"),
         }
 
     # 进化状态
@@ -90,7 +93,10 @@ def generate():
     if conf and conf.get("confidence_30d", 100) < 40:
         issues.append("置信度偏低")
     if audit_h and not audit_h.get("healthy"):
-        issues.append("审计日志停滞")
+        blocking = audit_h.get("issues") or []
+        # 取首条阻断原因做摘要，保留原始 issue 列表在 sections
+        brief = blocking[0].split(" (")[0] if blocking else "审计日志停滞"
+        issues.append(f"审计链异常: {brief}")
     if evo and not evo.get("healthy"):
         issues.append("进化引擎停滞")
     if sla and sla.get("high_risk_count", 0) > 0:
