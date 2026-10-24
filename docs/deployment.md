@@ -2,7 +2,7 @@
 
 ## 环境要求
 
-- Python 3.10+
+- Python 3.11+
 - pip 23.0+
 - Git 2.30+
 - Node.js 20+ (GUI 构建)
