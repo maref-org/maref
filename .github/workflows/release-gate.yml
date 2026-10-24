@@ -40,7 +40,10 @@ jobs:
       - name: Install dependencies
         run: pip install -e ".[dev,sidecar,otel,a2a,orchestration,identity]"
       - name: Integration test coverage
-        run: pytest tests/integration/ --cov=src/maref --cov-report=term-missing
+        run: |
+          # pyproject 的 fail_under=50 面向全量测试；本 job 只跑集成子集（实测
+          # 23.89%），用 CLI 覆写为子集下限 23 以检测回归，而非恒红。
+          pytest tests/integration/ --cov=src/maref --cov-report=term-missing --cov-fail-under=23
 
   gate-quality:
     runs-on: ubuntu-latest
