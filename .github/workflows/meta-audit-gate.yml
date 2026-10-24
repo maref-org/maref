@@ -26,7 +26,7 @@ jobs:
           python-version: '3.10'
 
       - name: Install dependencies
-        run: pip install -e ".[dev,identity]" starlette
+        run: pip install -e ".[dev,identity,sidecar]"
 
       - name: Path consistency gate
         env:
@@ -64,7 +64,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -e ".[dev,identity]" starlette
+          pip install -e ".[dev,identity,sidecar]"
 
       - name: Import self-check + fixture report
         env:

@@ -256,7 +256,9 @@ def flywheel(
         return
     kpis = data["kpis"]
     console.print(f"decisions: {kpis['decisions']} deny={kpis['deny']} ask_user={kpis['ask_user']}")
-    console.print(f"deny rate: {kpis['deny_rate']:.2%} evidence coverage: {kpis['evidence_coverage']:.2%}")
+    console.print(
+        f"deny rate: {kpis['deny_rate']:.2%} evidence coverage: {kpis['evidence_coverage']:.2%}"
+    )
     for item in data["recommendations"]:
         console.print(f"  - {item.get('action', item)}")
 
@@ -264,7 +266,9 @@ def flywheel(
 @ops_app.command("feedback")
 def feedback(
     evidence_id: str = typer.Option(..., "--evidence-id", "-e", help="Audit evidence id"),
-    outcome: str = typer.Option(..., "--outcome", "-o", help="approve/reject/override/false_positive/false_negative"),
+    outcome: str = typer.Option(
+        ..., "--outcome", "-o", help="approve/reject/override/false_positive/false_negative"
+    ),
     reviewer: str = typer.Option("", "--reviewer", "-r", help="Reviewer id"),
     score: float | None = typer.Option(None, "--score", "-s", help="Optional quality score"),
     notes: str = typer.Option("", "--notes", "-n", help="Reviewer notes"),

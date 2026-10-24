@@ -14,8 +14,10 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import sqlite3
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -33,6 +35,41 @@ from maref_config import (
 )
 
 STALE_HOURS = 24.0
+
+
+def _parse_timestamp(value: object) -> datetime | None:
+    """解析审计条目时间戳，兼容 epoch 与 ISO-8601 字符串。"""
+    if value is None or isinstance(value, bool):
+        return None
+
+    if isinstance(value, (int, float)):
+        seconds = float(value)
+    elif isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return None
+        try:
+            seconds = float(text)
+        except ValueError:
+            iso = text[:-1] + "+00:00" if text.endswith(("Z", "z")) else text
+            try:
+                parsed = datetime.fromisoformat(iso)
+            except ValueError:
+                return None
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(tzinfo=timezone.utc)
+            return parsed.astimezone(timezone.utc)
+    else:
+        return None
+
+    if not math.isfinite(seconds):
+        return None
+    if abs(seconds) > 100_000_000_000:
+        seconds /= 1000.0
+    try:
+        return datetime.fromtimestamp(seconds, tz=timezone.utc)
+    except (OSError, OverflowError, ValueError):
+        return None
 
 
 def _runtime_dir() -> Path:
@@ -191,13 +228,10 @@ def _probe_chain(path: Path) -> dict | None:
         return {"size_mb": round(size / (1024 * 1024), 2), "hours_stale": 999.0}
 
     ts = last.get("timestamp") if last else None
+    last_dt = _parse_timestamp(ts)
     hours_stale = 999.0
-    if ts is not None:
-        try:
-            last_dt = datetime.fromtimestamp(float(ts), tz=timezone.utc)
-            hours_stale = (datetime.now(timezone.utc) - last_dt).total_seconds() / 3600
-        except (OSError, ValueError, OverflowError, TypeError):
-            hours_stale = 999.0
+    if last_dt is not None:
+        hours_stale = (datetime.now(timezone.utc) - last_dt).total_seconds() / 3600
 
     actor = None
     if isinstance(last, dict):
@@ -206,7 +240,7 @@ def _probe_chain(path: Path) -> dict | None:
     return {
         "size_mb": round(os.path.getsize(path) / (1024 * 1024), 2),
         "line_count": line_count,
-        "last_entry_ts": float(ts) if ts is not None else None,
+        "last_entry_ts": last_dt.timestamp() if last_dt is not None else None,
         "hours_stale": round(hours_stale, 1),
         "last_actor": actor,
         "traffic": traffic,
@@ -243,12 +277,9 @@ def _classify_traffic(path: Path, hours_stale: float) -> str:
             e = json.loads(line)
         except json.JSONDecodeError:
             continue
-        ts = e.get("timestamp")
-        try:
-            if ts is not None and float(ts) < window_start:
-                break
-        except (TypeError, ValueError):
-            pass
+        entry_dt = _parse_timestamp(e.get("timestamp"))
+        if entry_dt is not None and entry_dt.timestamp() < window_start:
+            break
         sampled += 1
         meta = e.get("metadata") if isinstance(e.get("metadata"), dict) else {}
         action = str(e.get("action", ""))
@@ -443,7 +474,7 @@ def check_audit_health():
     return status
 
 
-def main():
+def main() -> int:
     print("=" * 60)
     print("审计日志健康检查 (全域盘点模式 / P0)")
     print("=" * 60)
@@ -492,7 +523,8 @@ def main():
     with open(output, "w") as f:
         json.dump(status, f, indent=2, ensure_ascii=False)
     print(f"\n报告已保存: {output}")
+    return 0 if status["healthy"] else 1
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

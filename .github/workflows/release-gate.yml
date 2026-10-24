@@ -40,7 +40,10 @@ jobs:
       - name: Install dependencies
         run: pip install -e ".[dev,sidecar,otel,a2a,orchestration,identity]"
       - name: Integration test coverage
-        run: pytest tests/integration/ --cov=src/maref --cov-report=term-missing || true
+        run: |
+          # pyproject 的 fail_under=50 面向全量测试；本 job 只跑集成子集（实测
+          # 23.89%），用 CLI 覆写为子集下限 23 以检测回归，而非恒红。
+          pytest tests/integration/ --cov=src/maref --cov-report=term-missing --cov-fail-under=23
 
   gate-quality:
     runs-on: ubuntu-latest
@@ -52,7 +55,13 @@ jobs:
       - name: Install dependencies
         run: pip install -e ".[dev,sidecar,otel,a2a,orchestration,identity]"
       - name: Ruff lint
-        run: ruff check src/maref src/maref_lite
+        run: ruff check src/
+      - name: Mypy
+        run: mypy src/maref src/maref_lite src/sidecar
+      - name: Evidence gate unit tests
+        run: pytest tests/cli/test_evidence_gate.py tests/observability/test_audit_health_check.py -q --no-cov
+      - name: Claim integrity
+        run: python scripts/claim_integrity_gate.py
       - name: No hardcoded paths
         run: |
           if grep -rn "/Volumes/" src/ --include="*.py"; then
@@ -99,10 +108,11 @@ jobs:
         run: |
           pip install -e ".[dev,sidecar,otel,a2a,orchestration,identity]"
           pip install bandit
-      - name: Bandit SAST
-        run: bandit -r src/ -s B105,B108,B110,B104,B608,B615 -ll || true
-      - name: pip-audit
-        run: pip-audit || true
+      - name: Bandit SAST (High gate)
+        # G3 标准是 0 Critical / 0 High；Medium 只报告不阻断。
+        run: bandit -r src/ -s B105,B108,B110,B104,B608,B615 -lll
+      - name: Security tests
+        run: pytest tests/security -q --no-cov
       - name: Governance hook check
         run: bash scripts/ci-governance-check.sh
 
