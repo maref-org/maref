@@ -123,7 +123,7 @@ log "  Agent 覆盖对账..."
 
 # P0 证据门禁（可复现自证明）
 log "  P0 证据门禁..."
-bash "$SCRIPTS/evidence_gate.sh" --p0 >> "$LOGFILE" 2>&1 || fail "evidence-gate"
+bash "$SCRIPTS/evidence_gate.sh" >> "$LOGFILE" 2>&1 || fail "evidence-gate"
 
 # 阈值推送
 log "  阈值推送..."
