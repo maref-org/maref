@@ -25,6 +25,7 @@ import json
 import time
 from dataclasses import dataclass, field
 from enum import Enum
+from fnmatch import fnmatchcase
 from pathlib import Path
 from typing import Any
 
@@ -94,10 +95,10 @@ class PolicyRule:
         """Check whether this rule applies to the given action and context.
 
         A rule matches if:
-        - ``action`` equals ``self.action`` (or ``self.action`` is ``"*"``).
+        - ``action`` matches ``self.action`` (supporting ``fnmatch`` globs).
         - All conditions in ``self.conditions`` are satisfied by ``context``.
         """
-        if self.action != "*" and self.action != action:
+        if not fnmatchcase(action, self.action):
             return False
         if not self.conditions:
             return True
