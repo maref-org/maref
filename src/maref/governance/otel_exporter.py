@@ -13,9 +13,15 @@ from typing import Any
 
 from maref.governance.core_pipeline import GovernanceRequest, GovernanceResult
 
-try:  # pragma: no cover - exercised only when the optional extra is installed
-    from opentelemetry import metrics, trace
+metrics: Any
+trace: Any
 
+try:  # pragma: no cover - exercised only when the optional extra is installed
+    from opentelemetry import metrics as _otel_metrics
+    from opentelemetry import trace as _otel_trace
+
+    metrics = _otel_metrics
+    trace = _otel_trace
     _OTEL_AVAILABLE = True
 except ImportError:  # pragma: no cover
     metrics = None
@@ -32,7 +38,7 @@ class GovernanceOTelExporter:
         meter: Any | None = None,
         *,
         service_name: str = "maref-governance",
-        service_version: str = "0.54.0-dev",
+        service_version: str = "0.54.3-dev",
         use_global_provider: bool = True,
     ) -> None:
         self.tracer = tracer

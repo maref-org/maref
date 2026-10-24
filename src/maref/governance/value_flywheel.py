@@ -198,7 +198,9 @@ class GovernanceFlywheel:
     ) -> list[dict[str, Any]]:
         recommendations: list[dict[str, Any]] = []
         if kpis.decisions == 0:
-            return [{"action": "collect_more_traffic", "reason": "no governance decisions in window"}]
+            return [
+                {"action": "collect_more_traffic", "reason": "no governance decisions in window"}
+            ]
         if kpis.deny_rate > deny_rate_threshold:
             recommendations.append(
                 {

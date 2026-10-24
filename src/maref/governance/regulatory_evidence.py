@@ -28,7 +28,11 @@ EU_AI_ACT_OBLIGATIONS: tuple[Obligation, ...] = (
     Obligation("Art.9", "Risk management system", "section_8_risk_management_system"),
     Obligation("Art.12", "Record-keeping", "section_9_post_market_monitoring"),
     Obligation("Art.14", "Human oversight", "section_5_human_oversight"),
-    Obligation("Art.15", "Accuracy, robustness and cybersecurity", "section_10_accuracy_robustness_cybersecurity"),
+    Obligation(
+        "Art.15",
+        "Accuracy, robustness and cybersecurity",
+        "section_10_accuracy_robustness_cybersecurity",
+    ),
     Obligation("Art.17", "Quality management system", "section_2_development_methodology"),
     Obligation("Art.72", "Post-market monitoring", "section_9_post_market_monitoring"),
 )

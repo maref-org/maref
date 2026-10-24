@@ -18,8 +18,13 @@ COPY src/ src/
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 RUN pip install --no-cache-dir --upgrade pip
+# GHSA-9v8h-qqgm-4m35 (brotli 解码器越界写, CVSS 4.0 远程 RCE) 修复版本 1.2.1,
+# 但 mitmproxy 12.3.0 硬约束 Brotli<=1.2.0 且无更高版本放宽。brotli 与 mitmproxy
+# 之间仅为稳定的解压 API, 1.2.1 是同一 API 的安全补丁, 故 --no-deps 覆盖 pin。
+# mitmproxy 放开约束后应移除本条, 改回由依赖解析器升级。
 RUN pip install --no-cache-dir ".[all,desktop,identity]" \
     && pip install --no-cache-dir --upgrade "msgpack>=1.2.1" "tornado>=6.5.6" "setuptools>=78.1.1" \
+    && pip install --no-cache-dir --no-deps --force-reinstall "brotli>=1.2.1" \
     && pip uninstall -y wandb \
     && rm -f /opt/venv/lib/python3.12/site-packages/pip/_vendor/vendor.txt \
           /opt/venv/lib/python3.12/site-packages/pip/_vendor/bom.cdx.json
@@ -32,7 +37,7 @@ FROM python:3.12-slim AS runtime
 
 LABEL org.opencontainers.image.title="MAREF Desktop Agent"
 LABEL org.opencontainers.image.description="Multi-Agent Recursive Engineering Framework — Desktop Agent"
-LABEL org.opencontainers.image.version="0.54.0"
+LABEL org.opencontainers.image.version="0.54.3"
 LABEL org.opencontainers.image.licenses="Apache-2.0"
 
 ENV DEBIAN_FRONTEND=noninteractive
