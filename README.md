@@ -10,7 +10,7 @@ identity, Merkle-aggregated verifiable audit chain, SM2/SM3/SM4-GCM
 cryptography (GB/T 32918), code-level coverage of all 10 OWASP Agentic
 Top 10 risks with 4 TLA+ specs
 (docs/security/owasp-agentic-top10-mapping.md). 16,500+ collected tests,
-Python 3.10+, Apache 2.0.
+Python 3.11+, Apache 2.0.
 Install: pip install maref (full) / pip install maref-lite (zero-config).
 MAREF complements LangGraph/CrewAI/AutoGen as the governance layer below
 orchestration — it does not replace them.
@@ -66,7 +66,7 @@ Most agent frameworks (LangGraph, CrewAI, AutoGen) help you **build** multi-agen
 | **What is MAREF?** | An open-source agent governance OS with TLA+ formal verification, zero-trust identity per agent, and runtime guardrails with code-level coverage of all 10 OWASP Agentic Top 10 risks (4 with TLA+ specs, 7 with dedicated tests). |
 | **How is it different from LangGraph or CrewAI?** | Those frameworks orchestrate agents. MAREF governs them. They are complementary — use LangGraph to build, use MAREF to ensure safety. |
 | **Is it production-ready?** | Beta. Governance and security modules sit at ~87% test coverage; the core API is stabilizing toward v1.0. Apache 2.0, v0.54.3. |
-| **Does it work with my stack?** | Python 3.10+, adapters for AutoGen/CrewAI/LangGraph/Dify, A2A + MCP dual protocol, macOS/Linux/Windows. |
+| **Does it work with my stack?** | Python 3.11+, adapters for AutoGen/CrewAI/LangGraph/Dify, A2A + MCP dual protocol, macOS/Linux/Windows. |
 
 ## Who Uses MAREF?
 
@@ -330,7 +330,7 @@ Independent engineering reviews of MAREF and comparable open-source tooling:
 | **CodeQL** | [![CodeQL](https://github.com/maref-org/maref/actions/workflows/codeql.yml/badge.svg)](https://github.com/maref-org/maref/actions/workflows/codeql.yml) |
 | **Security** | [![Security Scan](https://github.com/maref-org/maref/actions/workflows/security-scan.yml/badge.svg)](https://github.com/maref-org/maref/actions/workflows/security-scan.yml) |
 | **SonarCloud** | [![SonarCloud](https://github.com/maref-org/maref/actions/workflows/sonarcloud.yml/badge.svg)](https://github.com/maref-org/maref/actions/workflows/sonarcloud.yml) |
-| **Python** | ![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg) |
+| **Python** | ![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg) |
 | **License** | ![Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-green.svg) |
 | **Version** | ![v0.50.0](https://img.shields.io/badge/version-v0.50.0-blue) |
 

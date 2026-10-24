@@ -9,11 +9,14 @@ on:
 jobs:
   sonarcloud:
     runs-on: ubuntu-latest
+    # Dependabot PR 无法读取仓库 secrets（SONAR_TOKEN 为空），分析必然以
+    # "Not authorized" 失败并阻塞其合并；主分支与人工 PR 照常分析。
+    if: github.actor != 'dependabot[bot]'
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
       - name: Install dependencies
