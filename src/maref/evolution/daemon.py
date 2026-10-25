@@ -14,22 +14,24 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-# 2026-10-10: bottleneck_diagnosis 为闭源模块（仅 openclaw 含）；公共仓优雅降级
+# 2026-10-10: bottleneck_diagnosis 为闭源模块（仅 openclaw 含）。
+# 公共仓不实现假诊断：开启 diagnosis_enabled 时明确跳过，而不是返回
+# 缺少 to_dict()/.channel 的占位对象导致 AttributeError。
 try:
     from maref.evolution.bottleneck_diagnosis import (  # type: ignore[import-not-found]
         allocate_for_channel,
         diagnose,
     )
+
+    _DIAGNOSIS_AVAILABLE = True
 except ImportError:
+    _DIAGNOSIS_AVAILABLE = False
 
-    def allocate_for_channel(bottleneck: Any) -> dict[str, Any]:
-        return {"channel": "default", "budget": 0}
+    def allocate_for_channel(bottleneck: Any) -> Any:  # pragma: no cover
+        raise RuntimeError("bottleneck_diagnosis is not part of the public build")
 
-    def diagnose(buffer: Any, trace_id: str) -> Any:
-        class _Diag:
-            bottleneck: str = "unknown"
-
-        return _Diag()
+    def diagnose(buffer: Any, trace_id: str) -> Any:  # pragma: no cover
+        raise RuntimeError("bottleneck_diagnosis is not part of the public build")
 
 
 from maref.evolution.daily_loop import DailyEvolutionLoop, DailyEvolutionResult
@@ -117,6 +119,7 @@ class EvolutionDaemon:
                 real_writes=config.real_writes,
             )
         self._diagnosis_buffer: list[dict[str, Any]] = []
+        self._diagnosis_unavailable_warned = False
 
     # ── Core loop ────────────────────────────────────────────────────
 
@@ -190,6 +193,14 @@ class EvolutionDaemon:
 
     def _run_diagnosis(self, result: DailyEvolutionResult | None) -> None:
         if not self._config.diagnosis_enabled or result is None:
+            return
+        if not _DIAGNOSIS_AVAILABLE:
+            if not self._diagnosis_unavailable_warned:
+                logger.warning(
+                    "diagnosis_enabled=True but bottleneck_diagnosis is not part of "
+                    "the public build; skipping diagnosis"
+                )
+                self._diagnosis_unavailable_warned = True
             return
         self._diagnosis_buffer.append(result.to_dict())
         if len(self._diagnosis_buffer) < self._config.diagnosis_interval:
