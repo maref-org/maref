@@ -32,9 +32,14 @@ jobs:
         run: |
           # update-type 元数据在 Dependabot 提交信息的 trailer 里，不在 PR body；
           # 旧实现只查 title/body，守卫从未命中，major 更新也被开启 auto-merge。
-          if gh pr view "$PR" --json commits \
-              --jq '[.commits[].messageBody // ""] | join("\n")' \
-              | grep -q 'version-update:semver-major'; then
+          # 先取回提交正文再判断：默认 shell 没有 pipefail，直接管道时
+          # gh 失败会被 grep 的退出码掩盖，守卫会 fail-open 打开 auto-merge。
+          commits=$(gh pr view "$PR" --json commits \
+              --jq '[.commits[].messageBody // ""] | join("\n")') || {
+            echo "::error::failed to read PR commits; refusing to enable auto-merge"
+            exit 1
+          }
+          if grep -q 'version-update:semver-major' <<<"$commits"; then
             echo "skip: major update"
             exit 0
           fi
