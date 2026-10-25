@@ -33,10 +33,12 @@ jobs:
 
       - name: Generate audit log
         run: |
+          # AuditLogger 会把相对路径重定向到 MAREF_AUDIT_PATH（默认 .governance/），
+          # 而 report generate 的 --audit-log 存在性检查用原始路径；两处必须同用绝对路径。
           python -c "
           from maref.governance.audit import AuditLogger
           from pathlib import Path
-          log = AuditLogger(log_path=Path('audit.jsonl'), hmac_key='ci-key')
+          log = AuditLogger(log_path=Path('audit.jsonl').resolve(), hmac_key='ci-key')
           import uuid
           log.log('governance_decision', 'ci-runner', 'auto_report', f'Scheduled report generation {uuid.uuid4().hex[:8]}')
           log.log('verify', 'ci-runner', 'integrity_check', 'All systems nominal')
@@ -53,7 +55,7 @@ jobs:
             KEY_ARGS="--signing-key maref-report-signing.pem"
           fi
           python -m maref_lite.cli report generate \
-            --audit-log audit.jsonl \
+            --audit-log "$PWD/audit.jsonl" \
             $KEY_ARGS \
             --output docs/verify/latest.json
 
