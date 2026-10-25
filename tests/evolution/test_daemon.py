@@ -169,6 +169,19 @@ class TestEvolutionDaemon:
         assert daemon._state.total_runs == 1
         assert not pid_file.exists()
 
+    def test_diagnosis_skipped_when_module_unavailable(self, tmp_path: Path, caplog) -> None:
+        """公共仓无 bottleneck_diagnosis：开启诊断时必须跳过而非产生假数据或崩溃。"""
+        daemon = _isolated_daemon(tmp_path, diagnosis_enabled=True, diagnosis_interval=1)
+
+        with patch("maref.evolution.daemon._DIAGNOSIS_AVAILABLE", False):
+            daemon._run_diagnosis(MagicMock(to_dict=lambda: {"ok": True}))
+            daemon._run_diagnosis(MagicMock(to_dict=lambda: {"ok": True}))
+
+        assert daemon._state.last_diagnosis == ""
+        assert daemon._diagnosis_buffer == []
+        warnings = [r for r in caplog.records if "bottleneck_diagnosis" in r.getMessage()]
+        assert len(warnings) == 1
+
     def test_generate_launchd_plist(self, tmp_path: Path) -> None:
         output = tmp_path / "com.maref.evolution-daemon.plist"
         daemon = _isolated_daemon(tmp_path)
