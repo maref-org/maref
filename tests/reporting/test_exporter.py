@@ -56,9 +56,7 @@ class TestReportExporter:
         with tempfile.TemporaryDirectory() as tmp:
             custom_tmpl = Path(tmp) / "templates"
             custom_tmpl.mkdir()
-            (custom_tmpl / "report.html").write_text(
-                "<h1>Custom Report</h1><p>$${report_id}</p>"
-            )
+            (custom_tmpl / "report.html").write_text("<h1>Custom Report</h1><p>$${report_id}</p>")
             out = Path(tmp) / "out.html"
             exporter = ReportExporter(template_dir=custom_tmpl)
             exporter.export_report(report, out)
@@ -124,6 +122,25 @@ class TestReportExporter:
             assert "fingerprint.txt" not in out.read_text("utf-8")
             assert not (Path(tmp) / "fingerprint.txt").exists()
 
+    def test_export_index_links_public_key(self) -> None:
+        key = ReportSigningKey.generate()
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "index.html"
+            ReportExporter().export_index(
+                Path(tmp),
+                out,
+                signer_fingerprint=key.fingerprint,
+                public_key=f"keys/{key.fingerprint}.pub",
+            )
+            assert f'href="keys/{key.fingerprint}.pub"' in out.read_text("utf-8")
+
+    def test_export_index_omits_public_key_link(self) -> None:
+        key = ReportSigningKey.generate()
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "index.html"
+            ReportExporter().export_index(Path(tmp), out, signer_fingerprint=key.fingerprint)
+            assert 'href="keys/' not in out.read_text("utf-8")
+
     def test_export_and_reimport_html(self) -> None:
         key = ReportSigningKey.generate()
         logger = AuditLogger(hmac_key="test")
@@ -135,7 +152,9 @@ class TestReportExporter:
             exporter = ReportExporter()
             out = Path(tmp) / "report.html"
             exporter.export_report(report, out)
-            exporter.export_index(Path(tmp), Path(tmp) / "index.html", signer_fingerprint=key.fingerprint)
+            exporter.export_index(
+                Path(tmp), Path(tmp) / "index.html", signer_fingerprint=key.fingerprint
+            )
 
             index_html = (Path(tmp) / "index.html").read_text("utf-8")
             assert "MAREF Governance Reports" in index_html

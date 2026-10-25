@@ -52,11 +52,16 @@ jobs:
             echo "$SIGNING_KEY" > maref-report-signing.pem
             chmod 600 maref-report-signing.pem
             KEY_ARGS="--signing-key maref-report-signing.pem"
-            # 下一步的 verify 依赖公钥，此前无任何步骤生成它，该分支从未执行过。
-            python -c "
+            # verify 与公钥发布都依赖它；指纹一并落盘，供导出步骤按指纹归档公钥。
+            python - <<'PY'
+          from pathlib import Path
+
           from maref.signing.signing_key import ReportSigningKey
-          ReportSigningKey.from_private_key_file('maref-report-signing.pem').save_public_key('maref-report-signing.pub')
-          "
+
+          key = ReportSigningKey.from_private_key_file("maref-report-signing.pem")
+          key.save_public_key("maref-report-signing.pub")
+          Path("key-fingerprint.txt").write_text(key.fingerprint)
+          PY
           else
             echo "::warning::MAREF_REPORT_SIGNING_KEY 未配置，本次报告由临时密钥签名，指纹每天变化"
           fi
@@ -81,13 +86,19 @@ jobs:
           # 每次 CI 工作区都是全新的，历史报告只存在于 gh-pages。不取回来的话，
           # 索引每次只含当天的两个 JSON，历史报告会变成没人链接的孤儿文件。
           set -o pipefail
-          mkdir -p /tmp/gh-pages-history
+          # 固定路径会残留上一次（或自托管 runner）的文件并被索引吃进去，每次用独立目录。
+          HIST=$(mktemp -d)
           # 必须显式写 refspec：`git fetch origin gh-pages` 只更新 FETCH_HEAD，
           # 不会创建 origin/gh-pages，后面的 git archive 会直接失败。
           if git fetch --depth=1 origin gh-pages:refs/remotes/origin/gh-pages \
-             && git archive origin/gh-pages verify | tar -x -C /tmp/gh-pages-history; then
-            cp -n /tmp/gh-pages-history/verify/*.json docs/verify/ 2>/dev/null || true
-            cp -n /tmp/gh-pages-history/verify/*.html docs/verify/ 2>/dev/null || true
+             && git archive origin/gh-pages verify | tar -x -C "$HIST"; then
+            cp -n "$HIST"/verify/*.json docs/verify/ 2>/dev/null || true
+            cp -n "$HIST"/verify/*.html docs/verify/ 2>/dev/null || true
+            # 历史公钥必须一起带回来，否则轮换后旧报告永远验不过。
+            if [ -d "$HIST/verify/keys" ]; then
+              mkdir -p docs/verify/keys
+              cp -n "$HIST"/verify/keys/*.pub docs/verify/keys/ 2>/dev/null || true
+            fi
             rm -f docs/verify/index.html
           else
             echo "No gh-pages history yet"
@@ -98,6 +109,10 @@ jobs:
           TIMESTAMP=$(date -u +"%Y%m%dT%H%M%SZ")
           cp docs/verify/latest.json "docs/verify/report-${TIMESTAMP}.json"
           if [ -f maref-report-signing.pub ]; then
+            # 固定名是兼容别名；按指纹归档的一份才是轮换后仍能验证历史报告的锚点。
+            FP=$(cat key-fingerprint.txt)
+            mkdir -p docs/verify/keys
+            cp maref-report-signing.pub "docs/verify/keys/${FP}.pub"
             cp maref-report-signing.pub docs/verify/
           fi
 
@@ -125,10 +140,13 @@ jobs:
           if newest is not None:
               exporter.export_report(newest, out_dir / "latest.html")
 
+          fp = newest.signer_fingerprint if newest else ""
+          key_link = f"keys/{fp}.pub" if fp and (out_dir / "keys" / f"{fp}.pub").is_file() else ""
           exporter.export_index(
               out_dir,
               out_dir / "index.html",
-              signer_fingerprint=newest.signer_fingerprint if newest else "",
+              signer_fingerprint=fp,
+              public_key=key_link,
           )
           PY
 
