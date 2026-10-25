@@ -1,0 +1,5 @@
+{
+  "version": 1,
+  "agents": [],
+  "note": "Retired launchd labels. Listed agents are excluded from M0 survival math and reported under retired, not dead. Path can be overridden with MAREF_RETIRED_AGENTS_FILE."
+}

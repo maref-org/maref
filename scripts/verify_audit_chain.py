@@ -9,6 +9,12 @@ Usage:
     python3 scripts/verify_audit_chain.py --audit-file audit.jsonl --json
     python3 scripts/verify_audit_chain.py --audit-file audit.jsonl \\
         --public-key signer.pem
+    python3 scripts/verify_audit_chain.py --audit-file archived.jsonl \\
+        --expect-failed
+
+``--expect-failed`` is for quarantined chains: a verification failure exits 0,
+while an unexpected pass exits 1. This keeps archived evidence checkable
+without letting it masquerade as a healthy live chain.
 """
 
 from __future__ import annotations
@@ -85,6 +91,14 @@ def main() -> int:
         help="Path to Merkle proof JSON file (for offline proof verification)",
     )
     parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON")
+    parser.add_argument(
+        "--expect-failed",
+        action="store_true",
+        help=(
+            "The chain is quarantined/archived: exit 0 when verification fails, "
+            "exit 1 when it unexpectedly passes"
+        ),
+    )
     args = parser.parse_args()
 
     audit_path = Path(args.audit_file)
@@ -103,11 +117,20 @@ def main() -> int:
         ed25519_public_key_pem=public_key_pem,
     )
 
+    expected_failed = bool(args.expect_failed)
     if args.json:
-        print(json.dumps(report.to_dict(), ensure_ascii=False, indent=2))
+        payload = report.to_dict()
+        payload["archived"] = expected_failed
+        payload["expected_failed"] = expected_failed
+        if expected_failed:
+            payload["expectation_met"] = not report.integrity_intact
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
     else:
         status = "OK" if report.integrity_intact else "FAILED"
         print(f"Chain integrity: {status} ({report.total} records)")
+        if expected_failed:
+            verdict = "as expected" if not report.integrity_intact else "UNEXPECTED PASS"
+            print(f"  archived: true (expected FAILED; {verdict})")
         print(f"  formats: {report.formats}")
         print(f"  link breaks: {len(report.link_breaks)}")
         print(f"  hash invalid: {len(report.hash_invalid)}")
@@ -118,7 +141,10 @@ def main() -> int:
             for note in report.notes[:10]:
                 print(f"  note: {note}")
 
-    exit_code = 0 if report.integrity_intact else 1
+    if expected_failed:
+        exit_code = 0 if not report.integrity_intact else 1
+    else:
+        exit_code = 0 if report.integrity_intact else 1
 
     if args.merkle_proof:
         if not Path(args.merkle_proof).exists():

@@ -14,6 +14,8 @@ from __future__ import annotations
 
 import json
 import os
+import plistlib
+import re
 import signal
 import subprocess
 import sys
@@ -375,9 +377,17 @@ def check_audit_log_growth(
     }
 
 
+def _chain_max_records() -> int:
+    try:
+        value = int(os.environ.get("MAREF_META_CHAIN_MAX_RECORDS", "10000"))
+    except ValueError:
+        value = 10000
+    return max(1, value)
+
+
 def check_audit_chain_integrity(
     audit_base: Path | None = None,
-    max_records: int = 500,
+    max_records: int | None = None,
 ) -> dict[str, Any]:
     """Verify the tail of the audit chain is unbroken.
 
@@ -390,6 +400,8 @@ def check_audit_chain_integrity(
     deliberately scans the newest records rather than the whole history so it
     stays cheap per run; full hash/HMAC verification runs separately.
     """
+    if max_records is None:
+        max_records = _chain_max_records()
     base = _audit_log_base(audit_base)
     # Per-actor shards (governance_audit_<actor>.jsonl) duplicate global
     # records and intentionally skip interleaved entries, so they are not
@@ -399,16 +411,24 @@ def check_audit_chain_integrity(
     ]
     targets = [p for p in candidates if p.exists()]
     if not targets:
-        return {"passed": False, "detail": "no_audit_files", "issues": []}
+        return {
+            "passed": False,
+            "detail": "no_audit_files",
+            "issues": [],
+            "truncated": False,
+        }
 
     issues: list[str] = []
     verified_files = 0
+    truncated_files: list[str] = []
     for path in targets:
-        ok, msg, checked = _verify_chain_tail(path, max_records)
+        ok, msg, checked, truncated = _verify_chain_tail(path, max_records)
         if ok:
             verified_files += 1
         else:
             issues.append(f"{path.name}: {msg}")
+        if truncated:
+            truncated_files.append(path.name)
     passed = len(issues) == 0 and verified_files > 0
     if issues:
         _write_notification(
@@ -423,11 +443,13 @@ def check_audit_chain_integrity(
         "files_checked": len(targets),
         "files_verified": verified_files,
         "max_records_scanned": max_records,
+        "truncated": bool(truncated_files),
+        "truncated_files": truncated_files,
         "issues": issues,
     }
 
 
-def _verify_chain_tail(path: Path, max_records: int) -> tuple[bool, str, int]:
+def _verify_chain_tail(path: Path, max_records: int) -> tuple[bool, str, int, bool]:
     """Verify the last contiguous run of the chain in a JSONL file.
 
     Walks chainable records backwards from the newest entry and measures how
@@ -447,7 +469,7 @@ def _verify_chain_tail(path: Path, max_records: int) -> tuple[bool, str, int]:
             f.seek(0, os.SEEK_END)
             size = f.tell()
             if size == 0:
-                return False, "empty file", 0
+                return False, "empty file", 0, False
             # Walk backward in chunks, newest-first, always aligned to a full
             # line so chunk seams never split a record and never fabricate a
             # break.
@@ -455,6 +477,7 @@ def _verify_chain_tail(path: Path, max_records: int) -> tuple[bool, str, int]:
             pos = size
             chunk_size = 262144
             max_chunks = 64  # safety cap (~16MB) to bound worst-case cost
+            reached_start = False
             for _ in range(max_chunks):
                 start = max(0, pos - chunk_size)
                 f.seek(start)
@@ -479,16 +502,25 @@ def _verify_chain_tail(path: Path, max_records: int) -> tuple[bool, str, int]:
                         chunk_records.append(rec)
                 records = chunk_records + records
                 pos = start
-                if len(records) >= max_records or start == 0:
+                if start == 0:
+                    reached_start = True
                     break
+                if len(records) >= max_records:
+                    break
+            # Truncated = older records exist outside the scanned window
+            # (record cap or 16MB byte cap), so the tail verdict does not
+            # cover the whole file.
+            truncated = len(records) > max_records or (
+                not reached_start and (len(records) >= max_records or pos > 0)
+            )
             # Truncate to the newest max_records entries for the tail check.
             if len(records) > max_records:
                 records = records[-max_records:]
     except OSError as e:
-        return False, f"unreadable: {e}", 0
+        return False, f"unreadable: {e}", 0, False
 
     if not records:
-        return False, "no chainable records in tail", 0
+        return False, "no chainable records in tail", 0, False
 
     # Walk backwards from the newest record, counting the contiguous run.
     # Chain invariant (forward): entry.previous_hash == prior entry.chain_hash.
@@ -505,16 +537,17 @@ def _verify_chain_tail(path: Path, max_records: int) -> tuple[bool, str, int]:
             break
 
     if contiguous >= max_records:
-        return True, f"last {contiguous} records linked", contiguous
+        return True, f"last {contiguous} records linked", contiguous, truncated
     # A freshly re-baselined log may legitimately contain fewer than
     # max_records entries. Accept it only when the whole file is one
     # unbroken chain starting at genesis (previous_hash == "").
     if contiguous == len(records) and records[0].get("previous_hash", "") == "":
-        return True, f"entire chain linked ({contiguous} records)", contiguous
+        return True, f"entire chain linked ({contiguous} records)", contiguous, truncated
     return (
         False,
         (f"break after {contiguous} contiguous records; newest={records[-1].get('id', '?')}"),
         contiguous,
+        truncated,
     )
 
 
@@ -600,27 +633,91 @@ def _scripts_dir() -> Path:
     return Path(os.environ.get("MAREF_SCRIPTS_PATH", "scripts"))
 
 
+def _plist_search_dirs() -> list[Path]:
+    dirs = [
+        _scripts_dir(),
+        Path.home() / "Library/LaunchAgents",
+    ]
+    if sys.platform == "darwin":
+        dirs.extend(
+            [
+                Path("/Library/LaunchAgents"),
+                Path("/Library/LaunchDaemons"),
+            ]
+        )
+    return dirs
+
+
 def _find_all_plist_labels() -> set[str]:
     """Find com.maref plist labels across all standard launchd directories.
 
     Searches project scripts/, user LaunchAgents, and system locations.
     """
     labels: set[str] = set()
-    search_dirs = [
-        _scripts_dir(),
-        Path.home() / "Library/LaunchAgents",
-    ]
-    if sys.platform == "darwin":
-        search_dirs.extend(
-            [
-                Path("/Library/LaunchAgents"),
-                Path("/Library/LaunchDaemons"),
-            ]
-        )
-    for d in search_dirs:
+    for d in _plist_search_dirs():
         if d.exists():
             for p in d.glob("com.maref.*.plist"):
                 labels.add(p.stem)
+    return labels
+
+
+def _plist_keepalive_labels() -> set[str]:
+    """Labels whose plist declares KeepAlive — daemons expected to stay up.
+
+    Scheduled/on-demand jobs (StartCalendarInterval, StartInterval without
+    KeepAlive) are *idle* when not running, not dead. Treating them as dead
+    is what produced the 0.165 "survival rate" false alarm.
+    """
+    if sys.platform != "darwin":
+        return set()
+    keepalive: set[str] = set()
+    for d in _plist_search_dirs():
+        if not d.exists():
+            continue
+        for p in d.glob("com.maref.*.plist"):
+            if p.stem.endswith(".template"):
+                continue
+            try:
+                with open(p, "rb") as fh:
+                    data = plistlib.load(fh)
+                ka = data.get("KeepAlive")
+                if ka is True or (isinstance(ka, dict) and any(bool(v) for v in ka.values())):
+                    keepalive.add(p.stem)
+            except Exception:
+                # Malformed XML falls back to a tolerant text scan.
+                try:
+                    text = p.read_text(errors="replace")
+                except OSError:
+                    continue
+                if re.search(r"<key>KeepAlive</key>\s*(?:<true\s*/>|<dict>)", text):
+                    keepalive.add(p.stem)
+    return keepalive
+
+
+def _retired_agents_path() -> Path:
+    env = os.environ.get("MAREF_RETIRED_AGENTS_FILE")
+    if env:
+        return Path(env)
+    return Path(__file__).resolve().parents[3] / "configs" / "retired-agents.json"
+
+
+def _load_retired_agents() -> set[str]:
+    path = _retired_agents_path()
+    if not path.is_file():
+        return set()
+    try:
+        data = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError):
+        return set()
+    items = data.get("agents") if isinstance(data, dict) else data
+    if not isinstance(items, list):
+        return set()
+    labels: set[str] = set()
+    for item in items:
+        if isinstance(item, str):
+            labels.add(item)
+        elif isinstance(item, dict) and item.get("label"):
+            labels.add(str(item["label"]))
     return labels
 
 
@@ -660,12 +757,17 @@ def check_managed_agents() -> dict[str, Any]:
         "configured": [],
         "running": [],
         "dead": [],
+        "idle": [],
+        "retired": [],
+        "long_running": [],
         "unknown": [],
     }
 
     # Find all plist labels across multiple directories
     plist_labels = _find_all_plist_labels()
     results["plist_count"] = len(plist_labels)
+    retired_set = _load_retired_agents() & plist_labels
+    keepalive = _plist_keepalive_labels()
 
     if sys.platform == "darwin":
         launchd_agents = _get_launchd_maref_agents()
@@ -674,20 +776,17 @@ def check_managed_agents() -> dict[str, Any]:
 
         for label in sorted(plist_labels):
             results["configured"].append(label)
-            if label in launchd_map:
-                if launchd_map[label]:
-                    results["running"].append(label)
-                else:
-                    results["dead"].append(label)
-            else:
+            if label in retired_set:
+                results["retired"].append(label)
+                continue
+            is_running = bool(launchd_map.get(label, False))
+            if not is_running and label not in launchd_map:
                 # Check PID file fallback for manually started agents
                 pid_file = Path(f"/tmp/{label}.pid")
-                is_running = False
                 if pid_file.exists():
                     try:
                         pid = int(pid_file.read_text().strip())
-                        # Check if process is alive
-                        pid_alive = (
+                        is_running = (
                             os.path.exists(f"/proc/{pid}")
                             if sys.platform == "linux"
                             else (
@@ -697,24 +796,30 @@ def check_managed_agents() -> dict[str, Any]:
                                 == 0
                             )
                         )
-                        is_running = pid_alive
                     except (OSError, ValueError, subprocess.TimeoutExpired):
                         pass
-                if is_running:
-                    results["running"].append(label)
-                else:
-                    results["dead"].append(label)
+            if is_running:
+                results["running"].append(label)
+            elif label in keepalive:
+                results["dead"].append(label)
+            else:
+                # Scheduled/on-demand job: not running is its normal state.
+                results["idle"].append(label)
 
         meta_monitor_running = os.getpid() > 0
         if meta_monitor_running and "com.maref.meta-monitor" not in results["running"]:
             results["running"].append("com.maref.meta-monitor")
-            if "com.maref.meta-monitor" in results["dead"]:
-                results["dead"].remove("com.maref.meta-monitor")
+        for bucket in ("dead", "idle"):
+            if "com.maref.meta-monitor" in results[bucket]:
+                results[bucket].remove("com.maref.meta-monitor")
         results["meta_monitor_pid"] = os.getpid()
 
     elif sys.platform == "linux":
         for label in sorted(plist_labels):
             results["configured"].append(label)
+            if label in retired_set:
+                results["retired"].append(label)
+                continue
             try:
                 r = subprocess.run(
                     ["systemctl", "is-active", label],
@@ -728,6 +833,9 @@ def check_managed_agents() -> dict[str, Any]:
                     results["dead"].append(label)
             except (subprocess.TimeoutExpired, FileNotFoundError):
                 results["dead"].append(label)
+        results["long_running"] = [
+            label for label in sorted(plist_labels) if label not in retired_set
+        ]
     else:
         results["unknown"].append("unsupported_platform")
 
@@ -741,10 +849,24 @@ def check_managed_agents() -> dict[str, Any]:
         "com.maref.audit-agent",
     }
 
+    if sys.platform == "darwin":
+        results["long_running"] = [
+            label
+            for label in sorted(plist_labels)
+            if label in keepalive and label not in retired_set
+        ]
+
     total = len(results["configured"])
     running = len(results["running"])
-    survival_rate = running / total if total > 0 else 1.0
-    results["survival_rate"] = round(survival_rate, 3)
+    long_running_set = set(results["long_running"])
+    active_running = [label for label in results["running"] if label in long_running_set]
+    active_total = len(long_running_set)
+    active_rate = len(active_running) / active_total if active_total > 0 else 1.0
+    results["active_total"] = active_total
+    results["active_running"] = active_running
+    results["survival_rate"] = round(active_rate, 3)
+    results["configured_total"] = total
+    results["running_total"] = running
 
     # Calculate core agent survival separately
     core_running = [l for l in results["running"] if l in _CORE_MAREF_AGENTS]
@@ -774,11 +896,22 @@ def check_managed_agents() -> dict[str, Any]:
             subsystem="agents",
             check_id="managed_agents",
         )
+    elif active_total > 0 and active_rate < threshold:
+        results["passed"] = False
+        _write_notification(
+            "M0 Fail",
+            "critical",
+            f"Active daemon survival {active_rate:.0%} ({len(active_running)}/{active_total}) "
+            f"— threshold={threshold:.0%}, dead: {results['dead'][:5]}",
+            subsystem="agents",
+            check_id="managed_agents",
+        )
     elif results["dead"]:
         _write_notification(
             "M0 Degraded",
             "warning",
-            f"Agent survival rate {survival_rate:.0%} ({running}/{total}), "
+            f"Agent survival rate {active_rate:.0%} "
+            f"({len(active_running)}/{active_total} daemons), "
             f"core={core_survival:.0%} ({len(core_running)}/{core_total}) — "
             f"dead (non-core): {[l for l in results['dead'] if l not in _CORE_MAREF_AGENTS][:5]}",
             subsystem="agents",
@@ -1000,9 +1133,36 @@ def check_m2(notifications_dir: Path | str | None = None) -> dict[str, Any]:
     except Exception:
         pass
 
+    # Alert channels: silence is downgraded to advisory (a quiet system is
+    # not automatically broken), but "no alerts ever recorded" / tracker
+    # unavailable means the loop's coverage is undefined and must not pass.
+    disappearance = feedback_metrics.get("alert_disappearance") or {}
+    if "error" in feedback_metrics:
+        channel_status = "unavailable"
+    elif disappearance.get("last_alert_seconds_ago") is None:
+        channel_status = "uninitialized"
+    elif not disappearance.get("passed", True):
+        channel_status = "silent"
+    else:
+        channel_status = "active"
+    channel_ok = channel_status in ("active", "silent")
+    alert_channel = {
+        "status": channel_status,
+        "coverage_defined": channel_status in ("active", "silent"),
+        "advisory": channel_status == "silent",
+        "open_alerts": staleness.get("open_alerts"),
+        "detail": disappearance.get("detail"),
+    }
+    quality_targets["alert_disappearance"] = {
+        "status": channel_status,
+        "passed": channel_ok,
+        "advisory": channel_status == "silent",
+    }
+
     return {
-        "passed": staleness.get("passed", False),
+        "passed": bool(staleness.get("passed", False)) and channel_ok,
         "notification_staleness": staleness,
+        "alert_channel": alert_channel,
         "feedback_tracking": feedback_metrics,
         "quality_targets": quality_targets,
     }
@@ -1232,8 +1392,18 @@ def check_cost(
             "detail": critical_hits if critical_hits else "ok",
         },
         "guard_block_rate": {
-            "passed": guarded <= 50,
+            # 0 blocks in 24h is not "healthy" — it means guard telemetry has
+            # no coverage, so the rate is undefined and cannot pass.
+            "passed": guarded > 0 and guarded <= 50,
             "guarded_24h": guarded,
+            "coverage": "defined" if guarded > 0 else "undefined",
+            "detail": "ok"
+            if 0 < guarded <= 50
+            else (
+                "no guard events in 24h — coverage undefined"
+                if guarded == 0
+                else "guard block volume above threshold"
+            ),
         },
         "telemetry_liveness": {
             "passed": daily_total > 0,
@@ -1325,9 +1495,23 @@ def run_all_checks(
     m3 = check_m3()
     m4 = check_cost()
 
+    key_state = m0.get("checks", {}).get("hmac_key", {})
+    if key_state.get("hmac_key_set") or key_state.get("hmac_key_file"):
+        signature_mode = "hmac-sha256"
+    elif key_state.get("ed25519_key_set"):
+        signature_mode = "ed25519"
+    else:
+        signature_mode = "unsigned"
+
     return {
         "timestamp": time.time(),
         "version": "1.0.0",
+        "signature_mode": signature_mode,
+        "signature_note": (
+            "unsigned logs are not counted as verified"
+            if signature_mode == "unsigned"
+            else "signing configured; run verify_audit_chain.py for record-level verification"
+        ),
         "summary": {
             "m0_passed": m0["passed"],
             "m1_passed": m1["passed"],
