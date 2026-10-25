@@ -17,8 +17,24 @@ jobs:
       - name: Run release check
         run: bash scripts/release-check.sh
 
+  # G7: 发布必须以前置测试为门禁，不允许仅凭版本/打包检查发布
+  test-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install -e ".[dev,sidecar,otel,a2a,orchestration,identity]"
+      - name: Core test suite (same selection as CI)
+        run: >-
+          pytest tests/ -x -q --timeout=120 --no-cov
+          -m "not integration and not chaos and not benchmark and not slow and not real"
+          --ignore=tests/maref/compliance --ignore=tests/desktop --ignore=tests/test_crypto.py
+
   publish-python:
-    needs: release-check
+    needs: [release-check, test-gate]
     runs-on: ubuntu-latest
     permissions:
       contents: write
