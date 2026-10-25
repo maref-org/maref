@@ -94,6 +94,36 @@ class TestReportExporter:
             html = out.read_text("utf-8")
             assert "report.json" in html or report.report_id[:8] in html
 
+    def test_export_index_dedupes_same_report(self) -> None:
+        key = ReportSigningKey.generate()
+        logger = AuditLogger(hmac_key="test")
+        logger.log("decision", "agent-a", "approve", "test")
+        report = ReportGenerator(signing_key=key, audit_logger=logger).from_audit_log()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / "latest.json").write_text(report.to_json())
+            (Path(tmp) / "report-20260101T000000Z.json").write_text(report.to_json())
+
+            out = Path(tmp) / "index.html"
+            ReportExporter().export_index(Path(tmp), out, signer_fingerprint=key.fingerprint)
+            html = out.read_text("utf-8")
+            assert html.count(f'href="{report.report_id[:8]}.html"') == 1
+
+    def test_export_index_writes_fingerprint_file(self) -> None:
+        key = ReportSigningKey.generate()
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "index.html"
+            ReportExporter().export_index(Path(tmp), out, signer_fingerprint=key.fingerprint)
+            assert (Path(tmp) / "fingerprint.txt").read_text("utf-8").strip() == key.fingerprint
+            assert 'href="fingerprint.txt"' in out.read_text("utf-8")
+
+    def test_export_index_without_fingerprint_hides_link(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "index.html"
+            ReportExporter().export_index(Path(tmp), out)
+            assert "fingerprint.txt" not in out.read_text("utf-8")
+            assert not (Path(tmp) / "fingerprint.txt").exists()
+
     def test_export_and_reimport_html(self) -> None:
         key = ReportSigningKey.generate()
         logger = AuditLogger(hmac_key="test")
