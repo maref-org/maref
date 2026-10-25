@@ -1,0 +1,78 @@
+name: Branch Protection Drift
+
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - configs/release-gate.yaml
+      - scripts/configure_branch_protection.sh
+      - .github/workflows/branch-protection-drift.yml
+
+permissions:
+  contents: read
+
+jobs:
+  config-syntax:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install PyYAML
+        run: pip install pyyaml
+      - name: Validate release-gate config and check names
+        run: |
+          python3 - <<'PY'
+          import pathlib
+          import sys
+
+          import yaml
+
+          config = pathlib.Path("configs/release-gate.yaml")
+          if not config.is_file():
+              sys.exit("configs/release-gate.yaml is missing")
+          cfg = yaml.safe_load(config.read_text()) or {}
+          checks = set(cfg.get("required_checks") or []) | set(
+              cfg.get("required_pr_checks") or []
+          )
+          if not checks:
+              sys.exit("required_checks must not be empty")
+
+          job_ids = set()
+          for path in pathlib.Path(".github/workflows").glob("*.yml"):
+              doc = yaml.safe_load(path.read_text()) or {}
+              for job_id in (doc.get("jobs") or {}):
+                  job_ids.add(job_id)
+
+          missing = sorted(checks - job_ids)
+          if missing:
+              sys.exit(
+                  "required contexts not found as workflow job ids: " + ", ".join(missing)
+              )
+          print(f"OK: {len(checks)} required contexts match workflow job ids")
+          PY
+
+  live-drift:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install PyYAML
+        run: pip install pyyaml
+      - name: Check live branch protection
+        env:
+          GH_TOKEN: ${{ secrets.BRANCH_PROTECTION_TOKEN }}
+        run: |
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "::error::BRANCH_PROTECTION_TOKEN is not set; live drift cannot be verified"
+            exit 1
+          fi
+          bash scripts/configure_branch_protection.sh --check

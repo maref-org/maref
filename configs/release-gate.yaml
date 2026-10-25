@@ -1,0 +1,42 @@
+# Declarative branch protection for MAREF main.
+# Applied by: bash scripts/configure_branch_protection.sh --apply
+# Checked by: bash scripts/configure_branch_protection.sh --check
+# Drift job:  .github/workflows/branch-protection-drift.yml
+#
+# Contexts are GitHub check-run names. Jobs in ci.yml / release-gate.yml
+# deliberately do not override `name:`, so the context equals the job id.
+
+repository: maref-org/maref
+branch: main
+
+protection:
+  enforce_admins: true
+  required_approving_review_count: 1
+  dismiss_stale_reviews: true
+  require_conversation_resolution: true
+  strict_status_checks: true
+  allow_force_pushes: false
+  allow_deletions: false
+
+# Produced by MAREF CI on every push to main. These can be verified directly
+# against the tag SHA during release preflight.
+required_checks:
+  - lint
+  - test
+  - security
+  - crypto-test
+  - chaos-test
+  - sca
+
+# Produced by Release Gate on pull requests only. They are required at merge
+# time; release preflight verifies them on the associated PR head SHA because
+# a squash-merged commit does not carry these check-runs.
+#
+# gate-rust-audit is intentionally excluded: v0.55.0 is Python-only.
+# gate-integration-coverage is a subset guard; global coverage is handled by
+# the `test` job plus the coverage artifact check.
+required_pr_checks:
+  - gate-quality
+  - gate-security
+  - gate-test
+  - gate-saeb

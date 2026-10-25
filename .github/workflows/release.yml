@@ -3,10 +3,49 @@ name: Release
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Build and verify without publishing"
+        type: boolean
+        default: true
+      include_desktop:
+        description: "Also build Tauri desktop bundles (out of scope for v0.55.0)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
 
 jobs:
-  release-check:
+  # Fail closed before any build: the tagged commit (and the PR that produced
+  # it) must have green checks. STATE.yaml booleans are never consulted.
+  release-preflight:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      checks: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install PyYAML
+        run: pip install pyyaml
+      - name: Verify check-runs for tag and associated PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: >-
+          python3 scripts/release_preflight.py
+          --repo "${{ github.repository }}"
+          --sha "${{ github.sha }}"
+
+  release-check:
+    needs: [release-preflight]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v7
@@ -19,7 +58,9 @@ jobs:
 
   # G7: 发布必须以前置测试为门禁，不允许仅凭版本/打包检查发布
   test-gate:
+    needs: [release-preflight]
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v7
@@ -34,8 +75,9 @@ jobs:
           --ignore=tests/maref/compliance --ignore=tests/desktop --ignore=tests/test_crypto.py
 
   publish-python:
-    needs: [release-check, test-gate]
+    needs: [release-preflight, release-check, test-gate]
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: write
       id-token: write
@@ -47,17 +89,26 @@ jobs:
       - name: Build package
         run: pip install build && python -m build
       - name: Publish to PyPI
+        if: github.event_name == 'push' || github.event.inputs.dry_run != 'true'
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           password: ${{ secrets.PYPI_TOKEN }}
       - name: Create GitHub Release
+        if: github.event_name == 'push' || github.event.inputs.dry_run != 'true'
         uses: softprops/action-gh-release@v2
         with:
           files: dist/*
           generate_release_notes: true
 
   publish-tauri:
+    # v0.55.0 is Python-only. Desktop bundles are opt-in via repository
+    # variable or explicit workflow_dispatch input; they are not part of the
+    # tag release dependency chain.
     needs: publish-python
+    if: >-
+      (github.event_name == 'push' && vars.RELEASE_INCLUDE_DESKTOP == 'true')
+      || (github.event_name == 'workflow_dispatch' && github.event.inputs.include_desktop == 'true')
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:

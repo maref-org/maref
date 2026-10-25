@@ -1,4 +1,4 @@
-# MAREF Release Gate v1.0
+# MAREF Release Gate v1.1
 
 > **地位**: MAREF 自有的轻量发布门禁。本仓库一切发布审计、Gate 决策、Go/No-Go 评估的唯一执行标准。
 >
@@ -35,6 +35,8 @@
 | **Beta** | G1~G9（G6 ≥ 60%） | 至多 2 个例外（须带到期时间） | 需审批 |
 | **GA** | G1~G10 全过（G6 ≥ 70%） | 0 例外 | 全票 Go |
 
+> **v1.1 补充**：Experimental 的 G4 降级必须同时满足——`.github/dependency-exceptions.yaml` 存在且每条例外含到期日（≤90 天），Dependency Audit 最近一次运行结论不是 `failure`。workflow 从未运行不得视为通过。G6 的覆盖率声明必须能由 CI artifact 复现；无 artifact 的声明一律记为 `unverified`。
+
 ## 3. Gate 流程映射（轻量级）
 
 ```
@@ -60,7 +62,16 @@ Gate 4 生产发布   →  Go/No-Go 决策会（全票或条件 Go）
 | T+7d | 收集 issue 与红蓝对抗结果 |
 | T+30d | 发布质量评分纳入团队 KPI |
 
-## 6. 与外部手册的关系
+## 6. 发布流水线要求（v1.1 新增）
+
+1. **tag 必须走门禁**：任一 `v*` tag 触发的 Release 必须校验 tag SHA 的 check-runs；仅 PR 触发 `release-gate.yml` 不算发布门禁。
+2. **发布依赖顺序**：`publish-python` / `publish-tauri` 必须直接或间接依赖 lint、test、security 三类 job；任一失败即不得发布。
+3. **桌面端**：v0.55.0 发布范围为 Python-only，桌面 job 不在依赖链内。若某版本声明包含桌面产物，则四平台矩阵必须全部成功，否则发布说明不得声称“桌面版已发布”。
+4. **preflight**：发布前校验 required status checks 非空、目标 SHA 的必需检查全为 `success`、release notes 中的产物清单与实际 artifact 一致。
+5. **禁止**：`|| true`、`continue-on-error`、恒真 fixture、空 `required_status_checks` 不得用于让发布门禁变绿。
+6. **证据绑定**：每次发布记录（`STATE.yaml` 或 release notes）必须包含 run ID、tag SHA、采集时间；缺一项即为 `unverified`。
+
+## 7. 与外部手册的关系
 
 任何引用外部手册（SkillOS、ENG-LAUNCH-CHECKLIST 等）作为 MAREF 审计依据的行为，**自动触发 G1 失败**。外部手册内容如可借鉴，须经宪法符合性审查后**重新编入本文件**方可生效。
 
@@ -71,3 +82,4 @@ Gate 4 生产发布   →  Go/No-Go 决策会（全票或条件 Go）
 | 版本 | 日期 | 摘要 |
 |------|------|------|
 | v1.0 | 2026-06-19 | 首版。10 项轻量门禁确立，取代 SkillOS `SKILLOS-RELEASE-HANDBOOK-001` 在本仓库的依据地位。 |
+| v1.1 | 2026-10-25 | 增加 tag 发布必走门禁、发布依赖顺序、桌面产物声明规则、preflight 与证据绑定；G4/G6 降级需可复核证据。 |

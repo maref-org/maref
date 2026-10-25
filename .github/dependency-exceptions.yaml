@@ -1,0 +1,15 @@
+# SCA exceptions for scripts/sca_gate.py.
+#
+# Rules:
+#   - An exception applies only to the exact package version and listed
+#     advisory IDs (pip-audit id or alias). If the dependency moves, the
+#     exception stops matching and the gate fails until it is re-reviewed.
+#   - `expires` is required and must be within 90 days (YYYY-MM-DD).
+#   - `reason` is required. "temporary" or empty text is not a reason.
+#   - Expired entries fail the gate even if the finding is gone.
+#
+# Baseline at 2026-10-25: `uv export` of the release extras (sidecar,
+# identity, otel, a2a, orchestration) from the repo's uv.lock produced
+# 0 findings, so this ledger starts empty.
+version: 1
+exceptions: []
