@@ -1,11 +1,16 @@
-version: 18
-last_updated: '2026-10-25T17:47:00+08:00'
+version: 20
+last_updated: '2026-10-25T23:02:17+08:00'
 project:
   name: MAREF
   current_release: 0.54.3
+  release_evidence: docs/releases/v0.54.3.md
   public_repo: https://github.com/maref-org/maref
   license: Apache-2.0
-  rsi_level: 'L2 (Conditional Pass / 待复审)'
+  rsi_level:
+    value: conditional
+    label: 'L2 (Conditional Pass / 待复审)'
+    verified_at: '2026-10-19'
+    blocked_by: 'E1–E9 未全过；L2 Full Pass 暂停（见 rsi_status_note）'
   rsi_score: 79.5
   rsi_report: docs/rsi/l2-acceptance-report-20260702.md
   rsi_status_note: '2026-10-19 审计发现证据链/版本声称缺口，L2 Full Pass 暂停；P0 修复后按 docs/plans/2026-10-19-audit-remediation-v0.54.1.md T3.4 重跑验收。'
@@ -49,8 +54,26 @@ track_b:
   remote: git@github.com:maref-org/maref.git
   pre_push_hook: present
   branch_protection: enabled
-  ci_status: '本仓 main CI 绿（run 40166339687 @ 1eaff1b5，2026-10-25T05:39Z）；dependency audit red'
-  security_scan: 'bandit High=0; pip-audit known CVEs; Security Scan run 40166339699 @ 1eaff1b5 绿'
+  ci_status:
+    value: green
+    run_id: 40197782331
+    workflow: MAREF CI
+    sha: 27978a4fcac9f638eeadc9870f3c7dff3bbfa396
+    verified_at: '2026-10-25T13:28:43Z'
+  security_scan:
+    value: green
+    run_id: 40197782006
+    workflow: Security Scan
+    sha: 27978a4fcac9f638eeadc9870f3c7dff3bbfa396
+    verified_at: '2026-10-25T13:28:42Z'
+  dependency_audit:
+    value: failed
+    run_id: 40204363568
+    workflow_id: 390339508
+    workflow: Dependency Audit
+    sha: 27978a4fcac9f638eeadc9870f3c7dff3bbfa396
+    verified_at: '2026-10-25T15:02:17Z'
+    detail: 'workflow_dispatch run 40204363568 于 main@27978a4 failure：main 仍为旧版 workflow（audit runner 环境 setuptools 79.0.1，3 条漏洞）；本地新版锁文件隔离流程 dry-run 0 findings，修复未提交'
   internal_repo_ci:
     repo: private_internal_repo  # 内部仓名按公共仓泄漏门禁隐去
     status: blocked_external_billing
@@ -63,16 +86,22 @@ governance:
   audit_score: 'D (32/100)'
   audit_score_previous: '8.8/10 (2026-08-04)'
   audit_note: 'v0.54.3 CI stabilization on top of P0 remediation; see docs/plans/2026-10-19-audit-remediation-v0.54.1.md'
-  coverage_overall: 'unverified — 76.36% 声明无留存产物 @ feb31444，已按 G8 撤回待复现'
-  coverage_verified: false
-  coverage_evidence: '2026-10-24 本机运行记录见 coverage_note；仓库内不存在对应 SHA 的覆盖率产物，按审计 G8 标注为未验证'
-  coverage_governance: 87.70%
-  coverage_federation: 67.76%
-  coverage_identity: 58.46%
-  coverage_security: 87.24%
-  coverage_execution: 71.62%
-  coverage_data_value: 95.95%
-  coverage_note: '2026-10-24 本机按 CI 标准域重跑：pytest tests/ -q --timeout=120 -m "not integration and not chaos and not benchmark and not slow and not real" --ignore=tests/maref/compliance --ignore=tests/desktop --ignore=tests/test_crypto.py（addopts --cov=src）。结果 15051 passed / 14 skipped / 495 deselected / 0 failed，76.36%（71797/90641 行），耗时 6m14s，HEAD feb31444。此前 10.68%（2026-10-23，全仓 89425 行）与 52.49%（2026-08-05，8158 tests）为不同口径历史值，均已被本次替代。CI 远程复跑仍需在下次 push 后确认。下方分域覆盖率数字仍为旧口径，未随本次重算。2026-10-25 审计：无对应 SHA 的覆盖率产物留存，76.36% 标注为待复现。'
+  coverage:
+    value: unverified
+    overall: null
+    source_run_id: null
+    sha: null
+    verified_at: null
+    evidence: '2026-10-25 本机全量复跑 76.41%（15104 passed / 0 failed，工作区 HEAD 27978a4 + 未提交改动）；无 CI run/SHA 绑定产物，按审计 G8 保持 unverified'
+    domains:
+      governance: 87.70
+      federation: 67.76
+      identity: 58.46
+      security: 87.24
+      execution: 71.62
+      data_value: 95.95
+    domains_note: '旧口径，未随 2026-10-24 全仓重算'
+  coverage_note: '2026-10-24 本机按 CI 标准域重跑：pytest tests/ -q --timeout=120 -m "not integration and not chaos and not benchmark and not slow and not real" --ignore=tests/maref/compliance --ignore=tests/desktop --ignore=tests/test_crypto.py（addopts --cov=src）。结果 15051 passed / 14 skipped / 495 deselected / 0 failed，76.36%（71797/90641 行），耗时 6m14s，HEAD feb31444。此前 10.68%（2026-10-23，全仓 89425 行）与 52.49%（2026-08-05，8158 tests）为不同口径历史值，均已被本次替代。CI 远程复跑仍需在下次 push 后确认。下方分域覆盖率数字仍为旧口径，未随本次重算。2026-10-25 审计：无对应 SHA 的覆盖率产物留存，76.36% 标注为待复现。2026-10-25 22:56 本机再次全量复跑：15104 passed / 0 failed / 13 skipped，76.41%（71941/90749 行），430.60s，工作区含未提交改动；仍无 CI SHA 绑定。'
   v051_features: 13/13 (W1-W6 enterprise value closure)
   coverage_target_v0350: 50%+
   mypy_errors: 0  # 2026-08-05 修复 report_generator.py:151 arg-type 后实测清零，见 audit-reinforcement-20260805-v0.52.md H-5
@@ -129,11 +158,17 @@ submission_pipeline:
     expires: '2026-06-13'
     status: expired_or_expiring
 d1_gate:
-  G1_branch_protection: true  # 证据：main 保护存在（required_pull_request_reviews=1；required_status_checks 为空）
-  G2_ci_green: true  # 证据：MAREF CI run 40166339687 @ 1eaff1b5 成功（2026-10-25T05:39Z）
-  G3_security_clean: true  # 证据：Security Scan run 40166339699 @ 1eaff1b5 成功
-  G4_no_runtime_artifacts: true  # 证据：d1_preflight_check.py G4 通过（本机执行）
-  gate_passed: true  # 证据：d1_preflight_check.py 本地执行 2026-10-25T09:45:58Z，G1–G4 全绿
+  value: failed
+  sha: 27978a4fcac9f638eeadc9870f3c7dff3bbfa396
+  verified_at: '2026-10-25T15:02:17Z'
+  source: 'scripts/d1_preflight_check.py --sha <sha>'
+  exit_code: 1
+  checks:
+    G1_branch_protection: true  # 2026-10-25 --apply 后 10 contexts 生效
+    G2_ci_green: false  # sca check-run 为 failure（run 40204363568，旧版 workflow）
+    G3_security_clean: true
+    G4_no_runtime_artifacts: true
+  detail: 'G1 已修复（branch protection --apply，--check exit 0）；G2 仍缺成功的 sca check-run；G3/G4 通过'
   last_preflight_run: '2026-10-25'
   last_push_blocked_by: null  # 本次审计未 push；A5 计费阻塞仅影响内部仓
   external_gate_override:  # arXiv/期刊等外部闸门已由人类决策取消，回归内功补强，不受外部影响
