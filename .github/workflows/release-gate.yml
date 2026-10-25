@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   gate-rust-audit:
@@ -55,6 +56,8 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
@@ -67,6 +70,8 @@ jobs:
       - name: Evidence gate unit tests
         run: pytest tests/cli/test_evidence_gate.py tests/observability/test_audit_health_check.py -q --no-cov
       - name: Claim integrity
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: python scripts/claim_integrity_gate.py
       - name: No hardcoded paths
         run: |
