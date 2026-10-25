@@ -77,16 +77,19 @@ class ReportExporter:
         out = Path(output_path)
         report_dir_path = Path(report_dir)
 
-        reports: list[GovernanceReport] = []
+        reports: dict[str, GovernanceReport] = {}
         for f in sorted(report_dir_path.glob("*.json")):
             try:
-                reports.append(GovernanceReport.from_json(f.read_text("utf-8")))
+                report = GovernanceReport.from_json(f.read_text("utf-8"))
             except Exception:
-                pass
+                continue
+            # 同一份报告同时以 latest.json 和 report-<TS>.json 存在；排序后归档名在后，
+            # 直接覆盖即保留归档副本，避免索引里出现重复行。
+            reports[report.report_id] = report
 
         if reports:
             rows = ["<table><tr><th>Report ID</th><th>Date</th><th>Events</th><th>Status</th></tr>"]
-            for r in reports:
+            for r in reports.values():
                 short = r.report_id[:8]
                 date = r.created_at[:10] if r.created_at else "\u2014"
                 status = "\u2705" if r.signature else "\u2014"
@@ -107,6 +110,15 @@ class ReportExporter:
                 table_html = '<p class="empty">No reports yet.</p>'
 
         fp = _esc(signer_fingerprint) if signer_fingerprint else "(not set)"
-        html = tmpl.safe_substitute(fingerprint=fp, report_table=table_html)
+        verify_block = ""
+        if signer_fingerprint:
+            # 索引里链接的 fingerprint.txt 必须与索引同批落盘，否则线上是死链。
+            out.parent.joinpath("fingerprint.txt").write_text(signer_fingerprint + "\n", "utf-8")
+            verify_block = (
+                '<p class="verify-link">Verify: <a href="fingerprint.txt">fingerprint.txt</a></p>'
+            )
+        html = tmpl.safe_substitute(
+            fingerprint=fp, report_table=table_html, verify_block=verify_block
+        )
         out.write_text(html, "utf-8")
         return out
