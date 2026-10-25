@@ -27,7 +27,9 @@ jobs:
           python -m pip install --upgrade pip
           # maref.crypto 顶层导入 gmssl（identity extra）；audit 报告链路经
           # governance → crypto，缺少该 extra 时导入即失败。
-          pip install -e ".[dev,identity]"
+          # maref_lite.cli 顶层导入 demo 命令 → maref.integration.a2a_server，
+          # `report generate` 因此需要 sidecar extra 提供的 fastapi/uvicorn。
+          pip install -e ".[dev,identity,sidecar]"
 
       - name: Generate audit log
         run: |
