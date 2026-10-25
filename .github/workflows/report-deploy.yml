@@ -11,6 +11,10 @@ on:
         required: false
         default: ''
 
+# 仓库默认 GITHUB_TOKEN 为只读；peaceiris/actions-gh-pages 需推送 gh-pages 分支。
+permissions:
+  contents: write
+
 jobs:
   generate-and-deploy:
     runs-on: ubuntu-latest
