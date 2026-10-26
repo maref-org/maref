@@ -1,0 +1,29 @@
+{
+  "report_id": "f651de72-83da-4a89-a076-591dc28edc65",
+  "report_version": "1.0",
+  "created_at": "2026-10-26T11:47:53.631110+00:00",
+  "generated_by": "maref v0.39.0",
+  "signer_fingerprint": "852b5649703f2b95",
+  "merkle_root": "1fdc4c5a76a0c3864eeef988f38676609fb6debb806881a2500bafcee408ebf7",
+  "audit_summary": {
+    "total_events": 2,
+    "time_range_start": 1793015272.2855768,
+    "time_range_end": 1793015272.2858758,
+    "event_types": {
+      "governance_decision": 1,
+      "verify": 1
+    },
+    "actor_counts": {
+      "ci-runner": 2
+    }
+  },
+  "system_state": {
+    "governance_state": "",
+    "active_agents_count": 0,
+    "merkle_tree_size": 2,
+    "version": ""
+  },
+  "previous_report_id": "",
+  "metadata": {},
+  "signature": "jHp9nInwxRCucj/ZYV62hVSFLxO6d6RE6eZbOWH9Sz0oBg+kZEEYHQgw3kXt6MJ+K9rZH1hGMukm54fzErrxBw=="
+}

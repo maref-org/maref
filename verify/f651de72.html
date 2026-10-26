@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MAREF Governance Report — f651de72</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; color: #1a1a2e; background: #f8f9fa; }
+  h1 { color: #16213e; border-bottom: 3px solid #0f3460; padding-bottom: 8px; }
+  h2 { color: #0f3460; margin-top: 28px; }
+  .meta { color: #555; font-size: 0.9em; margin-bottom: 24px; }
+  .summary { background: #e8f4f8; border-radius: 8px; padding: 16px 20px; margin: 16px 0; }
+  .summary .num { font-weight: 600; color: #0f3460; font-size: 1.2em; }
+  .fp { font-family: 'SF Mono', Monaco, monospace; background: #eee; padding: 2px 6px; border-radius: 3px; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+  th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid #ddd; }
+  th { background: #0f3460; color: white; }
+  .merkle { font-family: 'SF Mono', Monaco, monospace; word-break: break-all; background: #f0f0f0; padding: 8px 12px; border-radius: 4px; }
+  .status { display: inline-block; background: #2e7d32; color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.85em; }
+  .btn { display: inline-block; margin-top: 16px; padding: 8px 16px; background: #0f3460; color: white; text-decoration: none; border-radius: 4px; cursor: pointer; border: none; font-size: 0.9em; }
+  .btn:hover { background: #16213e; }
+  .empty { color: #888; font-style: italic; }
+</style>
+</head>
+<body>
+<h1>MAREF Governance Report</h1>
+<div class="meta">
+  <strong>Report ID:</strong> f651de72-83da-4a89-a076-591dc28edc65<br>
+  <strong>Generated:</strong> 2026-10-26T11:47:53.631110+00:00<br>
+  <strong>Version:</strong> 1.0 — maref v0.39.0
+</div>
+
+<div class="summary">
+  <span class="num">2</span> audit events
+  &middot; Signed by <span class="fp">852b5649703f2b95</span>
+</div>
+
+<h2>Audit Summary</h2>
+<table>
+  <tr><th>Metric</th><th>Value</th></tr>
+  <tr><td>Total Events</td><td>2</td></tr>
+  <tr><td>Time Range Start</td><td>1793015272.2855768</td></tr>
+  <tr><td>Time Range End</td><td>1793015272.2858758</td></tr>
+</table>
+
+<h3>Event Types</h3>
+<table>
+  <tr><th>Type</th><th>Count</th></tr>
+  <tr><td>governance_decision</td><td>1</td></tr>
+<tr><td>verify</td><td>1</td></tr>
+</table>
+
+<h3>Actors</h3>
+<table>
+  <tr><th>Actor</th><th>Actions</th></tr>
+  <tr><td>ci-runner</td><td>2</td></tr>
+</table>
+
+<h2>System State</h2>
+<table>
+  <tr><td>Governance State</td><td>—</td></tr>
+  <tr><td>Active Agents</td><td>0</td></tr>
+  <tr><td>Version</td><td>—</td></tr>
+</table>
+
+<h2>Merkle Root</h2>
+<div class="merkle">1fdc4c5a76a0c3864eeef988f38676609fb6debb806881a2500bafcee408ebf7</div>
+
+<button class="btn" onclick="downloadJson()">Download JSON</button>
+
+<script>
+function downloadJson() {
+  var data = {"report_id": "f651de72-83da-4a89-a076-591dc28edc65", "report_version": "1.0", "created_at": "2026-10-26T11:47:53.631110+00:00", "generated_by": "maref v0.39.0", "signer_fingerprint": "852b5649703f2b95", "merkle_root": "1fdc4c5a76a0c3864eeef988f38676609fb6debb806881a2500bafcee408ebf7", "audit_summary": {"total_events": 2, "time_range_start": 1793015272.2855768, "time_range_end": 1793015272.2858758, "event_types": {"governance_decision": 1, "verify": 1}, "actor_counts": {"ci-runner": 2}}, "system_state": {"governance_state": "", "active_agents_count": 0, "merkle_tree_size": 2, "version": ""}, "previous_report_id": "", "metadata": {}, "signature": "jHp9nInwxRCucj/ZYV62hVSFLxO6d6RE6eZbOWH9Sz0oBg+kZEEYHQgw3kXt6MJ+K9rZH1hGMukm54fzErrxBw=="};
+  var blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'governance-report-f651de72.json';
+  a.click();
+}
+</script>
+</body>
+</html>
