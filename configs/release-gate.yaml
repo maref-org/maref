@@ -11,7 +11,9 @@ branch: main
 
 protection:
   enforce_admins: true
-  required_approving_review_count: 1
+  # 单维护者仓库：作者无法自审，强制评审会让 main 永久不可合并。
+  # 合并仍受必需 checks、strict 与 conversation resolution 约束。
+  required_approving_review_count: 0
   dismiss_stale_reviews: true
   require_conversation_resolution: true
   strict_status_checks: true

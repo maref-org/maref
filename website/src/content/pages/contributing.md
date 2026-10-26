@@ -78,7 +78,9 @@ Follow conventional commits:
 
 ## Code Review
 
-All PRs require at least one approving review before merge. Reviewers check for:
+Merges are gated by the required status checks, a strict up-to-date base, and conversation
+resolution. An approving review is recommended, but not enforced while the project has a
+single maintainer (the author cannot approve their own PR). Reviewers check for:
 1. Code correctness and safety implications
 2. Test coverage and quality
 3. Style consistency (ruff + mypy)

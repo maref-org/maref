@@ -71,7 +71,7 @@ style:    formatting (ruff/prettier)
 ## 5. PR Requirements
 
 - All CI checks must pass
-- At least 1 approving review
+- Approving review is recommended; not enforced while the project has a single maintainer
 - No new ruff/mypy errors
 - Tests must include coverage for changes
 - D1 gate must pass for release branches
