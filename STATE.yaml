@@ -169,6 +169,7 @@ d1_gate:
     G3_security_clean: true  # Security Scan run 40283282916
     G4_no_runtime_artifacts: true
   detail: 'PR #457 合并为 main@820f17d1 后重跑 D1 Pre-Flight，G1–G4 全过（exit 0）'
+  evidence: docs/audit-reports/d1-preflight-820f17d1.md
   last_preflight_run: '2026-10-26'
   last_push_blocked_by: null  # 本次审计未 push；A5 计费阻塞仅影响内部仓
   external_gate_override:  # arXiv/期刊等外部闸门已由人类决策取消，回归内功补强，不受外部影响
