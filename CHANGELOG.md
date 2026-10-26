@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+## [v0.55.0] - 2026-10-26 (发布完整性；Experimental / Python-only)
+
+### Added
+- 分支保护与漂移检测：`configs/release-gate.yaml` 固化 10 个必需状态检查，`scripts/configure_branch_protection.sh --apply/--check` 落地，`.github/workflows/branch-protection-drift.yml` 每日检测漂移。
+- 发布 preflight：`scripts/release_preflight.py` 在 tag 触发时校验 tag SHA 的必需 check-runs 与关联 PR 的 Release Gate 检查，缺一即 fail-closed。
+- SCA 台账：`scripts/sca_gate.py` 基于 `uv.lock` 干净环境执行 `pip-audit`；例外须写明包版本、advisory 与 ≤90 天到期日（当前台账为空）。
+- 覆盖率证据：CI 上传带 SHA 的覆盖率产物，`STATE.yaml` 的覆盖率声明改为可复核指针。
+- D1 预检 live 化：`scripts/d1_preflight_check.py` 的 G1/G2/G3 改为实时 API 查询，不再读取 STATE 布尔值。
+- 运行时证言：`scripts/runtime_attest.py` 生成 Ed25519 签名证言，`scripts/verify_runtime_attest.py` 校验签名、24h 新鲜度与健康状态，公钥固定于 `configs/runtime-attest-public.pub`。
+- meta 语义修正：M0 存活率、M1 扫描上限、M2 告警消失、M4 guard 覆盖率。
+- 审计链隔离：状态机遗留日志归档，并写入签名 `chain_rebaseline` 事件。
+- `STATE.yaml` 证据指针化，并补齐 v0.54.3 发布记录纠偏。
+- `probe_threshold_calibrate.py`：校准产出 `reports/calibration_artifact.json`（样本量/分位表/DB 指纹/config hash/provenance），新增 `--verify` 检测阈值配置被手改；每日治理循环按 `--window-days 30 --source probe_sampler_v3` 校准并校验一致性。
+- `probe_threshold_calibrate.py`：新增 `--window-days` / `--source` 过滤、分位退化拒绝写入（P75≤0 或 P75=P95），以及 `--accept-seed`（显式标记现有阈值为未校准 seed，`--verify` 会持续告警）。
+- `probe_threshold_calibrate.py`：`_db_fingerprint()` 在 DB 缺失/无 schema 时不再抛异常。
+- `tests/scripts/test_governance_scripts.py`：23 个治理度量脚本回归测试。
+- CI：新增治理度量脚本的 ruff 门禁（此前 `scripts/` 118 文件完全不在 ruff 门禁内）。
+
 ### Fixed
 - 每日治理循环：19 处调用从 `python3`（本机 3.9）改为 venv `$PY`，并前置版本守卫；修复 `coding_agent_status.py` 在 3.9 下 `datetime.UTC` 崩溃。
 - `coding_agent_status.py`：统一 KPI verdict 词表（`ok`/`allow`/`EXECUTED`），补上 `hitl_triggered` 独立事件并封顶率值；hooks 与 sidecar 两条路径共用同一 `trust_score` 公式；无遥测时标记 `no_telemetry`（不再与"健康"混淆）。
@@ -12,12 +30,9 @@
 - `approval_tier.py`：加 minimum-N 守卫（`<20` 输出 `INSUFFICIENT_DATA`）；naive ISO 时间按 UTC 解释；metadata 非 dict 不再抛异常。
 - `backlog_sla.py`：报告新增 `sla_semantics` 口径字段，明确 `sla_met` 判"是否存在 >7d 高危项"。
 
-### Added
-- `probe_threshold_calibrate.py`：校准产出 `reports/calibration_artifact.json`（样本量/分位表/DB 指纹/config hash/provenance），新增 `--verify` 检测阈值配置被手改；每日治理循环按 `--window-days 30 --source probe_sampler_v3` 校准并校验一致性。
-- `probe_threshold_calibrate.py`：新增 `--window-days` / `--source` 过滤、分位退化拒绝写入（P75≤0 或 P75=P95），以及 `--accept-seed`（显式标记现有阈值为未校准 seed，`--verify` 会持续告警）。
-- `probe_threshold_calibrate.py`：`_db_fingerprint()` 在 DB 缺失/无 schema 时不再抛异常。
-- `tests/scripts/test_governance_scripts.py`：23 个治理度量脚本回归测试。
-- CI：新增治理度量脚本的 ruff 门禁（此前 `scripts/` 118 文件完全不在 ruff 门禁内）。
+### Notes
+- 分发形态：Python-only（wheel + sdist）；桌面端不在本版本范围。
+- 成熟度：Experimental。
 
 ## [v0.54.3] - 2026-10-20 (CI 稳定性与发布链路修复)
 

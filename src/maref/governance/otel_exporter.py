@@ -38,7 +38,7 @@ class GovernanceOTelExporter:
         meter: Any | None = None,
         *,
         service_name: str = "maref-governance",
-        service_version: str = "0.54.3-dev",
+        service_version: str = "0.55.0-dev",
         use_global_provider: bool = True,
     ) -> None:
         self.tracer = tracer

@@ -30,6 +30,23 @@
 - 验证: `verify_runtime_attest.py --public-key configs/runtime-attest-public.pub --require-healthy`
 - 结果: `verified=true`，`key_id=1c650ce065489fd165f20cc14c948a29`，age 10077.6s（<24h），m0–m4 全为 true
 
+## 复跑记录 — main@84a1201c（PR #460 合并后）
+
+- 执行时间: 2026-10-26T11:05:43Z
+- 目标: maref-org/maref@main `84a1201cdca9e91fd215a91d7cf58d39082721fc`
+- 命令: `python3 scripts/d1_preflight_check.py --sha 84a1201cdca9e91fd215a91d7cf58d39082721fc`
+- 执行环境: 维护者本机（与 `.githooks/pre-push` 同一脚本）
+
+| 闸门 | 结果 | 证据 |
+|------|------|------|
+| G1 Branch Protection | 通过 | 10 contexts，10 required |
+| G2 CI Status | 通过 | 6 个必需 check-runs 成功 |
+| G3 Security Scan | 通过 | Security Scan run 40299475537 (success) |
+| G4 No Runtime Artifacts | 通过 | 索引中无运行时产物 |
+
+退出码: `0`（全部通过）。关联运行：MAREF CI 40299475578、Security Scan 40299475537、
+Dependency Audit 40299475518，均为 success。
+
 ## 说明
 
 本记录为 D1 闸门的可追溯证据，对应 `STATE.yaml` 中 `d1_gate.value: passed`。main 分支保护要求所有变更经 PR，因此该证据随合并后的 STATE.yaml 指针更新一并提交。
