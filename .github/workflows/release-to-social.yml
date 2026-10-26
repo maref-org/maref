@@ -16,8 +16,13 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const release = context.payload.release;
+            const release = context.payload.release
+              ?? (await github.rest.repos.getLatestRelease({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                  })).data;
             const tag = release.tag_name;
+            const title = `🚀 ${release.name || tag}`;
             const body = `## ${release.name || tag} 发布
 
             ${release.body || ''}
@@ -25,19 +30,46 @@ jobs:
             ---
             [查看 Release →](${release.html_url})
             `;
-            await github.rest.discussions.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: `🚀 ${release.name || tag}`,
-              body: body,
-              category: 'Announcements',
-            });
+
+            const info = await github.graphql(`
+              query($owner: String!, $repo: String!) {
+                repository(owner: $owner, name: $repo) {
+                  id
+                  discussionCategories(first: 25) { nodes { id name } }
+                  discussions(first: 20, orderBy: {field: CREATED_AT, direction: DESC}) { nodes { title } }
+                }
+              }`, { owner: context.repo.owner, repo: context.repo.repo });
+
+            if (info.repository.discussions.nodes.some((d) => d.title === title)) {
+              core.info(`Discussion already exists: ${title}`);
+              return;
+            }
+
+            const category = info.repository.discussionCategories.nodes.find((c) => c.name === 'Announcements');
+            if (!category) throw new Error('Announcements discussion category not found');
+
+            const created = await github.graphql(`
+              mutation($repoId: ID!, $categoryId: ID!, $title: String!, $body: String!) {
+                createDiscussion(input: { repositoryId: $repoId, categoryId: $categoryId, title: $title, body: $body }) {
+                  discussion { url }
+                }
+              }`, {
+                repoId: info.repository.id,
+                categoryId: category.id,
+                title,
+                body,
+              });
+            core.info(`Created: ${created.createDiscussion.discussion.url}`);
       - name: Generate Release Blog Draft
         uses: actions/github-script@v7
         id: release-blog
         with:
           script: |
-            const release = context.payload.release;
+            const release = context.payload.release
+              ?? (await github.rest.repos.getLatestRelease({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                  })).data;
             const tag = release.tag_name;
             const version = tag.replace(/^v/, '');
             const today = new Date().toISOString().slice(0, 10);
