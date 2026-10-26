@@ -58,31 +58,52 @@ check_d1() {
 # 证言孤儿分支专用门禁：数据-only 分支不携带运行时源码，不能套用
 # REQUIRED_RUNTIME_FILES；改为「仅 runtime_attest.json + 固定公钥验签 +
 # 新鲜度 + all_passed」，任一不满足 fail-closed。
+# 固定公钥解析：优先 origin/main（合并后的权威 pin），其次当前 HEAD 与
+# 待合并的 release 分支，最后才用工作区文件。这样发布任务不依赖当前检出分支。
+resolve_attest_pub() {
+  local tmpdir="$1" ref out
+  out="$tmpdir/runtime-attest-public.pub"
+  for ref in refs/remotes/origin/main refs/heads/main HEAD \
+             refs/remotes/origin/release/v0.55-integrity \
+             refs/heads/release/v0.55-integrity; do
+    if git -C "$ROOT" cat-file -e "$ref:configs/runtime-attest-public.pub" 2>/dev/null; then
+      if git -C "$ROOT" show "$ref:configs/runtime-attest-public.pub" > "$out"; then
+        echo "$out"
+        return 0
+      fi
+    fi
+  done
+  if [ -f "$ROOT/configs/runtime-attest-public.pub" ]; then
+    echo "$ROOT/configs/runtime-attest-public.pub"
+    return 0
+  fi
+  return 1
+}
+
 check_attestation() {
-  local sha="$1" files tmp pub
+  local sha="$1" files tmpdir pub
   files="$(git -C "$ROOT" ls-tree -r --name-only "$sha" 2>/dev/null || true)"
   if [ "$files" != "runtime_attest.json" ]; then
     echo "[pre-push] 证言分支必须仅含 runtime_attest.json，实际: ${files:-<empty>}" >&2
     return 1
   fi
-  tmp="$(mktemp "${TMPDIR:-/tmp}/maref-attest.XXXXXX")" || return 1
-  if ! git -C "$ROOT" show "$sha:runtime_attest.json" > "$tmp"; then
-    rm -f "$tmp"
+  tmpdir="$(mktemp -d "${TMPDIR:-/tmp}/maref-attest.XXXXXX")" || return 1
+  if ! git -C "$ROOT" show "$sha:runtime_attest.json" > "$tmpdir/runtime_attest.json"; then
+    rm -r "$tmpdir"
     return 1
   fi
-  pub="$ROOT/configs/runtime-attest-public.pub"
-  if [ ! -f "$pub" ]; then
-    echo "[pre-push] 缺少固定公钥 $pub，证言不可信，fail-closed。" >&2
-    rm -f "$tmp"
+  if ! pub="$(resolve_attest_pub "$tmpdir")"; then
+    echo "[pre-push] 找不到固定公钥 configs/runtime-attest-public.pub，证言不可信，fail-closed。" >&2
+    rm -r "$tmpdir"
     return 1
   fi
   if ! python3 "$ROOT/scripts/verify_runtime_attest.py" \
-      --attest "$tmp" --public-key "$pub" --require-healthy --json >/dev/null; then
+      --attest "$tmpdir/runtime_attest.json" --public-key "$pub" --require-healthy --json >/dev/null; then
     echo "[pre-push] 证言验签/新鲜度/健康检查失败，fail-closed。" >&2
-    rm -f "$tmp"
+    rm -r "$tmpdir"
     return 1
   fi
-  rm -f "$tmp"
+  rm -r "$tmpdir"
   return 0
 }
 
