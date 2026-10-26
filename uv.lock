@@ -2020,7 +2020,7 @@ wheels = [
 
 [[package]]
 name = "maref"
-version = "0.54.3"
+version = "0.55.0"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
