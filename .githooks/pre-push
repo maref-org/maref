@@ -55,6 +55,37 @@ check_d1() {
   return 0
 }
 
+# 证言孤儿分支专用门禁：数据-only 分支不携带运行时源码，不能套用
+# REQUIRED_RUNTIME_FILES；改为「仅 runtime_attest.json + 固定公钥验签 +
+# 新鲜度 + all_passed」，任一不满足 fail-closed。
+check_attestation() {
+  local sha="$1" files tmp pub
+  files="$(git -C "$ROOT" ls-tree -r --name-only "$sha" 2>/dev/null || true)"
+  if [ "$files" != "runtime_attest.json" ]; then
+    echo "[pre-push] 证言分支必须仅含 runtime_attest.json，实际: ${files:-<empty>}" >&2
+    return 1
+  fi
+  tmp="$(mktemp "${TMPDIR:-/tmp}/maref-attest.XXXXXX")" || return 1
+  if ! git -C "$ROOT" show "$sha:runtime_attest.json" > "$tmp"; then
+    rm -f "$tmp"
+    return 1
+  fi
+  pub="$ROOT/configs/runtime-attest-public.pub"
+  if [ ! -f "$pub" ]; then
+    echo "[pre-push] 缺少固定公钥 $pub，证言不可信，fail-closed。" >&2
+    rm -f "$tmp"
+    return 1
+  fi
+  if ! python3 "$ROOT/scripts/verify_runtime_attest.py" \
+      --attest "$tmp" --public-key "$pub" --require-healthy --json >/dev/null; then
+    echo "[pre-push] 证言验签/新鲜度/健康检查失败，fail-closed。" >&2
+    rm -f "$tmp"
+    return 1
+  fi
+  rm -f "$tmp"
+  return 0
+}
+
 # fail-closed：门禁脚本缺失即阻断，防静默放行
 if [ ! -x "$CHECK" ]; then
   echo "[pre-push] 警告: $CHECK 缺失或不可执行，fail-closed 阻断推送。" >&2
@@ -87,6 +118,18 @@ while read -r local_ref local_sha remote_ref remote_sha; do
       fi
       continue ;;
     *) continue ;;                                 # 其他 ref 跳过
+  esac
+
+  # 证言孤儿分支走专用门禁（见 check_attestation 注释）
+  case "$local_ref" in
+    attestations/*)
+      if ! check_attestation "$local_sha"; then
+        echo "----------------------------------------------------------------" >&2
+        echo "[pre-push] 证言分支 '$local_ref' 未通过验签门禁，已阻断推送。" >&2
+        echo "----------------------------------------------------------------" >&2
+        BLOCKED=1
+      fi
+      continue ;;
   esac
 
   if ! bash "$CHECK" "$local_sha"; then
