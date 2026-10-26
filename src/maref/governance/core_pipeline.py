@@ -102,6 +102,11 @@ class GovernanceRequest:
     session_id: str = ""
     source_ip: str = ""
     delegations: list[str] = field(default_factory=list)
+    # 入口闸输入（P0-T1）：人类委托人凭证 + 序列化委托链 + 待消毒文本。
+    principal_did: str = ""
+    principal_credential: dict[str, Any] | None = None
+    delegation_chain: dict[str, Any] | None = None
+    intent: str = ""
     # Evidence-chain linkage (P0-A/P0-B): route -> interaction -> decision.
     trace_id: str = ""
     model_route_id: str = ""
@@ -129,6 +134,10 @@ class GovernanceResult:
     policy_pack_id: str = ""
     policy_pack_version: str = ""
     policy_pack_hash: str = ""
+    # 入口闸留痕（P0-T1）：根委托人、链条摘要与消毒命中。
+    entry_root_principal: str = ""
+    entry_chain_digest: str = ""
+    entry_detections: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -190,6 +199,9 @@ class GovernancePipeline:
         # 未注入则行为完全不变 (向后兼容)。
         budget_breaker: Any | None = None,
         destructive_gate: Any | None = None,
+        # P0-T1: 可选入口闸（身份 + 委托链 + 消毒）。注入后在策略评估前
+        # 执行；未注入则行为完全不变（向后兼容）。
+        entry_gate: Any | None = None,
         # P0-1: 可选合规替代动作提供者。DENY 时若提供，结果携带
         # sanctioned alternatives，供 @governed 拉起被拦后恢复率；
         # 未提供时使用 safety_metrics.default_alternatives_for 规则表。
@@ -218,6 +230,7 @@ class GovernancePipeline:
         self._intent_gate = intent_gate
         self._budget_breaker = budget_breaker
         self._destructive_gate = destructive_gate
+        self._entry_gate = entry_gate
         self._alternative_provider = alternative_provider
         self._policy_version = policy_version
         self._policy_epoch = policy_epoch
@@ -312,8 +325,32 @@ class GovernancePipeline:
 
         P0-1: 当裁决为 DENY 时，补充"合规替代动作"(SanctionedAlternative)，
         把动作级拦截升级为可恢复的任务级治理，避免 Verifier Tax 式假安全。
+
+        P0-T1: 注入入口闸时，身份/委托链/消毒在策略评估前执行；shadow 模式
+        只记录不阻断。
         """
-        result = self._govern_impl(req)
+        entry_decision: Any | None = None
+        if self._entry_gate is not None:
+            entry_decision = self._entry_gate.evaluate(req)
+            if entry_decision.blocking:
+                result = GovernanceResult(
+                    verdict=Verdict.DENY,
+                    reason=entry_decision.reason,
+                    matched_rule=entry_decision.rule,
+                )
+                self._attach_entry_metadata(result, entry_decision)
+                result.policy_version = self._policy_version
+                result.policy_epoch = self._policy_epoch
+                self._emit_audit(req, result, entry_decision)
+                if self._cb_record_callback:
+                    self._cb_record_callback(
+                        req.tenant_id, req.agent_id, req.action, False
+                    )
+                return result
+
+        result = self._govern_impl(req, entry_decision)
+        if entry_decision is not None:
+            self._attach_entry_metadata(result, entry_decision)
         if not result.policy_version:
             result.policy_version = self._policy_version
         if not result.policy_epoch:
@@ -329,7 +366,27 @@ class GovernancePipeline:
                 result.alternatives = alternatives
         return result
 
-    def _govern_impl(self, req: GovernanceRequest) -> GovernanceResult:
+    @staticmethod
+    def _attach_entry_metadata(result: GovernanceResult, entry_decision: Any) -> None:
+        result.entry_root_principal = getattr(entry_decision, "root_principal", "")
+        result.entry_chain_digest = getattr(entry_decision, "chain_digest", "")
+        result.entry_detections = list(getattr(entry_decision, "detections", []))
+
+    def _emit_audit(
+        self,
+        req: GovernanceRequest,
+        result: GovernanceResult,
+        entry_decision: Any | None,
+    ) -> None:
+        """附上入口闸元数据后再审计，保证日志与返回值一致。"""
+        if entry_decision is not None:
+            self._attach_entry_metadata(result, entry_decision)
+        if self._audit_callback:
+            self._audit_callback(req, result)
+
+    def _govern_impl(
+        self, req: GovernanceRequest, entry_decision: Any | None = None
+    ) -> GovernanceResult:
         """Execute the unified 8-step governance pipeline."""
         start = time.time()
 
@@ -352,8 +409,7 @@ class GovernancePipeline:
                     matched_rule="trust_boundary",
                 )
                 result.latency_ms = int((time.time() - start) * 1000)
-                if self._audit_callback:
-                    self._audit_callback(req, result)
+                self._emit_audit(req, result, entry_decision)
                 if self._cb_record_callback:
                     self._cb_record_callback(req.tenant_id, req.agent_id, req.action, False)
                 return result
@@ -383,8 +439,7 @@ class GovernancePipeline:
                     matched_rule="irreversible_hitl",
                 )
                 result.latency_ms = int((time.time() - start) * 1000)
-                if self._audit_callback:
-                    self._audit_callback(req, result)
+                self._emit_audit(req, result, entry_decision)
                 if self._trust_callback:
                     self._trust_callback(
                         req.tenant_id,
@@ -413,8 +468,7 @@ class GovernancePipeline:
                     matched_rule="budget_breaker",
                 )
                 result.latency_ms = int((time.time() - start) * 1000)
-                if self._audit_callback:
-                    self._audit_callback(req, result)
+                self._emit_audit(req, result, entry_decision)
                 if self._cb_record_callback:
                     self._cb_record_callback(req.tenant_id, req.agent_id, req.action, False)
                 return result
@@ -441,8 +495,7 @@ class GovernancePipeline:
                     matched_rule="destructive_gate_error",
                 )
                 result.latency_ms = int((time.time() - start) * 1000)
-                if self._audit_callback:
-                    self._audit_callback(req, result)
+                self._emit_audit(req, result, entry_decision)
                 if self._cb_record_callback:
                     self._cb_record_callback(req.tenant_id, req.agent_id, req.action, False)
                 return result
@@ -456,8 +509,7 @@ class GovernancePipeline:
                         matched_rule="destructive_gate",
                     )
                     result.latency_ms = int((time.time() - start) * 1000)
-                    if self._audit_callback:
-                        self._audit_callback(req, result)
+                    self._emit_audit(req, result, entry_decision)
                     if self._cb_record_callback:
                         self._cb_record_callback(req.tenant_id, req.agent_id, req.action, False)
                     return result
@@ -480,8 +532,7 @@ class GovernancePipeline:
                         matched_rule="destructive_gate_hitl",
                     )
                     result.latency_ms = int((time.time() - start) * 1000)
-                    if self._audit_callback:
-                        self._audit_callback(req, result)
+                    self._emit_audit(req, result, entry_decision)
                     if self._cb_record_callback:
                         self._cb_record_callback(req.tenant_id, req.agent_id, req.action, False)
                     return result
@@ -620,8 +671,7 @@ class GovernancePipeline:
         )
 
         # 6. Audit callback
-        if self._audit_callback:
-            self._audit_callback(req, result)
+        self._emit_audit(req, result, entry_decision)
 
         # 7. Trust score update
         if self._trust_callback:

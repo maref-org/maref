@@ -253,7 +253,8 @@ class DestructiveOperationGate:
             A :class:`GateDecision` with verdict and evidence.
         """
         args = args or {}
-        args_str = json.dumps(args, sort_keys=True).lower()
+        # 参数可能包含不可序列化对象（set、datetime 等），转为字符串后仍参与模式扫描。
+        args_str = json.dumps(args, sort_keys=True, default=str).lower()
         op_lower = operation.lower()
         tool_lower = tool_name.lower()
 

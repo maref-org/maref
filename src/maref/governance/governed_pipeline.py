@@ -14,6 +14,7 @@ Usage:
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
@@ -40,6 +41,7 @@ from maref.governance.interaction_evidence import InteractionRecorder
 from maref.governance.model_route import ModelRouteRecorder
 from maref.governance.org_policy import OrganizationPolicy
 from maref.governance.policy_pack.registry import PolicyPackRegistry
+from maref.governance.risk_classifier import RiskLevel, classify_action_server
 from maref.recursive.permission_matrix import PermissionMatrix
 
 if TYPE_CHECKING:
@@ -56,6 +58,14 @@ def _params_hash(value: Any) -> tuple[str, str]:
         return canonical_hash(value), "ok"
     except (CanonicalJSONError, TypeError, ValueError):
         return "", "unhashable"
+
+
+# 风险分级中对应商业 L2/L3 的等级；风险分数沿用商业策略的量纲。
+_ROUTE_REQUIRED_RISK = frozenset({RiskLevel.HIGH, RiskLevel.IRREVERSIBLE})
+_ROUTE_RISK_SCORE: dict[RiskLevel, float] = {
+    RiskLevel.HIGH: 60.0,
+    RiskLevel.IRREVERSIBLE: 90.0,
+}
 
 
 def _default_pipeline_audit_path() -> Path:
@@ -125,6 +135,13 @@ class GovernedPipeline:
         policy_packs: PolicyPackRegistry | None = None,
         policy_pack_ids: list[str] | None = None,
         policy_pack_paths: list[str | Path] | None = None,
+        entry_gate: Any | None = None,
+        enable_entry_gate: bool | None = None,
+        enable_model_gate: bool | None = None,
+        destructive_gate: Any | None = None,
+        budget_breaker: Any | None = None,
+        kill_switch: Any | None = None,
+        state_machine: Any | None = None,
     ) -> None:
         # 1. Audit logger with HMAC
         hmac_key = hmac_key or os.environ.get("MAREF_HMAC_SECRET_KEY")
@@ -162,8 +179,17 @@ class GovernedPipeline:
                 # is a governance failure, not a reason to fall back to allow.
                 commercial_action_policy = CommercialActionPolicy.from_path(policy_path)
         self.commercial_action_policy = commercial_action_policy
+        # P0-T3: 模型闸默认关闭；启用后无商业策略时按风险等级（HIGH/IRREVERSIBLE）
+        # 要求路由证据，避免"未配置策略 = 不设防"。
+        self.model_gate_enabled = bool(
+            enable_model_gate
+            if enable_model_gate is not None
+            else os.environ.get("MAREF_MODEL_GATE", "").lower() in {"1", "true", "yes"}
+        )
         self.route_recorder = (
-            ModelRouteRecorder(self.audit) if commercial_action_policy is not None else None
+            ModelRouteRecorder(self.audit)
+            if (commercial_action_policy is not None or self.model_gate_enabled)
+            else None
         )
         self.interaction_recorder = InteractionRecorder(self.audit)
         self.evidence_ttl_s = float(os.environ.get("MAREF_EVIDENCE_TTL_SECONDS", "300"))
@@ -184,6 +210,24 @@ class GovernedPipeline:
         )
         self._evidence_consumed: dict[str, float] = {}
         self._load_consumed_evidence()
+
+        # 1.5 P0-T2: 行动闸与停机开关（默认装配，未触发时行为不变）。
+        from maref.governance.budget_breaker import BudgetBreaker
+        from maref.governance.destructive_gate import DestructiveOperationGate
+        from maref.governance.kill_switch import KillSwitch
+
+        gate_signer = getattr(self.audit, "_ed25519_keypair", None)
+        self.destructive_gate = destructive_gate or DestructiveOperationGate(
+            enabled=True,
+            signer=gate_signer,
+        )
+        self.budget_breaker = budget_breaker or BudgetBreaker(
+            max_per_agent=float(os.environ.get("MAREF_BUDGET_MAX_PER_AGENT", "1000")),
+            max_per_task=float(os.environ.get("MAREF_BUDGET_MAX_PER_TASK", "200")),
+            max_burn_rate=float(os.environ.get("MAREF_BUDGET_MAX_BURN_RATE", "100")),
+        )
+        self.kill_switch = kill_switch or KillSwitch(state_machine=state_machine)
+        self.kill_switch.add_audit_callback(self._record_kill_switch_event)
 
         # 2. HITL router
         from maref.integration.hitl import HITLRouter as _HITLRouter
@@ -245,6 +289,16 @@ class GovernedPipeline:
                 pack_ids=policy_pack_ids or (),
             )
         self.policy_packs = policy_packs
+        # P0-T1: 入口闸默认关闭；显式注入或 MAREF_ENTRY_GATE=1 时启用。
+        # 启用但配置缺失时 EntryGate.from_env() 抛错（fail-closed）。
+        if entry_gate is None and (
+            enable_entry_gate
+            or os.environ.get("MAREF_ENTRY_GATE", "").lower() in {"1", "true", "yes"}
+        ):
+            from maref.governance.entry_gate import EntryGate
+
+            entry_gate = EntryGate.from_env()
+        self.entry_gate = entry_gate
         self.pipeline = GovernancePipeline(
             hitl=self.hitl,
             permission=self.permission,
@@ -252,6 +306,9 @@ class GovernedPipeline:
             boundary=self.boundary,
             intent_tracker=intent_tracker,
             intent_gate=intent_gate,
+            entry_gate=self.entry_gate,
+            destructive_gate=self.destructive_gate,
+            budget_breaker=self.budget_breaker,
             extension_rules=self.policy_packs.compile_rules(),
             policy_version=self.policy_version,
             policy_epoch=self.policy_epoch,
@@ -259,7 +316,8 @@ class GovernedPipeline:
 
         logger.info(
             "GovernedPipeline initialized: audit=%s, hitl=%s, permission=%s, cb=%s, "
-            "boundary=%s, preflight=%s, probe=%s, consensus=%s",
+            "boundary=%s, preflight=%s, probe=%s, consensus=%s, entry_gate=%s, "
+            "model_gate=%s, destructive_gate=%s, budget_breaker=%s, kill_switch=%s",
             type(self.audit).__name__,
             type(self.hitl).__name__,
             type(self.permission).__name__,
@@ -268,6 +326,11 @@ class GovernedPipeline:
             type(self.task_preflight).__name__,
             type(self.behavior_probe).__name__,
             type(self.consensus).__name__,
+            type(self.entry_gate).__name__ if self.entry_gate is not None else "disabled",
+            "enabled" if self.model_gate_enabled else "disabled",
+            type(self.destructive_gate).__name__,
+            type(self.budget_breaker).__name__,
+            type(self.kill_switch).__name__,
         )
 
     def set_as_default(self) -> None:
@@ -277,6 +340,20 @@ class GovernedPipeline:
 
     def govern(self, request: GovernanceRequest) -> GovernanceResult:
         """Execute route, organization and unified governance checks."""
+        kill_scope = self.kill_switch.blocked_scope(request.tenant_id, request.agent_id)
+        if kill_scope:
+            denied = GovernanceResult(
+                verdict=Verdict.DENY,
+                reason=f"Kill switch engaged ({kill_scope})",
+                matched_rule=f"kill_switch:{kill_scope}",
+                policy_version=self.policy_version,
+                policy_epoch=self.policy_epoch,
+            )
+            self._audit_decision(request, denied)
+            if self.otel_exporter is not None:
+                self.otel_exporter.record_decision(request, denied)
+            return denied
+
         route_result = self._enforce_route_evidence(request)
         if route_result is not None:
             if self.otel_exporter is not None:
@@ -290,42 +367,53 @@ class GovernedPipeline:
         return result
 
     def _enforce_route_evidence(self, request: GovernanceRequest) -> GovernanceResult | None:
-        """Deny L2/L3 commercial actions without valid route evidence (P0-A)."""
+        """Deny L2/L3 actions without valid route evidence (P0-A / P0-T3).
+
+        配置商业策略时沿用其 L2/L3 判定；未配置且启用模型闸时，
+        按动作风险分级（HIGH/IRREVERSIBLE）要求路由证据。
+        """
         policy = self.commercial_action_policy
-        if policy is None:
-            return None
-        classification = policy.classify(request.action)
-        if classification.level not in policy.route_required_levels:
+        if policy is not None:
+            classification = policy.classify(request.action)
+            if classification.level not in policy.route_required_levels:
+                return None
+            subject = f"商业动作 {request.action} ({classification.level.value})"
+            risk_score = classification.risk_score
+            rule_prefix = "commercial_route"
+            params_rule = "commercial_params:unhashable"
+            bind_agent = False
+        elif self.model_gate_enabled:
+            assessment = classify_action_server(request.action)
+            if assessment.risk_level not in _ROUTE_REQUIRED_RISK:
+                return None
+            subject = f"高风险动作 {request.action} ({assessment.risk_level.value})"
+            risk_score = _ROUTE_RISK_SCORE.get(assessment.risk_level, 0.0)
+            rule_prefix = "model_gate"
+            params_rule = "model_gate:unhashable"
+            bind_agent = True
+        else:
             return None
 
         reason = ""
         matched_rule = ""
         _, params_status = _params_hash(request.parameters)
         if params_status != "ok":
-            reason = (
-                f"商业动作 {request.action} ({classification.level.value}) "
-                "参数无法规范化为 JSON，拒绝生成不可复算的证据"
-            )
-            matched_rule = "commercial_params:unhashable"
+            reason = f"{subject} 参数无法规范化为 JSON，拒绝生成不可复算的证据"
+            matched_rule = params_rule
         elif not request.model_route_id:
-            reason = (
-                f"商业动作 {request.action} ({classification.level.value}) "
-                "缺少模型路由证据 (model_route_decision)"
-            )
-            matched_rule = "commercial_route:missing"
+            reason = f"{subject} 缺少模型路由证据 (model_route_decision)"
+            matched_rule = f"{rule_prefix}:missing"
         elif not request.model_version:
-            reason = (
-                f"商业动作 {request.action} ({classification.level.value}) "
-                "缺少实际运行的 model_version，无法绑定路由证据"
-            )
-            matched_rule = "commercial_route:missing_model_version"
+            reason = f"{subject} 缺少实际运行的 model_version，无法绑定路由证据"
+            matched_rule = f"{rule_prefix}:missing_model_version"
         elif self.route_recorder is None or not self.route_recorder.verify(
             request.model_route_id,
             tenant_id=request.tenant_id,
             model_version=request.model_version,
+            agent_id=request.agent_id if bind_agent else "",
         ):
             reason = f"模型路由证据 {request.model_route_id} 无效，或与租户/模型版本不匹配"
-            matched_rule = "commercial_route:invalid"
+            matched_rule = f"{rule_prefix}:invalid"
         else:
             return None
 
@@ -333,7 +421,7 @@ class GovernedPipeline:
             verdict=Verdict.DENY,
             reason=reason,
             matched_rule=matched_rule,
-            risk_score=classification.risk_score,
+            risk_score=risk_score,
             policy_version=self.policy_version,
             policy_epoch=self.policy_epoch,
         )
@@ -646,11 +734,31 @@ class GovernedPipeline:
                 self._evidence_consumed[evidence_id] = current
             return True
 
+    def _record_kill_switch_event(self, event: Any) -> None:
+        """停机开关状态变更写入审计链（仅 engage/disengage 时发生）。"""
+        self.audit.log(
+            event_type=f"kill_switch.{event.action}",
+            actor=event.actor,
+            action=f"{event.scope.value}:{event.target}",
+            details=event.reason,
+            metadata={
+                "kill_scope": event.scope.value,
+                "kill_target": event.target,
+                "kill_reason": event.reason,
+            },
+        )
+
     def _audit_decision(self, request: GovernanceRequest, result: GovernanceResult) -> None:
         """Persist governance decisions to the append-only audit log AND the
         shared audit bus (W2: closes the loop to the behavior probe)."""
         parameters = request.parameters if isinstance(request.parameters, dict) else {}
         params_hash, params_hash_status = _params_hash(request.parameters)
+        intent = request.intent if isinstance(request.intent, str) else ""
+        route = (
+            self.route_recorder.get(request.model_route_id)
+            if self.route_recorder is not None and request.model_route_id
+            else None
+        )
         entry = self.audit.log(
             event_type="governance_decision",
             actor=request.agent_id,
@@ -667,6 +775,13 @@ class GovernedPipeline:
                 "policy_pack_version": result.policy_pack_version,
                 "policy_pack_hash": result.policy_pack_hash,
                 "risk_score": result.risk_score,
+                # P0-T1: 入口闸溯源与消毒命中；原始输入保留 hash 供复算。
+                "entry_root_principal": result.entry_root_principal,
+                "entry_chain_digest": result.entry_chain_digest,
+                "entry_detections": result.entry_detections,
+                "intent_hash": (
+                    hashlib.sha256(intent.encode("utf-8")).hexdigest() if intent else ""
+                ),
                 # P0-C: bind the decision to what it authorised.
                 "params_hash": params_hash,
                 "params_hash_version": CANONICAL_JSON_VERSION,
@@ -675,7 +790,12 @@ class GovernedPipeline:
                 "trace_id": request.trace_id,
                 "route_decision_id": request.model_route_id,
                 "interaction_id": request.interaction_id,
-                "model_version": request.model_version,
+                # P0-T3: 审计可回答"哪个模型、什么版本、为何路由至此"。
+                "model_id": route.selected_model if route else "",
+                "model_version": route.model_version if route else request.model_version,
+                "route_reason": route.route_reason if route else "",
+                "advisory": True,
+                "authority": "none",
                 "detector_set_hash": request.detector_set_hash,
                 "commercial_policy_version": (
                     self.commercial_action_policy.version

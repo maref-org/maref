@@ -53,6 +53,9 @@ class VerifiableGovernanceCredential:
     signer_public_key_pem: str = ""
     compliance_mapping: dict[str, Any] = field(default_factory=dict)
     source_event: str = ""
+    # 子类型扩展位（如自治护照的委托绑定与工具白名单）；非空才纳入签名，
+    # 保持无扩展凭证的签名向后兼容。
+    extensions: dict[str, Any] = field(default_factory=dict)
 
     # -- 签发 --
 
@@ -229,6 +232,8 @@ class VerifiableGovernanceCredential:
         # T-P0-4: 仅当有源事件时纳入签名，保持无源凭证签名向后兼容
         if self.source_event:
             body["source_event"] = self.source_event
+        if self.extensions:
+            body["extensions"] = self.extensions
         return json.dumps(body, sort_keys=True, separators=(",", ":")).encode()
 
     def to_dict(self) -> dict[str, Any]:
@@ -244,6 +249,7 @@ class VerifiableGovernanceCredential:
             "signer_public_key_pem": self.signer_public_key_pem,
             "compliance_mapping": dict(self.compliance_mapping),
             "source_event": self.source_event,
+            "extensions": dict(self.extensions),
         }
 
     @classmethod
@@ -260,6 +266,7 @@ class VerifiableGovernanceCredential:
             signer_public_key_pem=data.get("signer_public_key_pem", ""),
             compliance_mapping=dict(data.get("compliance_mapping", {})),
             source_event=data.get("source_event", ""),
+            extensions=dict(data.get("extensions", {})),
         )
 
     def to_json(self, indent: int = 2) -> str:
