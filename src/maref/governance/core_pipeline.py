@@ -343,9 +343,7 @@ class GovernancePipeline:
                 result.policy_epoch = self._policy_epoch
                 self._emit_audit(req, result, entry_decision)
                 if self._cb_record_callback:
-                    self._cb_record_callback(
-                        req.tenant_id, req.agent_id, req.action, False
-                    )
+                    self._cb_record_callback(req.tenant_id, req.agent_id, req.action, False)
                 return result
 
         result = self._govern_impl(req, entry_decision)

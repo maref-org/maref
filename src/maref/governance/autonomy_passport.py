@@ -93,12 +93,8 @@ class AutonomyPassport(VerifiableGovernanceCredential):
                 "kind": PASSPORT_KIND,
                 "human_principal": human_principal,
                 "delegation_root": delegation_root,
-                "allowed_tools": sorted(
-                    {str(tool) for tool in allowed_tools if str(tool).strip()}
-                ),
-                "task_scope": sorted(
-                    {str(item) for item in task_scope if str(item).strip()}
-                ),
+                "allowed_tools": sorted({str(tool) for tool in allowed_tools if str(tool).strip()}),
+                "task_scope": sorted({str(item) for item in task_scope if str(item).strip()}),
             },
         )
         passport.signature = signing_key.sign_report(passport._signing_payload())
@@ -190,13 +186,15 @@ class AutonomyPassport(VerifiableGovernanceCredential):
     ) -> PassportDecision:
         """授权一次工具调用；白名单/范围/有效期/吊销任一不满足即拒绝。
 
+        ``public_key_pem`` 必须是核验方配置的签发方公钥；缺失时 fail-closed。
+        护照自带的 ``signer_public_key_pem`` 只保证内容完整，不构成独立信任锚，
+        否则任何自签护照都能自我授权。
+
         放行且传入 ``audit`` 时写入 ``passport_allowance`` 事件，
         元数据包含 ``passport_id``。
         """
-        # 回退到护照自带公钥只保证内容完整，不构成独立信任锚；
-        # 离线核验方应显式传入签发方公钥。
         verification = self.verify_offline(
-            public_key_pem or self.signer_public_key_pem,
+            public_key_pem,
             revoked=revoked,
             now=now,
         )

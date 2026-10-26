@@ -77,9 +77,9 @@ class DisengageAuthorization:
             "issued_at": self.issued_at,
             "nonce": self.nonce,
         }
-        return json.dumps(
-            data, sort_keys=True, separators=(",", ":"), ensure_ascii=False
-        ).encode("utf-8")
+        return json.dumps(data, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode(
+            "utf-8"
+        )
 
 
 @dataclass
@@ -135,11 +135,7 @@ class KillSwitch:
         """当前被阻断的智能体（含由父节点递归阻断的子节点）。"""
         with self._lock:
             candidates = set(self._state.agents) | set(self._parents)
-            return sorted(
-                agent_id
-                for agent_id in candidates
-                if self._is_agent_blocked(agent_id)
-            )
+            return sorted(agent_id for agent_id in candidates if self._is_agent_blocked(agent_id))
 
     def events(self) -> list[KillSwitchEvent]:
         with self._lock:
@@ -287,15 +283,11 @@ class KillSwitch:
         authorization: DisengageAuthorization | None,
     ) -> None:
         if authorization is None:
-            raise KillSwitchAuthorizationError(
-                "signed disengage authorization is required"
-            )
+            raise KillSwitchAuthorizationError("signed disengage authorization is required")
         if authorization.actor != actor:
             raise KillSwitchAuthorizationError("authorization actor mismatch")
         if authorization.scope != scope.value or authorization.target != target:
-            raise KillSwitchAuthorizationError(
-                "authorization does not cover this scope/target"
-            )
+            raise KillSwitchAuthorizationError("authorization does not cover this scope/target")
         public_key_pem = self._authorizer_keys.get(actor)
         if not public_key_pem:
             raise KillSwitchAuthorizationError(

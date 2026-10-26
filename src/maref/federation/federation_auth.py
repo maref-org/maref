@@ -33,6 +33,7 @@ from maref.signing.signing_key import ReportSigningKey
 
 _AUTH_HEADER = "X-MAREF-Fed-Auth"
 _BODY_HASH_HEADER = "X-MAREF-Fed-Body-Hash"
+NONCE_HEADER = "X-MAREF-Fed-Nonce"
 _DEFAULT_MAX_SKEW_SECONDS = 300.0
 
 # Subnets that must never be reachable from a server-side fetch.
@@ -60,9 +61,15 @@ _BLOCKED_NETWORKS: tuple[ipaddress.IPv4Network | ipaddress.IPv6Network, ...] = (
 )
 
 
-def _signing_payload(timestamp: int, method: str, path: str, body_bytes: bytes) -> bytes:
+def _signing_payload(
+    timestamp: int, method: str, path: str, body_bytes: bytes, nonce: str = ""
+) -> bytes:
     body_hash = hashlib.sha256(body_bytes).hexdigest()
-    return f"{timestamp}\n{method}\n{path}\n{body_hash}".encode()
+    payload = f"{timestamp}\n{method}\n{path}\n{body_hash}"
+    # nonce 必须进入签名载荷，否则攻击者可换新 nonce 重放旧签名。
+    if nonce:
+        payload += f"\n{nonce}"
+    return payload.encode()
 
 
 class FederationRequestSigner:
@@ -84,15 +91,23 @@ class FederationRequestSigner:
         path: str,
         body_bytes: bytes,
         timestamp: int | None = None,
+        nonce: str = "",
     ) -> dict[str, str]:
-        """Return the ``X-MAREF-Fed-*`` headers for the request."""
+        """Return the ``X-MAREF-Fed-*`` headers for the request.
+
+        传入 ``nonce`` 时会同时写入 ``X-MAREF-Fed-Nonce`` 并纳入签名载荷，
+        服务端可用它做窗口内重放拒绝。
+        """
         ts = int(time.time()) if timestamp is None else timestamp
-        payload = _signing_payload(ts, method, path, body_bytes)
+        payload = _signing_payload(ts, method, path, body_bytes, nonce)
         signature = self._key.sign_report(payload)
-        return {
+        headers = {
             _AUTH_HEADER: f"{self._key_id}:{ts}:{signature}",
             _BODY_HASH_HEADER: hashlib.sha256(body_bytes).hexdigest(),
         }
+        if nonce:
+            headers[NONCE_HEADER] = nonce
+        return headers
 
 
 class FederationRequestVerifier:
@@ -106,6 +121,8 @@ class FederationRequestVerifier:
         nonce_ttl_seconds: How long a supplied nonce is remembered for replay
             rejection. Defaults to twice the skew window. Pass ``nonce`` to
             :meth:`verify` to enable; omitting it keeps legacy behaviour.
+            A non-empty nonce is part of the signed payload, so a captured
+            request cannot be replayed with a swapped nonce.
     """
 
     def __init__(
@@ -164,7 +181,7 @@ class FederationRequestVerifier:
         if body_hash_header is not None:
             if body_hash_header != hashlib.sha256(body_bytes).hexdigest():
                 return False
-        payload = _signing_payload(timestamp, method, path, body_bytes)
+        payload = _signing_payload(timestamp, method, path, body_bytes, nonce)
         if not ReportSigningKey.verify_signature(public_key_pem, signature_b64, payload):
             return False
         if nonce:
@@ -235,6 +252,7 @@ def validate_peer_url(peer_url: str, allowed_hosts: set[str] | None = None) -> s
 
 
 __all__ = [
+    "NONCE_HEADER",
     "FederationRequestSigner",
     "FederationRequestVerifier",
     "validate_peer_url",

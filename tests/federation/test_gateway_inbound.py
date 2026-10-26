@@ -85,7 +85,8 @@ def _build(tmp_path, *, with_passport: bool = True):
         issuer_did=HUMAN,
     )
     body = b'{"aic":"aic:example"}'
-    auth = FederationRequestSigner(fed_key, KEY_ID).sign(METHOD, PATH, body)[
+    nonce = "gateway-nonce-1"
+    auth = FederationRequestSigner(fed_key, KEY_ID).sign(METHOD, PATH, body, nonce=nonce)[
         "X-MAREF-Fed-Auth"
     ]
     inbound = InboundRequest(
@@ -97,7 +98,7 @@ def _build(tmp_path, *, with_passport: bool = True):
         body=body,
         auth_header=auth,
         body_hash_header=hashlib.sha256(body).hexdigest(),
-        nonce="gateway-nonce-1",
+        nonce=nonce,
         passport=passport.to_dict() if with_passport else None,
         delegation_chain=_chain().to_dict(),
     )

@@ -45,9 +45,7 @@ class _Fixture:
         }
         passport_params.update(passport_overrides)
         self.passport = AutonomyPassport.issue_passport(**passport_params)
-        self.verifier = FederationRequestVerifier(
-            {KEY_ID: self.fed_key.public_key_pem}
-        )
+        self.verifier = FederationRequestVerifier({KEY_ID: self.fed_key.public_key_pem})
 
     def gate(self, **overrides) -> InboundGate:
         options = {
@@ -76,9 +74,14 @@ class _Fixture:
         base.update(overrides)
         return InboundRequest(**base)
 
-    def signed_header(self, timestamp: int | None = None, body: bytes = BODY) -> str:
+    def signed_header(
+        self,
+        timestamp: int | None = None,
+        body: bytes = BODY,
+        nonce: str = "nonce-1",
+    ) -> str:
         signer = FederationRequestSigner(self.fed_key, KEY_ID)
-        return signer.sign(METHOD, PATH, body, timestamp=timestamp)["X-MAREF-Fed-Auth"]
+        return signer.sign(METHOD, PATH, body, timestamp=timestamp, nonce=nonce)["X-MAREF-Fed-Auth"]
 
 
 def _body_hash(body: bytes = BODY) -> str:
@@ -87,9 +90,7 @@ def _body_hash(body: bytes = BODY) -> str:
     return hashlib.sha256(body).hexdigest()
 
 
-def _chain(
-    root_principal: str = HUMAN, tail: str = SOURCE_AGENT
-) -> DelegationChain:
+def _chain(root_principal: str = HUMAN, tail: str = SOURCE_AGENT) -> DelegationChain:
     chain = DelegationChain.create_hmac(
         "did:maref:fed:agent-1",
         HMAC_KEY,
@@ -132,9 +133,7 @@ class TestAuthentication:
     def test_forged_signature_denied(self, tmp_path):
         fixture = _Fixture(tmp_path)
         other = ReportSigningKey.generate()
-        forged = FederationRequestSigner(other, KEY_ID).sign(METHOD, PATH, BODY)[
-            "X-MAREF-Fed-Auth"
-        ]
+        forged = FederationRequestSigner(other, KEY_ID).sign(METHOD, PATH, BODY)["X-MAREF-Fed-Auth"]
 
         decision = fixture.gate().evaluate(fixture.request(auth_header=forged))
 
@@ -144,9 +143,7 @@ class TestAuthentication:
     def test_body_tampering_denied(self, tmp_path):
         fixture = _Fixture(tmp_path)
 
-        decision = fixture.gate().evaluate(
-            fixture.request(body=b'{"aic":"tampered"}')
-        )
+        decision = fixture.gate().evaluate(fixture.request(body=b'{"aic":"tampered"}'))
 
         assert decision.allowed is False
         assert decision.rule == "inbound_gate:unauthenticated"
@@ -155,9 +152,7 @@ class TestAuthentication:
         fixture = _Fixture(tmp_path)
 
         decision = fixture.gate().evaluate(
-            fixture.request(
-                auth_header=fixture.signed_header(timestamp=int(time.time()) - 1000)
-            )
+            fixture.request(auth_header=fixture.signed_header(timestamp=int(time.time()) - 1000))
         )
 
         assert decision.allowed is False
@@ -166,7 +161,9 @@ class TestAuthentication:
     def test_nonce_replay_denied(self, tmp_path):
         fixture = _Fixture(tmp_path)
         gate = fixture.gate()
-        request = fixture.request(nonce="replay-nonce")
+        request = fixture.request(
+            nonce="replay-nonce", auth_header=fixture.signed_header(nonce="replay-nonce")
+        )
 
         first = gate.evaluate(request)
         second = gate.evaluate(request)
@@ -174,6 +171,19 @@ class TestAuthentication:
         assert first.allowed is True
         assert second.allowed is False
         assert second.rule == "inbound_gate:unauthenticated"
+
+    def test_nonce_is_covered_by_signature(self, tmp_path):
+        """换新 nonce 重放旧签名必须被拒绝（nonce 已纳入签名载荷）。"""
+        fixture = _Fixture(tmp_path)
+        gate = fixture.gate()
+        replay = fixture.request(
+            nonce="fresh-nonce", auth_header=fixture.signed_header(nonce="original-nonce")
+        )
+
+        decision = gate.evaluate(replay)
+
+        assert decision.allowed is False
+        assert decision.rule == "inbound_gate:unauthenticated"
 
     def test_missing_nonce_denied(self, tmp_path):
         fixture = _Fixture(tmp_path)
@@ -270,9 +280,7 @@ class TestDelegationChain:
         payload = copy.deepcopy(fixture.chain.to_dict())
         payload["nodes"][1]["signature"] = "0" * 64
 
-        decision = fixture.gate().evaluate(
-            fixture.request(delegation_chain=payload)
-        )
+        decision = fixture.gate().evaluate(fixture.request(delegation_chain=payload))
 
         assert decision.allowed is False
         assert decision.rule == "inbound_gate:delegation_denied"
@@ -281,9 +289,7 @@ class TestDelegationChain:
         fixture = _Fixture(tmp_path)
         chain = _chain(tail="did:maref:fed:agent-9")
 
-        decision = fixture.gate().evaluate(
-            fixture.request(delegation_chain=chain.to_dict())
-        )
+        decision = fixture.gate().evaluate(fixture.request(delegation_chain=chain.to_dict()))
 
         assert decision.allowed is False
         assert decision.rule == "inbound_gate:delegation_denied"
@@ -292,9 +298,7 @@ class TestDelegationChain:
         fixture = _Fixture(tmp_path)
         chain = _chain(root_principal=OTHER_HUMAN)
 
-        decision = fixture.gate().evaluate(
-            fixture.request(delegation_chain=chain.to_dict())
-        )
+        decision = fixture.gate().evaluate(fixture.request(delegation_chain=chain.to_dict()))
 
         assert decision.allowed is False
         assert decision.rule == "inbound_gate:delegation_root_mismatch"
@@ -304,7 +308,11 @@ class TestAudit:
     def test_allowed_request_writes_inbound_event(self, tmp_path):
         fixture = _Fixture(tmp_path)
 
-        decision = fixture.gate().evaluate(fixture.request(nonce="audit-nonce"))
+        decision = fixture.gate().evaluate(
+            fixture.request(
+                nonce="audit-nonce", auth_header=fixture.signed_header(nonce="audit-nonce")
+            )
+        )
 
         assert decision.allowed is True
         events = fixture.audit.read_filtered(event_type=INBOUND_EVENT)

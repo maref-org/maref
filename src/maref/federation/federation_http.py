@@ -47,6 +47,7 @@ from fastapi.responses import JSONResponse
 from maref.eivl.federated_merkle import FederatedMerkleAggregator
 from maref.federation.bootstrap import PEERS_ENDPOINT_PATH
 from maref.federation.federation_auth import (
+    NONCE_HEADER,
     FederationRequestSigner,
     FederationRequestVerifier,
     validate_peer_url,
@@ -251,6 +252,7 @@ def create_federation_app(
                     body_bytes=body,
                     auth_header=auth_header,
                     body_hash_header=body_hash_header,
+                    nonce=request.headers.get(NONCE_HEADER, ""),
                 ):
                     key_id = auth_header.split(":", 1)[0] if auth_header else ""
                     _record_auth_failed(

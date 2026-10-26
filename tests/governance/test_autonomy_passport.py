@@ -121,9 +121,7 @@ class TestOfflineVerification:
         key = ReportSigningKey.generate()
         passport = _issue(signing_key=key)
 
-        result = passport.verify_offline(
-            key.public_key_pem, revoked=[passport.passport_id]
-        )
+        result = passport.verify_offline(key.public_key_pem, revoked=[passport.passport_id])
 
         assert result["reason"] == REASON_REVOKED
 
@@ -146,9 +144,7 @@ class TestOfflineVerification:
 class TestAuthorization:
     def test_wildcard_allows_and_records_passport_id(self, tmp_path):
         key = ReportSigningKey.generate()
-        passport = _issue(
-            signing_key=key, allowed_tools=["file.*"], task_scope=["file.*"]
-        )
+        passport = _issue(signing_key=key, allowed_tools=["file.*"], task_scope=["file.*"])
         audit = AuditLogger(log_path=tmp_path / "audit.jsonl", hmac_key="test-key")
 
         first = passport.authorize(
@@ -225,12 +221,22 @@ class TestAuthorization:
         assert decision.reason == REASON_REVOKED
 
     def test_decision_serializes(self):
-        decision = _issue().authorize("nope", "nope")
+        key = ReportSigningKey.generate()
+        decision = _issue(signing_key=key).authorize(
+            "nope", "nope", public_key_pem=key.public_key_pem
+        )
 
         payload = decision.to_dict()
         assert payload["allowed"] is False
         assert payload["reason"] == REASON_TOOL
         assert payload["passport_id"].startswith("passport-")
+
+    def test_missing_public_key_fails_closed(self):
+        """未显式提供签发方公钥时，不得回退到护照自带公钥自我授权。"""
+        decision = _issue().authorize("file.read", "file.read:/data/a")
+
+        assert decision.allowed is False
+        assert decision.reason == REASON_SIGNATURE
 
 
 class TestStoreReuse:
@@ -241,9 +247,7 @@ class TestStoreReuse:
         store.store(passport)
         store.revoke(passport.passport_id, reason="compromised")
 
-        result = passport.verify_offline(
-            key.public_key_pem, revoked=store.revocation_list()
-        )
+        result = passport.verify_offline(key.public_key_pem, revoked=store.revocation_list())
 
         assert result["reason"] == REASON_REVOKED
 

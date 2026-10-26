@@ -334,8 +334,12 @@ class GovernedPipeline:
         )
 
     def set_as_default(self) -> None:
-        """Set this pipeline as the global default for @governed decorator."""
-        set_default_pipeline(self.pipeline)
+        """Set this pipeline as the global default for @governed decorator.
+
+        必须注册外层装配而不是 ``self.pipeline``：kill switch、路由证据与
+        组织策略只在外层 ``govern()`` 中执行，注册内层会让 @governed 绕过它们。
+        """
+        set_default_pipeline(self)
         logger.info("GovernedPipeline set as global default")
 
     def govern(self, request: GovernanceRequest) -> GovernanceResult:

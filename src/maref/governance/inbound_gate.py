@@ -154,9 +154,7 @@ class InboundGate:
                 f"issuer {passport.issuer_did!r} is not trusted",
                 current_passport=passport_id,
             )
-        verification = passport.verify_offline(
-            public_key_pem, revoked=self._revoked
-        )
+        verification = passport.verify_offline(public_key_pem, revoked=self._revoked)
         if not verification["valid"]:
             return finalize(
                 False,
@@ -238,8 +236,7 @@ class InboundGate:
             actor=decision.source_agent_did or "unknown",
             action=request.action,
             details=(
-                f"inbound {'allowed' if decision.allowed else 'denied'}: "
-                f"{decision.rule or 'ok'}"
+                f"inbound {'allowed' if decision.allowed else 'denied'}: {decision.rule or 'ok'}"
             ),
             metadata={
                 "source_agent_did": decision.source_agent_did,

@@ -108,9 +108,7 @@ class EntryGate:
         """Build a gate from environment; fail-closed on missing configuration."""
         registry_path = os.environ.get("MAREF_PRINCIPAL_REGISTRY", "")
         if not registry_path:
-            raise ValueError(
-                "MAREF_PRINCIPAL_REGISTRY is required when the entry gate is enabled"
-            )
+            raise ValueError("MAREF_PRINCIPAL_REGISTRY is required when the entry gate is enabled")
         try:
             raw = json.loads(Path(registry_path).read_text(encoding="utf-8"))
         except (OSError, ValueError) as exc:
@@ -297,9 +295,7 @@ class EntryGate:
             return "" if result.is_valid else result.message
         return "no verification key is configured"
 
-    def _sanitize(
-        self, request: Any
-    ) -> tuple[str, dict[str, Any], list[str], str]:
+    def _sanitize(self, request: Any) -> tuple[str, dict[str, Any], list[str], str]:
         detections: list[str] = []
         sanitized_parameters: dict[str, Any] = {}
         intent = getattr(request, "intent", "") or ""

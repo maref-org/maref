@@ -66,9 +66,7 @@ class ChainNode:
         }
 
 
-def hmac_payload(
-    node: ChainNode, chain_id: str, root_principal: str, hop_index: int
-) -> bytes:
+def hmac_payload(node: ChainNode, chain_id: str, root_principal: str, hop_index: int) -> bytes:
     """Canonical bytes covered by a per-hop HMAC signature."""
     data = {
         "chain_id": chain_id,
@@ -80,9 +78,9 @@ def hmac_payload(
         "timestamp": node.timestamp.isoformat(),
         "nonce": node.nonce,
     }
-    return json.dumps(
-        data, sort_keys=True, separators=(",", ":"), ensure_ascii=False
-    ).encode("utf-8")
+    return json.dumps(data, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode(
+        "utf-8"
+    )
 
 
 @dataclass
@@ -175,9 +173,15 @@ class DelegationChain:
         root_signing_key: Any,
         max_depth: int = 5,
         policy_version: str = "1.0",
+        root_principal: str = "",
     ) -> DelegationChain:
-        """Create a chain whose root node carries a signature from the root agent."""
+        """Create a chain whose root node carries a signature from the root agent.
+
+        ``root_principal`` is bound into every node signature when non-empty;
+        setting it after signing invalidates the chain.
+        """
         chain = cls.create(root_agent_id, max_depth=max_depth, policy_version=policy_version)
+        chain.root_principal = root_principal
         chain._sign_node(chain.nodes[0], root_agent_id, root_signing_key)
         return chain
 
@@ -279,8 +283,7 @@ class DelegationChain:
             candidates = [("", keys.encode("utf-8") if isinstance(keys, str) else keys)]
         else:
             candidates = [
-                ("", key.encode("utf-8") if isinstance(key, str) else key)
-                for key in keys
+                ("", key.encode("utf-8") if isinstance(key, str) else key) for key in keys
             ]
 
         for index, node in enumerate(self.nodes):
@@ -350,6 +353,10 @@ class DelegationChain:
             f"{node.signer_id}|{node.parent_id or ''}|{node.agent_id}|"
             f"{node.capability.value}|{node.timestamp.isoformat()}|{self.chain_id}"
         )
+        # 非空 root_principal 必须进签名载荷，否则可把合法链改挂到任意委托根；
+        # 空值保持旧载荷，兼容历史链。
+        if self.root_principal:
+            payload += f"|{self.root_principal}"
         return payload.encode("utf-8")
 
     def _sign_node(self, node: ChainNode, signer_id: str, signing_key: Any) -> None:
@@ -442,9 +449,7 @@ class DelegationChain:
             max_depth=int(data.get("max_depth", 5)),
             nodes=nodes,
             created_at=(
-                datetime.fromisoformat(created_at)
-                if created_at
-                else datetime.now(timezone.utc)
+                datetime.fromisoformat(created_at) if created_at else datetime.now(timezone.utc)
             ),
             policy_version=data.get("policy_version", "1.0"),
             root_principal=data.get("root_principal", ""),
