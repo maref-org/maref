@@ -83,6 +83,8 @@ logs/
 # Credentials and secrets
 *.key
 *.pem
+# 例外：运行时证言的公开验签公钥必须入库（私钥不入库）
+!configs/runtime-attest-public.pem
 *.secret
 credentials/
 .gaas_api_key
