@@ -9,7 +9,7 @@ report health (``--require-healthy``). Any failure is a failure — there is no
 Usage:
     python3 scripts/verify_runtime_attest.py \\
         --attest reports/runtime_attest.json \\
-        --public-key configs/runtime-attest-public.pem
+        --public-key configs/runtime-attest-public.pub
     python3 scripts/verify_runtime_attest.py --attest ... --public-key ... --require-healthy
 
 Exit codes: 0 = verified, 1 = invalid/expired/unhealthy, 2 = tooling/config.
@@ -30,7 +30,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 SCHEMA = "maref.runtime_attestation/v1"
-DEFAULT_PUBLIC_KEY = Path("configs/runtime-attest-public.pem")
+DEFAULT_PUBLIC_KEY = Path("configs/runtime-attest-public.pub")
 
 
 def canonical(payload: dict) -> bytes:

@@ -190,7 +190,7 @@ jobs:
       - name: Pinned key exists
         run: |
           set -euo pipefail
-          key=configs/runtime-attest-public.pem
+          key=configs/runtime-attest-public.pub
           if [ ! -f "$key" ]; then
             echo "::error::pinned public key $key is missing — attestation cannot be trusted"
             exit 1
@@ -201,7 +201,7 @@ jobs:
           set -euo pipefail
           python3 scripts/verify_runtime_attest.py \
             --attest /tmp/runtime_attest.json \
-            --public-key configs/runtime-attest-public.pem \
+            --public-key configs/runtime-attest-public.pub \
             --require-healthy \
             --json | tee /tmp/attest-verify.json
           python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
