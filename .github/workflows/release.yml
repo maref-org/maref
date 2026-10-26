@@ -93,12 +93,38 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           password: ${{ secrets.PYPI_TOKEN }}
+      - name: Compose release body
+        run: |
+          set -euo pipefail
+          notes="docs/releases/${GITHUB_REF_NAME}.md"
+          {
+            if [ -f "$notes" ]; then
+              cat "$notes"
+              echo
+            else
+              echo "## ${GITHUB_REF_NAME}"
+              echo
+            fi
+            echo "---"
+            echo "### 发布证据"
+            echo
+            echo "- Tag SHA: \`${GITHUB_SHA}\`"
+            echo "- Release run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            echo "- 采集时间: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "- 产物:"
+            for f in dist/*; do
+              echo "  - \`$(basename "$f")\`"
+            done
+          } > release-body.md
+          cat release-body.md
+
       - name: Create GitHub Release
         if: github.event_name == 'push' || github.event.inputs.dry_run != 'true'
         uses: softprops/action-gh-release@v2
         with:
           files: dist/*
-          generate_release_notes: true
+          body_path: release-body.md
+          generate_release_notes: false
 
   publish-tauri:
     # v0.55.0 is Python-only. Desktop bundles are opt-in via repository

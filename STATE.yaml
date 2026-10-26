@@ -1,16 +1,16 @@
-version: 22
-last_updated: '2026-10-26T15:27:00+08:00'
+version: 23
+last_updated: '2026-10-26T19:10:00+08:00'
 project:
   name: MAREF
-  current_release: 0.54.3
-  release_evidence: docs/releases/v0.54.3.md
+  current_release: 0.55.0
+  release_evidence: docs/releases/v0.55.0.md
   public_repo: https://github.com/maref-org/maref
   license: Apache-2.0
   rsi_level:
     value: conditional
     label: 'L2 (Conditional Pass / 待复审)'
-    verified_at: '2026-10-19'
-    blocked_by: 'E1–E9 未全过；L2 Full Pass 暂停（见 rsi_status_note）'
+    verified_at: '2026-10-26'
+    blocked_by: 'E1–E10 已取得通过证据（发布完整性计划 §14.8）；L2 Full Pass 仍待正式复审'
   rsi_score: 79.5
   rsi_report: docs/rsi/l2-acceptance-report-20260702.md
   rsi_status_note: '2026-10-19 审计发现证据链/版本声称缺口，L2 Full Pass 暂停；P0 修复后按 docs/plans/2026-10-19-audit-remediation-v0.54.1.md T3.4 重跑验收。'
@@ -56,24 +56,24 @@ track_b:
   branch_protection: enabled
   ci_status:
     value: green
-    run_id: 40283282776
+    run_id: 40299475578
     workflow: MAREF CI
-    sha: 820f17d10c42df1952287ff8c101fb6cca1fe0a5
-    verified_at: '2026-10-26T07:25:56Z'
+    sha: 84a1201cdca9e91fd215a91d7cf58d39082721fc
+    verified_at: '2026-10-26T09:47:25Z'
   security_scan:
     value: green
-    run_id: 40283282916
+    run_id: 40299475537
     workflow: Security Scan
-    sha: 820f17d10c42df1952287ff8c101fb6cca1fe0a5
-    verified_at: '2026-10-26T07:03:36Z'
+    sha: 84a1201cdca9e91fd215a91d7cf58d39082721fc
+    verified_at: '2026-10-26T09:27:56Z'
   dependency_audit:
     value: green
-    run_id: 40283282879
+    run_id: 40299475518
     workflow_id: 390339508
     workflow: Dependency Audit
-    sha: 820f17d10c42df1952287ff8c101fb6cca1fe0a5
-    verified_at: '2026-10-26T07:02:27Z'
-    detail: 'PR #457 合并后 main@820f17d1 首次运行新版 workflow 即 success；此前的 main@27978a4f failure 由旧版 workflow 引起，已随合并消除'
+    sha: 84a1201cdca9e91fd215a91d7cf58d39082721fc
+    verified_at: '2026-10-26T09:26:23Z'
+    detail: 'main@84a1201c 再次 success；例外台账为空，v0.55.0 按 Experimental 规则无需列示依赖例外'
   internal_repo_ci:
     repo: private_internal_repo  # 内部仓名按公共仓泄漏门禁隐去
     status: blocked_external_billing
@@ -81,7 +81,14 @@ track_b:
     checked_at: '2026-10-25T17:45:00+08:00'
 governance:
   deployment_status: open_source_release
-  deployment_status_note: '无生产闭环部署产物。当前为开源发布态（PyPI 0.54.3 + GitHub Release v0.54.3，本仓 CI 在 1eaff1b5 全绿）。历史上的 production_closed_loop 为未经验证声明，2026-10-25 审计后降级。'
+  deployment_status_note: '无生产闭环部署产物。当前为开源发布态：PyPI 最新已发布版本为 0.54.3；v0.55.0 发布材料已就绪，tag 与 PyPI 发布待人工授权。历史上的 production_closed_loop 为未经验证声明，2026-10-25 审计后降级。'
+  release_history:
+    '0.54.3':
+      run_id: 39404406985
+      conclusion: failure
+      desktop: '0/4 failed'
+      artifacts: 'wheel + sdist'
+      correction: docs/releases/v0.54.3.md
   last_audit: '2026-10-19'
   audit_score: 'D (32/100)'
   audit_score_previous: '8.8/10 (2026-08-04)'
@@ -159,16 +166,16 @@ submission_pipeline:
     status: expired_or_expiring
 d1_gate:
   value: passed
-  sha: 820f17d10c42df1952287ff8c101fb6cca1fe0a5
-  verified_at: '2026-10-26T07:26:07Z'
+  sha: 84a1201cdca9e91fd215a91d7cf58d39082721fc
+  verified_at: '2026-10-26T09:47:37Z'
   source: 'scripts/d1_preflight_check.py --sha <sha>'
   exit_code: 0
   checks:
     G1_branch_protection: true  # 10 contexts，10 必需
-    G2_ci_green: true  # main@820f17d1：6 个必需 check-runs 成功
-    G3_security_clean: true  # Security Scan run 40283282916
+    G2_ci_green: true  # main@84a1201c：6 个必需 check-runs 成功
+    G3_security_clean: true  # Security Scan run 40299475537
     G4_no_runtime_artifacts: true
-  detail: 'PR #457 合并为 main@820f17d1 后重跑 D1 Pre-Flight，G1–G4 全过（exit 0）'
+  detail: 'main@84a1201c（PR #460 合并后）重跑 D1 Pre-Flight，G1–G4 全过（exit 0）；v0.55.0 发布 PR 合并后将在新 SHA 上复跑'
   evidence: docs/audit-reports/d1-preflight-820f17d1.md
   last_preflight_run: '2026-10-26'
   last_push_blocked_by: null  # 本次审计未 push；A5 计费阻塞仅影响内部仓
