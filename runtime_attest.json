@@ -1,11 +1,11 @@
 {
   "payload": {
     "schema": "maref.runtime_attestation/v1",
-    "generated_at": "2026-10-26T16:15:24Z",
+    "generated_at": "2026-10-26T22:15:39Z",
     "source": {
       "component": "maref-meta-monitor",
-      "report_sha256": "1ef352fb1c025c1c653d1e4f675d130e2de618e1c49de3f091a3a79870e0498e",
-      "report_timestamp": 1793031077.477141
+      "report_sha256": "762631290a061ca8592c5674bfca652a13d806d160a363a9781d25845418fa2a",
+      "report_timestamp": 1793052685.625846
     },
     "claims": {
       "all_passed": true,
@@ -17,9 +17,9 @@
         "m4": true
       },
       "agents": {
-        "survival_rate": 0.163,
+        "survival_rate": 0.172,
         "active_total": null,
-        "dead": 170,
+        "dead": 169,
         "retired": 0
       },
       "audit_chain": {
@@ -42,6 +42,6 @@
   "signature": {
     "alg": "ed25519",
     "key_id": "1c650ce065489fd165f20cc14c948a29",
-    "value": "vTmWqKW1NqIsajOHz7z4jQ8STMyw76axHr4JyOU5de4H5VG3D9MMekNpHpBK88M2GOfEsEjrSBeQTZrVA9TsCA=="
+    "value": "uOomJYhSHpeoFiWDp43Rjv50jUrKR+sF3ENpW2elbx/980fCdbLkDZqx72+5fePAy5P4aeTNt6SIDC9zsv2GDA=="
   }
 }
