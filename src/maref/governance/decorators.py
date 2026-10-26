@@ -53,7 +53,8 @@ class GovernanceAlternativeError(GovernanceDeniedError):
 class _Governor(Protocol):
     """最小治理接口；``GovernedPipeline`` 等外层装配也可作为默认管道。"""
 
-    def govern(self, request: GovernanceRequest) -> GovernanceResult: ...
+    def govern(self, request: GovernanceRequest) -> GovernanceResult:
+        """治理契约；由装配的管道实现。"""
 
 
 _default_pipeline: _Governor | None = None
