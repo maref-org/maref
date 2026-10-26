@@ -34,11 +34,30 @@ def main() -> int:
     parser.add_argument("--p0", action="store_true", help="Require m0-m3 (P0 gate)")
     parser.add_argument("--all", action="store_true", help="Require m0-m4")
     parser.add_argument("--json", action="store_true", help="Print the full report JSON")
+    parser.add_argument(
+        "--report",
+        type=Path,
+        default=None,
+        help="Evaluate an existing meta-monitor report instead of running the monitor",
+    )
     args = parser.parse_args()
 
-    from maref.observability.meta_monitor import run_once
+    if args.report is not None:
+        try:
+            report = json.loads(args.report.read_text())
+        except (OSError, json.JSONDecodeError) as exc:
+            print(f"ERROR: cannot read report {args.report}: {exc}", file=sys.stderr)
+            return 2
+        if not isinstance(report, dict) or not isinstance(report.get("summary"), dict):
+            print(
+                f"ERROR: report {args.report} has no summary object",
+                file=sys.stderr,
+            )
+            return 2
+    else:
+        from maref.observability.meta_monitor import run_once
 
-    report = run_once()
+        report = run_once()
     summary = report.get("summary", {})
     if args.all:
         required = ["m0", "m1", "m2", "m3", "m4"]
@@ -59,6 +78,10 @@ def main() -> int:
         print(f"all_passed: {summary.get('all_passed')}")
 
     failed = [key for key in required if not summary.get(f"{key}_passed")]
+    # A report that itself says all_passed=false must never be masked by
+    # selecting a narrower --require set.
+    if summary.get("all_passed") is False and "all_passed" not in failed:
+        failed.append("all_passed")
     if failed:
         print(
             "meta-audit gate FAILED: " + ", ".join(failed),

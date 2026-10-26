@@ -69,8 +69,13 @@ class TestOmniParserFailure:
         assert parser.initialized is True
 
     def test_agent_continues_with_fallback_backend(self) -> None:
-        agent = DesktopAgent(dry_run=True)
-        parse = agent.parse_screen()
+        from maref.desktop.screen_capture import ScreenshotResult
+        from maref.desktop.screen_parser import OmniParserInterface
+
+        parser = OmniParserInterface(backend="mock")
+        assert parser.initialize() is True
+        agent = DesktopAgent(dry_run=True, screen_parser=parser)
+        parse = agent.parse_screen(ScreenshotResult(width=1920, height=1080))
         assert parse is not None
         assert len(parse.elements) >= 3
 

@@ -1,10 +1,13 @@
 name: Dependency Audit
 
-# 依赖漏洞审计独立于 Release Gate：
-# - 当前存在已知传递依赖 CVE，直接阻断 PR 会使所有发布门禁红灯；
-# - 但也不能用 `|| true` / `continue-on-error` 伪装成通过；
-# - 因此保留一个会真实失败、按周运行的审计任务，修复完成后可并入 release-gate。
+# Real SCA gate. Runs on every PR/push to main plus weekly, in an isolated copy
+# of pyproject.toml + uv.lock so a parent uv workspace cannot silently change
+# which lockfile is audited.
 on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
   schedule:
     - cron: "0 2 * * 1"
   workflow_dispatch:
@@ -12,17 +15,70 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  pip-audit:
+  sca:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
-      - name: Install dependencies
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.11.19"
+          enable-cache: true
+
+      - name: Copy lock inputs to an isolated directory
         run: |
-          pip install -e ".[dev,sidecar,otel,a2a,orchestration,identity]"
-          pip install pip-audit
+          mkdir -p "$RUNNER_TEMP/sca"
+          cp pyproject.toml uv.lock "$RUNNER_TEMP/sca/"
+
+      - name: Verify lockfile is current
+        working-directory: ${{ runner.temp }}/sca
+        run: uv lock --check
+
+      - name: Export release requirements
+        working-directory: ${{ runner.temp }}/sca
+        run: >-
+          uv export --frozen --no-dev --no-emit-project
+          --extra sidecar --extra identity --extra otel --extra a2a --extra orchestration
+          --no-hashes --format requirements-txt -o requirements.txt
+
       - name: pip-audit
-        run: pip-audit --desc on
+        working-directory: ${{ runner.temp }}/sca
+        run: |
+          python3 -m pip install --quiet pip-audit pyyaml
+          rc=0
+          pip-audit -r requirements.txt --format json --desc on -o pip-audit.json || rc=$?
+          echo "pip_audit_exit=$rc"
+          # 0 = clean, 1 = vulnerabilities found (fed to the gate below).
+          # Anything else is a tooling failure and must not be swallowed.
+          if [ "$rc" -gt 1 ]; then
+            exit "$rc"
+          fi
+
+      - name: Enforce exception ledger and expiry
+        working-directory: ${{ runner.temp }}/sca
+        env:
+          GATE_ROOT: ${{ github.workspace }}
+        run: >-
+          python3 "$GATE_ROOT/scripts/sca_gate.py"
+          --audit-json pip-audit.json
+          --exceptions "$GATE_ROOT/.github/dependency-exceptions.yaml"
+
+      - name: Upload pip-audit report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: pip-audit-${{ github.sha }}
+          path: ${{ runner.temp }}/sca/pip-audit.json
+          retention-days: 30
+          if-no-files-found: warn

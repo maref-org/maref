@@ -8,7 +8,9 @@
 #   - 对每个待推送的分支引用，用 scripts/oss-check.sh 校验 tree。
 #   - 命中排除路径 -> 阻断推送（护城河归零风险）。
 #   - 发布产物 oss-release 的 tree 已裁剪，同样过 oss-check 放行（门禁只看内容）。
-#   - tag 引用（refs/tags/*）跳过（oss-check 基于 tree，无法解析 tag 对象）。
+#   - 推 refs/heads/main 或 tag 时，额外按待推送 SHA 跑 D1 Pre-Flight
+#     （branch protection + check-runs + Security Scan 实时证据）。
+#   - feature 分支只过 oss-check；其 CI 结论由 PR 分支保护负责。
 # ============================================================
 set -uo pipefail
 
@@ -31,20 +33,79 @@ if [ -n "$REMOTE" ]; then
   esac
 fi
 
-# D1 Pre-Flight 闸门：向公开仓推送前必须通过（宪法第四-A条 / 开源执行规范 §2.1A）
-# fail-closed：脚本缺失或闸门未通过均阻断。闸门状态见 STATE.yaml d1_gate 段。
+# D1 Pre-Flight 闸门：只在推送 refs/heads/main 或 tag 时按待推送 SHA 校验
+# （宪法第四-A条 / 开源执行规范 §2.1A）。feature 分支只过 oss-check，
+# 不要求 D1：其 SHA 上的 CI 结论由 PR 的 branch protection 负责。
+# 闸门只认 GitHub 实时数据，不读 STATE.yaml 布尔。
 D1_CHECK="$ROOT/scripts/d1_preflight_check.py"
-if [ ! -f "$D1_CHECK" ]; then
-  echo "[pre-push] 警告: $D1_CHECK 缺失，fail-closed 阻断推送。" >&2
-  exit 1
-fi
-if ! python3 "$D1_CHECK"; then
-  echo "----------------------------------------------------------------" >&2
-  echo "[pre-push] D1 Pre-Flight 闸门未通过，已阻断向 maref-org/maref 的推送。" >&2
-  echo "[pre-push] 人类确认 d1_gate 条件满足并更新 STATE.yaml 后方可推送。" >&2
-  echo "----------------------------------------------------------------" >&2
-  exit 1
-fi
+
+check_d1() {
+  local sha="$1" label="$2"
+  if [ ! -f "$D1_CHECK" ]; then
+    echo "[pre-push] 警告: $D1_CHECK 缺失，fail-closed 阻断 $label 推送。" >&2
+    return 1
+  fi
+  if ! python3 "$D1_CHECK" --sha "$sha"; then
+    echo "----------------------------------------------------------------" >&2
+    echo "[pre-push] D1 Pre-Flight 闸门未通过，已阻断 '$label' 的推送。" >&2
+    echo "[pre-push] 需实时满足: branch protection + 该 SHA 的 CI/Security Scan 全绿。" >&2
+    echo "----------------------------------------------------------------" >&2
+    return 1
+  fi
+  return 0
+}
+
+# 证言孤儿分支专用门禁：数据-only 分支不携带运行时源码，不能套用
+# REQUIRED_RUNTIME_FILES；改为「仅 runtime_attest.json + 固定公钥验签 +
+# 新鲜度 + all_passed」，任一不满足 fail-closed。
+# 固定公钥解析：优先 origin/main（合并后的权威 pin），其次当前 HEAD 与
+# 待合并的 release 分支，最后才用工作区文件。这样发布任务不依赖当前检出分支。
+resolve_attest_pub() {
+  local tmpdir="$1" ref out
+  out="$tmpdir/runtime-attest-public.pub"
+  for ref in refs/remotes/origin/main refs/heads/main HEAD \
+             refs/remotes/origin/release/v0.55-integrity \
+             refs/heads/release/v0.55-integrity; do
+    if git -C "$ROOT" cat-file -e "$ref:configs/runtime-attest-public.pub" 2>/dev/null; then
+      if git -C "$ROOT" show "$ref:configs/runtime-attest-public.pub" > "$out"; then
+        echo "$out"
+        return 0
+      fi
+    fi
+  done
+  if [ -f "$ROOT/configs/runtime-attest-public.pub" ]; then
+    echo "$ROOT/configs/runtime-attest-public.pub"
+    return 0
+  fi
+  return 1
+}
+
+check_attestation() {
+  local sha="$1" files tmpdir pub
+  files="$(git -C "$ROOT" ls-tree -r --name-only "$sha" 2>/dev/null || true)"
+  if [ "$files" != "runtime_attest.json" ]; then
+    echo "[pre-push] 证言分支必须仅含 runtime_attest.json，实际: ${files:-<empty>}" >&2
+    return 1
+  fi
+  tmpdir="$(mktemp -d "${TMPDIR:-/tmp}/maref-attest.XXXXXX")" || return 1
+  if ! git -C "$ROOT" show "$sha:runtime_attest.json" > "$tmpdir/runtime_attest.json"; then
+    rm -r "$tmpdir"
+    return 1
+  fi
+  if ! pub="$(resolve_attest_pub "$tmpdir")"; then
+    echo "[pre-push] 找不到固定公钥 configs/runtime-attest-public.pub，证言不可信，fail-closed。" >&2
+    rm -r "$tmpdir"
+    return 1
+  fi
+  if ! python3 "$ROOT/scripts/verify_runtime_attest.py" \
+      --attest "$tmpdir/runtime_attest.json" --public-key "$pub" --require-healthy --json >/dev/null; then
+    echo "[pre-push] 证言验签/新鲜度/健康检查失败，fail-closed。" >&2
+    rm -r "$tmpdir"
+    return 1
+  fi
+  rm -r "$tmpdir"
+  return 0
+}
 
 # fail-closed：门禁脚本缺失即阻断，防静默放行
 if [ ! -x "$CHECK" ]; then
@@ -73,8 +134,23 @@ while read -r local_ref local_sha remote_ref remote_sha; do
         echo "----------------------------------------------------------------" >&2
         BLOCKED=1
       fi
+      if ! check_d1 "$tag_commit" "tag $local_ref"; then
+        BLOCKED=1
+      fi
       continue ;;
     *) continue ;;                                 # 其他 ref 跳过
+  esac
+
+  # 证言孤儿分支走专用门禁（见 check_attestation 注释）
+  case "$local_ref" in
+    attestations/*)
+      if ! check_attestation "$local_sha"; then
+        echo "----------------------------------------------------------------" >&2
+        echo "[pre-push] 证言分支 '$local_ref' 未通过验签门禁，已阻断推送。" >&2
+        echo "----------------------------------------------------------------" >&2
+        BLOCKED=1
+      fi
+      continue ;;
   esac
 
   if ! bash "$CHECK" "$local_sha"; then
@@ -83,6 +159,12 @@ while read -r local_ref local_sha remote_ref remote_sha; do
     echo "[pre-push] 公开发布请使用: scripts/oss-publish.sh --push" >&2
     echo "----------------------------------------------------------------" >&2
     BLOCKED=1
+  fi
+
+  if [ "$remote_ref" = "refs/heads/main" ]; then
+    if ! check_d1 "$local_sha" "branch $local_ref"; then
+      BLOCKED=1
+    fi
   fi
 done
 

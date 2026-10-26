@@ -1,0 +1,22 @@
+# Domain thresholds checked by scripts/coverage_claim_check.py against a
+# coverage.json artifact. Global claim (STATE.yaml) is compared separately.
+version: 1
+tolerance_pp: 0.1
+
+domains:
+  governance:
+    prefixes:
+      - "src/maref/governance/"
+    min_percent: 60
+  security:
+    prefixes:
+      - "src/sidecar/"
+    min_percent: 50
+  observability:
+    prefixes:
+      - "src/maref/observability/"
+    min_percent: 50
+  identity:
+    prefixes:
+      - "src/maref_lite/"
+    min_percent: 50

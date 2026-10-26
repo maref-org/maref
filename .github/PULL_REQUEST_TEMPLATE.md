@@ -25,6 +25,18 @@ How did you test this change?
 - [ ] Manual testing
 - [ ] No tests needed
 
+## Release Gate Evidence (v0.55.0+)
+> Required for changes touching `.github/workflows/`, `scripts/*gate*`, `STATE.yaml`, branch protection, SCA, coverage, or audit chain.
+
+- Affected gates: <!-- e.g. G1 branch protection / G4 SCA / G6 coverage -->
+- Live evidence (command or API + SHA + UTC timestamp; do **not** paste STATE booleans):
+- Negative test (command + observed exit code proving the gate can fail):
+- [ ] Evidence comes from a real run (CI run ID / API query), not from documentation or `STATE.yaml`
+- [ ] Negative test was executed and failed as expected
+- [ ] Revert command for any branch-protection or workflow change is included below
+
+Revert command:
+
 ## Audit System Resilience
 > Required for any change touching audit, meta-monitor, paths, or governance gates (S-04).
 > If this audit system goes down, who or what detects it, and how?

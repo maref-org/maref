@@ -2,13 +2,13 @@ name: Meta-Audit Gate
 
 on:
   schedule:
-    - cron: '*/5 * * * *'  # Every 5 minutes
+    - cron: '17 4 * * *'  # Daily; attestation freshness is validated at 24h
   workflow_dispatch:
     inputs:
-      runtime_gate:
-        description: 'Run the real runtime health gate (self-hosted runner required)'
-        type: boolean
-        default: false
+      attestation_ref:
+        description: 'Branch holding the published runtime attestation'
+        type: string
+        default: 'attestations/latest'
 
 permissions:
   contents: read
@@ -18,6 +18,7 @@ jobs:
   path-consistency:
     # Gating job: catches audit-path split-brain and missing SSOT modules.
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
@@ -50,10 +51,10 @@ jobs:
                  tests/sidecar/test_phoenix_policy.py -q --no-cov
 
   meta-audit-smoke:
-    # Smoke only: proves the monitor runs and emits a parseable report on a
-    # clean runner. It is NOT a health gate; runtime gates live in the
-    # deployment (launchd + meta_audit_gate.py) and the optional job below.
+    # Proves the gate script is wired up and fails closed: the healthy
+    # fixture must pass and an injected all_passed=false must not.
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
@@ -90,6 +91,7 @@ jobs:
                   "m2_passed": True,
                   "m3_passed": True,
                   "m4_passed": True,
+                  "all_passed": True,
               },
           }
           path = Path(".governance/meta/meta-monitor-report.json")
@@ -130,20 +132,84 @@ jobs:
               v = summary.get(k)
               label = 'PASS' if v is True else ('FAIL' if v is False else 'MISSING')
               print(f'{k}: {label}')
-          print('::notice::CI smoke OK — this is not a runtime health gate')
           "
 
-  meta-audit-runtime-gate:
-    # Real gate. Enable by setting the repository variable
-    # MAREF_RUNTIME_GATE=true and providing a self-hosted runner with the
-    # deployment audit/meta data mounted.
-    if: vars.MAREF_RUNTIME_GATE == 'true'
-    runs-on: self-hosted
+      - name: Gate accepts healthy fixture and rejects unhealthy fixture
+        run: |
+          set -euo pipefail
+          healthy=.governance/meta/meta-monitor-report.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          data = json.loads(Path('.governance/meta/meta-monitor-report.json').read_text())
+          data['summary']['m2_passed'] = False
+          data['summary']['all_passed'] = False
+          Path('/tmp/unhealthy-report.json').write_text(json.dumps(data))
+          PY
+          python3 scripts/meta_audit_gate.py --report "$healthy" --all
+          if python3 scripts/meta_audit_gate.py --report /tmp/unhealthy-report.json --all; then
+            echo "::error::gate accepted an all_passed=false report"
+            exit 1
+          fi
+          if python3 scripts/meta_audit_gate.py --report /tmp/unhealthy-report.json --require m0; then
+            echo "::error::narrow --require masked all_passed=false"
+            exit 1
+          fi
+          echo "::notice::gate is falsifiable (healthy=0, unhealthy!=0)"
+
+  runtime-attest-verify:
+    # Verifies the signed attestation published by the deployment against the
+    # Ed25519 public key pinned on this branch. Never gates itself off: a
+    # missing ref or key is a failure, not a skip.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
-      - name: Runtime gate (M0-M4 required)
-        env:
-          MAREF_META_PATH: '.governance/meta'
-          MAREF_AUDIT_PATH: '.governance'
-        run: python scripts/meta_audit_gate.py --all
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+
+      - name: Install crypto dependency
+        run: pip install cryptography
+
+      - name: Fetch published attestation
+        run: |
+          set -euo pipefail
+          ref="${{ github.event.inputs.attestation_ref || 'attestations/latest' }}"
+          if ! git fetch --depth=1 origin "+refs/heads/$ref:refs/attestation/latest"; then
+            echo "::error::attestation ref '$ref' is not published — runtime attestation missing"
+            exit 1
+          fi
+          sha="$(git rev-parse refs/attestation/latest)"
+          git show refs/attestation/latest:runtime_attest.json > /tmp/runtime_attest.json
+          echo "attestation ref: $ref @ $sha"
+          echo "attestation_sha=$sha" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Pinned key exists
+        run: |
+          set -euo pipefail
+          key=configs/runtime-attest-public.pub
+          if [ ! -f "$key" ]; then
+            echo "::error::pinned public key $key is missing — attestation cannot be trusted"
+            exit 1
+          fi
+
+      - name: Verify signature, freshness and health
+        run: |
+          set -euo pipefail
+          python3 scripts/verify_runtime_attest.py \
+            --attest /tmp/runtime_attest.json \
+            --public-key configs/runtime-attest-public.pub \
+            --require-healthy \
+            --json | tee /tmp/attest-verify.json
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          from pathlib import Path
+          result = json.loads(Path('/tmp/attest-verify.json').read_text())
+          print(f"verified: {result['verified']}")
+          print(f"key_id: {result['detail']['key_id']}")
+          print(f"age_seconds: {result['detail']['age_seconds']}")
+          print(f"all_passed: {result['detail']['all_passed']}")
+          PY

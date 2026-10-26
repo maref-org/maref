@@ -10,9 +10,13 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   lint:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v7
@@ -42,6 +46,7 @@ jobs:
   test:
     needs: lint
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v7
@@ -49,6 +54,8 @@ jobs:
           python-version: "3.11"
       - name: Install dependencies
         run: pip install -e ".[dev,sidecar,otel,a2a,orchestration,identity]"
+      - name: Prepare report directory
+        run: mkdir -p reports
       - name: Run unit tests
         run: |
           # 排除 slow(依赖本机 git tags/历史等环境) / real(需硬件/权限) /
@@ -62,7 +69,7 @@ jobs:
           # coverage run -m pytest 与 pyproject addopts 的 --cov(pytest-cov)
           # 形成双层 coverage，collector 冲突 (Expected current collector)。
           # crypto 由独立 crypto-test job 专职(密码学关键域隔离)，此处排除免双跑。
-          pytest tests/ -x -q --timeout=120 -m "not integration and not chaos and not benchmark and not slow and not real" --ignore=tests/maref/compliance --ignore=tests/desktop --ignore=tests/test_crypto.py
+          pytest tests/ -x -q --timeout=120 -m "not integration and not chaos and not benchmark and not slow and not real" --ignore=tests/maref/compliance --ignore=tests/desktop --ignore=tests/test_crypto.py --junitxml=reports/junit.xml --cov-report=xml:coverage.xml
       - name: Validate mock consistency
         if: github.event_name != 'pull_request'
         run: |
@@ -71,10 +78,23 @@ jobs:
           python -c "from pathlib import Path; from maref.testing.mock_validator import MockValidator; v=MockValidator(schema_dir=Path('vault/schemas'), mock_dir=Path('vault/mocks')); errors=v.validate_all(); assert not errors, 'Mock mismatch: ' + str(errors)"
       - name: Coverage report
         run: coverage report --fail-under=50
+      - name: Upload coverage and test report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-${{ github.sha }}
+          path: |
+            coverage.json
+            coverage.xml
+            htmlcov/
+            reports/junit.xml
+          retention-days: 30
+          if-no-files-found: error
 
   security:
     needs: lint
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
         with:
@@ -96,6 +116,7 @@ jobs:
   integrity:
     needs: lint
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - name: Check for hardcoded passed=True in validation code
@@ -148,6 +169,7 @@ jobs:
   crypto-test:
     needs: test
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v7
@@ -164,6 +186,7 @@ jobs:
   chaos-test:
     needs: lint
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v7
