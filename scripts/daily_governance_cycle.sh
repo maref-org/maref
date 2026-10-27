@@ -32,7 +32,15 @@ LOGFILE="$LOG_DIR/governance-cycle-$TODAY.log"
 QUIET=false
 [ "$1" = "--quiet" ] && QUIET=true
 
-log() { echo "[$(date +%H:%M:%S)] $1" | tee -a "$LOGFILE"; }
+log() {
+    local line="[$(date +%H:%M:%S)] $1"
+    # --quiet 已把 stdout 重定向到 LOGFILE，此时再 tee 会写两遍
+    if $QUIET; then
+        echo "$line"
+    else
+        echo "$line" | tee -a "$LOGFILE"
+    fi
+}
 FAIL_COUNT=0
 fail() {
     log "❌ $1"
