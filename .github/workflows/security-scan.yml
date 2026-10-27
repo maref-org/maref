@@ -12,7 +12,7 @@ jobs:
   secrets-scan:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: TruffleHog Secret Scan
@@ -37,7 +37,7 @@ jobs:
   semgrep-scan:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Semgrep Scan
         uses: semgrep/semgrep-action@v1
         with:
@@ -50,7 +50,7 @@ jobs:
   dependency-scan:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
@@ -68,7 +68,7 @@ jobs:
   trivy-scan:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Trivy filesystem scan
         uses: aquasecurity/trivy-action@v0.36.0
         with:
@@ -92,7 +92,7 @@ jobs:
       MAREF_HMAC_SECRET_KEY: ${{ secrets.MAREF_HMAC_SECRET_KEY || 'ci-hmac-key' }}
       MAREF_MCP_SECRET_KEY: ${{ secrets.MAREF_MCP_SECRET_KEY || 'ci-mcp-key' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
