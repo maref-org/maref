@@ -871,3 +871,9 @@ scripts/log_sentinel.py
 scripts/failure_pattern_grounding.py
 scripts/idle_backoff_gate.py
 src/maref/evolution/rule_quality_scorer.py
+
+# ---------- [closed-source-sync] 自动补全（check-exclude-list-sync.sh --repair, 2026-10-27） ----------
+docs/social/zhihu-hardcore-content-spec.md
+src/research/vector_store.py
+src/maref/integration/trajectory_ledger.py
+src/maref/integration/legal_review.py

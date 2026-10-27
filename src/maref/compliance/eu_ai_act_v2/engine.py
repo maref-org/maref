@@ -8,7 +8,7 @@ to the existing ComplianceRegistry for cross-jurisdiction reporting.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
@@ -120,7 +120,7 @@ class EUAIComplianceSummary:
     pmm_active: bool = False
     pmm_observations: int = 0
     pmm_review_due: bool = False
-    assessed_at: str = field(default_factory=lambda: datetime.now().isoformat())
+    assessed_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 
 class EUAIComplianceEngineV2:
