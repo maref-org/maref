@@ -54,7 +54,7 @@ import CodeBlock from "@/components/ui/CodeBlock.astro";
 <ul class="list-disc pl-6 space-y-2 text-base text-brand-text-secondary mb-4">
   <li><strong class="text-brand-text-primary">TLA+ formal verification</strong> — Five theorems prove the state machine converges correctly. No other agent governance framework can make this claim.</li>
   <li><strong class="text-brand-text-primary">10-state Gray Code FSM</strong> — Hamming distance = 1 ensures every transition changes exactly one dimension of trust state. No ambiguous intermediate states.</li>
-  <li><strong class="text-brand-text-primary">Four-level safety decision tree</strong> — Rule → Mode → SafetyGate → User escalation, achieving 97% automated decisions with clear audit trails.</li>
+  <li><strong class="text-brand-text-primary">Four-level safety decision tree</strong> — Rule → Mode → SafetyGate → User escalation, with clear audit trails.</li>
   <li><strong class="text-brand-text-primary">Runtime drift detection</strong> — LoRA/ontology dual detection catches model drift before it causes safety failures.</li>
   <li><strong class="text-brand-text-primary">Circuit Breaker with HALT absorption</strong> — Three consecutive failures trigger an irreversible halt that only human override can release.</li>
 </ul>
@@ -127,7 +127,7 @@ else:
     <div class="text-brand-text-muted">Primary function</div><div class="text-brand-text-primary">Verify, enforce, and audit agent behavior</div>
     <div class="text-brand-text-muted">Key technology</div><div class="text-brand-text-primary">10-state Gray Code FSM + TLA+ verification</div>
     <div class="text-brand-text-muted">OWASP coverage</div><div class="text-brand-text-primary">10/10 Agentic Top 10 categories</div>
-    <div class="text-brand-text-muted">Automation rate</div><div class="text-brand-text-primary">97% (4-level safety decision tree)</div>
+    <div class="text-brand-text-muted">Decision tree</div><div class="text-brand-text-primary">4 levels (Rule → Mode → SafetyGate → Human)</div>
     <div class="text-brand-text-muted">Integration</div><div class="text-brand-text-primary">pip install maref, works with any framework</div>
   </div>
 </div>

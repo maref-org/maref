@@ -5,13 +5,13 @@ import DecisionTree from "@/components/animations/DecisionTree/DecisionTree.astr
 import CodeBlock from "@/components/ui/CodeBlock.astro";
 ---
 
-<DocLayout locale="zh" title="8 层纵深防御 — 智能体安全" description="八层独立防御体系。97% 自动化安全决策。HMAC 签名审计追踪。" section="features">
+<DocLayout locale="zh" title="8 层纵深防御 — 智能体安全" description="八层独立防御体系。四级安全决策。HMAC 签名审计追踪。" section="features">
 
   <h1 class="text-4xl md:text-5xl font-bold tracking-tight mb-6">
     每条攻击路径。<br />
     <span class="text-brand-accent-cyan">在开始之前被阻断。</span>
   </h1>
-  <p class="text-lg text-brand-text-secondary mb-10">八层独立防御。四级决策树。97% 的安全决策无需人工介入。</p>
+  <p class="text-lg text-brand-text-secondary mb-10">八层独立防御。四级决策树。常规操作自动放行，不确定的升级人工。</p>
 
   <DefenseLayers locale="zh" />
 
@@ -29,7 +29,7 @@ import CodeBlock from "@/components/ui/CodeBlock.astro";
       <p class="text-sm text-brand-text-secondary">纵深防御。攻击者必须突破全部 8 层，但任何一层都可以独立拦截。</p>
     </div>
     <div class="p-8 rounded-xl" style="background-color: var(--color-brand-bg-secondary); border: 1px solid var(--color-brand-border);">
-      <h3 class="font-semibold text-brand-accent-green mb-2">97% 自动。3% 升级。</h3>
+      <h3 class="font-semibold text-brand-accent-green mb-2">常规自动。异常升级。</h3>
       <p class="text-sm text-brand-text-secondary">四级决策树过滤噪音。你的团队只看到真正需要人工判断的边缘案例。</p>
     </div>
     <div class="p-8 rounded-xl" style="background-color: var(--color-brand-bg-secondary); border: 1px solid var(--color-brand-border);">
@@ -52,7 +52,7 @@ import CodeBlock from "@/components/ui/CodeBlock.astro";
       <h2 class="text-2xl font-bold tracking-tight mb-6">四级决策。三级自动。</h2>
       <p class="text-base text-brand-text-secondary leading-relaxed mb-6">
         决策树流经四级：规则（策略匹配）、模式（上下文检查）、安全门控（风险阈值）、人工（升级）。
-        97% 的决策在前三级自动完成。你的安全团队审查真正需要人工判断的 3%。
+        常规决策在前三级自动完成。你的安全团队只审查真正需要人工判断的部分。
       </p>
       <DecisionTree locale="zh" />
     </div>
@@ -79,7 +79,7 @@ import CodeBlock from "@/components/ui/CodeBlock.astro";
     <div class="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
       <div class="text-brand-text-muted">防御层数</div><div class="text-brand-text-primary">8 层独立防御</div>
       <div class="text-brand-text-muted">决策树</div><div class="text-brand-text-primary">4 级：规则 → 模式 → 安全门控 → 人工</div>
-      <div class="text-brand-text-muted">自动决策率</div><div class="text-brand-text-primary">97%</div>
+      <div class="text-brand-text-muted">状态机</div><div class="text-brand-text-primary">10 态 Gray Code（汉明距离=1）</div>
       <div class="text-brand-text-muted">审计签名</div><div class="text-brand-text-primary">HMAC-SHA256</div>
       <div class="text-brand-text-muted">关键拦截层</div><div class="text-brand-text-primary">第 5 层 — SafetyGate</div>
     </div>
