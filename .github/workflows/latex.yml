@@ -27,6 +27,7 @@ jobs:
           root_file: jos-sample.tex
           working_directory: papers/jos-template
           latexmk_use_lualatex: false
+          latexmk_use_xelatex: true
 
       - name: Upload PDF artifact
         uses: actions/upload-artifact@v7
