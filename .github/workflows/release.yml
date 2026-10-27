@@ -120,7 +120,7 @@ jobs:
 
       - name: Create GitHub Release
         if: github.event_name == 'push' || github.event.inputs.dry_run != 'true'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: dist/*
           body_path: release-body.md
