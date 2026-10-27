@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+### Added
+- 治理内核接线（随 PR #466 `feat/governance-kernel-wiring` 合入后生效，当前 main 尚不包含）：`GovernedPipeline` 默认装配破坏性操作门、预算熔断器与 kill switch；入口闸（身份/委托链/入向消毒）与模型闸默认关闭，通过构造参数或 `MAREF_ENTRY_GATE` / `MAREF_MODEL_GATE` 显式启用。
+- 审计外部锚定（随 PR #466 合入后生效）：`AuditAnchor` 与 `scripts/verify_audit_anchor.py`，支持批次 Merkle 锚点、Ed25519 签名与离线校验。
+
+### Changed
+- **兼容性影响（相对 v0.55.0；下列行为随 PR #466 合入后生效，本 PR 仅提前记录迁移与回滚说明）**：`GovernedPipeline` 将默认启用三道行动闸：
+  - 破坏性操作门：命中破坏性模式（如递归删除、强推）时升级 HITL 或 `DENY`，不再直接放行；
+  - 预算熔断：默认 `MAREF_BUDGET_MAX_PER_AGENT=1000`、`MAREF_BUDGET_MAX_PER_TASK=200`、`MAREF_BUDGET_MAX_BURN_RATE=100`，超限 `DENY`；
+  - kill switch：仅在显式 `engage()` 后阻断对应作用域（global/tenant/agent），未触发时无行为变化。
+- **迁移**：按需注入自定义实例（如 `destructive_gate=DestructiveOperationGate(enabled=False)`）或调整 `MAREF_BUDGET_*` 环境变量；入口闸与模型闸保持默认关闭，无需迁移。
+- **回滚**：无需回退代码；注入禁用的 gate 实例并恢复预算阈值即可回到 v0.55.0 行为。
+
+### Fixed
+- `eu_ai_act_v2` 报告 `assessed_at` 改为 UTC-aware，修复 UTC+8 凌晨时段 `test_report_generated_at_recent` 必失败的问题。
+- `scripts/oss-exclude-list.txt` 补全 4 条漏覆盖闭源路径，恢复第十一条 11.4 覆盖等价性门禁。
+- CI：将 `tests/maref/compliance`（49 个用例）纳入 `test` 与 `sonarcloud` 作业，此前该目录被 `--ignore` 排除、从未在 CI 执行。
+- 安全：移除公开归档 `archive/research-20261024/` 中与闭源原件字节一致的 `vector_store.py` 副本（历史泄漏，当前树已清理）。
+- 更正 `docs/releases/v0.55.0.md` 的 D1 预检时间与覆盖率口径（行覆盖 71881/90815=79.15%，分支 14925/22936=65.07%，综合 76.31%）。
+
 ## [v0.55.0] - 2026-10-26 (发布完整性；Experimental / Python-only)
 
 ### Added
