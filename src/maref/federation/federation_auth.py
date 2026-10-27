@@ -6,7 +6,8 @@ S1 — request authentication:
     A client signs ``timestamp\\nmethod\\npath\\nbody_hash`` with its private
     key; the server verifies the signature against a configured set of
     trusted peer public keys (``key_id`` → public key PEM).  Timestamps are
-    checked against a configurable skew window to prevent replay.
+    checked against a configurable skew window, and an optional per-request
+    nonce is cached to reject replays inside that window.
 
     The scheme is deliberately additive: when no verifier is configured the
     transport keeps its historical behaviour (backward compatible), so
@@ -24,6 +25,7 @@ from __future__ import annotations
 import hashlib
 import ipaddress
 import socket
+import threading
 import time
 from collections.abc import Mapping
 
@@ -31,6 +33,7 @@ from maref.signing.signing_key import ReportSigningKey
 
 _AUTH_HEADER = "X-MAREF-Fed-Auth"
 _BODY_HASH_HEADER = "X-MAREF-Fed-Body-Hash"
+NONCE_HEADER = "X-MAREF-Fed-Nonce"
 _DEFAULT_MAX_SKEW_SECONDS = 300.0
 
 # Subnets that must never be reachable from a server-side fetch.
@@ -58,9 +61,15 @@ _BLOCKED_NETWORKS: tuple[ipaddress.IPv4Network | ipaddress.IPv6Network, ...] = (
 )
 
 
-def _signing_payload(timestamp: int, method: str, path: str, body_bytes: bytes) -> bytes:
+def _signing_payload(
+    timestamp: int, method: str, path: str, body_bytes: bytes, nonce: str = ""
+) -> bytes:
     body_hash = hashlib.sha256(body_bytes).hexdigest()
-    return f"{timestamp}\n{method}\n{path}\n{body_hash}".encode()
+    payload = f"{timestamp}\n{method}\n{path}\n{body_hash}"
+    # nonce 必须进入签名载荷，否则攻击者可换新 nonce 重放旧签名。
+    if nonce:
+        payload += f"\n{nonce}"
+    return payload.encode()
 
 
 class FederationRequestSigner:
@@ -82,15 +91,23 @@ class FederationRequestSigner:
         path: str,
         body_bytes: bytes,
         timestamp: int | None = None,
+        nonce: str = "",
     ) -> dict[str, str]:
-        """Return the ``X-MAREF-Fed-*`` headers for the request."""
+        """Return the ``X-MAREF-Fed-*`` headers for the request.
+
+        传入 ``nonce`` 时会同时写入 ``X-MAREF-Fed-Nonce`` 并纳入签名载荷，
+        服务端可用它做窗口内重放拒绝。
+        """
         ts = int(time.time()) if timestamp is None else timestamp
-        payload = _signing_payload(ts, method, path, body_bytes)
+        payload = _signing_payload(ts, method, path, body_bytes, nonce)
         signature = self._key.sign_report(payload)
-        return {
+        headers = {
             _AUTH_HEADER: f"{self._key_id}:{ts}:{signature}",
             _BODY_HASH_HEADER: hashlib.sha256(body_bytes).hexdigest(),
         }
+        if nonce:
+            headers[NONCE_HEADER] = nonce
+        return headers
 
 
 class FederationRequestVerifier:
@@ -101,15 +118,27 @@ class FederationRequestVerifier:
             every peer this server is willing to accept requests from.
         max_skew_seconds: Maximum acceptable age of the request timestamp
             (replay protection).
+        nonce_ttl_seconds: How long a supplied nonce is remembered for replay
+            rejection. Defaults to twice the skew window. Pass ``nonce`` to
+            :meth:`verify` to enable; omitting it keeps legacy behaviour.
+            A non-empty nonce is part of the signed payload, so a captured
+            request cannot be replayed with a swapped nonce.
     """
 
     def __init__(
         self,
         public_keys: Mapping[str, str],
         max_skew_seconds: float = _DEFAULT_MAX_SKEW_SECONDS,
+        nonce_ttl_seconds: float | None = None,
     ) -> None:
         self._public_keys = dict(public_keys)
         self._max_skew = max_skew_seconds
+        # 时间窗只能挡住过期请求，挡不住窗口内重放；nonce 缓存补上这一层。
+        self._nonce_ttl = (
+            nonce_ttl_seconds if nonce_ttl_seconds is not None else max_skew_seconds * 2
+        )
+        self._used_nonces: dict[str, float] = {}
+        self._nonce_lock = threading.Lock()
 
     @property
     def trusted_key_ids(self) -> set[str]:
@@ -123,11 +152,15 @@ class FederationRequestVerifier:
         body_bytes: bytes,
         auth_header: str | None,
         body_hash_header: str | None = None,
+        nonce: str = "",
         now: float | None = None,
     ) -> bool:
         """Return True only if the request carries a valid signature.
 
         Never raises — a malformed or unsigned request simply fails closed.
+        ``nonce`` is optional for backward compatibility; when supplied it is
+        consumed atomically after the signature check, so replayed requests
+        fail even inside the timestamp window.
         """
         if not auth_header:
             return False
@@ -148,8 +181,21 @@ class FederationRequestVerifier:
         if body_hash_header is not None:
             if body_hash_header != hashlib.sha256(body_bytes).hexdigest():
                 return False
-        payload = _signing_payload(timestamp, method, path, body_bytes)
-        return ReportSigningKey.verify_signature(public_key_pem, signature_b64, payload)
+        payload = _signing_payload(timestamp, method, path, body_bytes, nonce)
+        if not ReportSigningKey.verify_signature(public_key_pem, signature_b64, payload):
+            return False
+        if nonce:
+            with self._nonce_lock:
+                self._purge_nonces(current)
+                if nonce in self._used_nonces:
+                    return False
+                self._used_nonces[nonce] = current + self._nonce_ttl
+        return True
+
+    def _purge_nonces(self, now: float) -> None:
+        expired = [nonce for nonce, expiry in self._used_nonces.items() if expiry <= now]
+        for nonce in expired:
+            del self._used_nonces[nonce]
 
 
 def _host_is_blocked(host: str, allowed_hosts: set[str]) -> bool:
@@ -206,6 +252,7 @@ def validate_peer_url(peer_url: str, allowed_hosts: set[str] | None = None) -> s
 
 
 __all__ = [
+    "NONCE_HEADER",
     "FederationRequestSigner",
     "FederationRequestVerifier",
     "validate_peer_url",
