@@ -96,9 +96,7 @@ class TestW3S2ChainSigning:
             root_agent_id="agent-root",
             root_signing_key=root_key,
         )
-        result = chain.validate_signed(
-            public_keys={"agent-other": root_key.public_key_pem}
-        )
+        result = chain.validate_signed(public_keys={"agent-other": root_key.public_key_pem})
         assert result.status == ValidationStatus.INVALID_SIGNATURE
 
     def test_legacy_chain_without_signatures_still_validates_structurally(self) -> None:
@@ -109,3 +107,17 @@ class TestW3S2ChainSigning:
         chain = DelegationChain.create("agent-root")
         result = chain.validate_signed(public_keys={})
         assert result.status == ValidationStatus.VALID
+
+    def test_root_principal_is_bound_to_signature(self) -> None:
+        root_key = _make_key()
+        keys = {"agent-root": root_key.public_key_pem}
+        chain = DelegationChain.create_signed(
+            root_agent_id="agent-root",
+            root_signing_key=root_key,
+            root_principal="did:principal:alice",
+        )
+
+        assert chain.validate_signed(keys).status == ValidationStatus.VALID
+        chain.root_principal = "did:principal:mallory"
+        result = chain.validate_signed(keys)
+        assert result.status == ValidationStatus.INVALID_SIGNATURE
