@@ -24,7 +24,7 @@ jobs:
       - name: Compile LaTeX document
         uses: xu-cheng/latex-action@v3
         with:
-          root_file: papers/jos-template/jos-sample.tex
+          root_file: jos-sample.tex
           working_directory: papers/jos-template
           latexmk_use_lualatex: false
 

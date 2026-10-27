@@ -23,7 +23,7 @@
 - **10 态 Gray Code 治理状态机** — 数学可证明收敛性
 - **TLA+ 形式化验证** — 5 TLA+ 模型校验不变量
 - **CircuitBreaker** — 3连败自动锁 + HALT 吸收态
-- **四级安全决策树** — 97% 自动化率
+- **四级安全决策树** — Rule→Mode→SafetyGate→User
 - **LoRA/本体双重漂移检测** — KL/JS/Hellinger 三重散度
 
 #### 操作层

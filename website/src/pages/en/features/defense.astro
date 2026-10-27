@@ -5,7 +5,7 @@ import DecisionTree from "@/components/animations/DecisionTree/DecisionTree.astr
 import CodeBlock from "@/components/ui/CodeBlock.astro";
 ---
 
-<DocLayout locale="en" title="8-Layer Defense — Agent Security" description="Eight independent layers of defense. 97% automated safety decisions. HMAC-signed audit trail. Defense-in-depth for multi-agent systems." section="features">
+<DocLayout locale="en" title="8-Layer Defense — Agent Security" description="Eight independent layers of defense. Four-tier safety decisions. HMAC-signed audit trail. Defense-in-depth for multi-agent systems." section="features">
 
   <h1 class="text-4xl md:text-5xl font-bold tracking-tight mb-6">
     Every attack path.<br />
@@ -13,7 +13,7 @@ import CodeBlock from "@/components/ui/CodeBlock.astro";
   </h1>
   <p class="text-lg text-brand-text-secondary mb-10">
     Eight independent layers. Four-tier decision tree.
-    97% of safety decisions never touch a human.
+    Routine safety decisions never touch a human.
   </p>
 
   <DefenseLayers locale="en" />
@@ -32,7 +32,7 @@ import CodeBlock from "@/components/ui/CodeBlock.astro";
       <p class="text-sm text-brand-text-secondary">Defense-in-depth. An attacker must break all 8 layers, but any single layer can stop the threat independently.</p>
     </div>
     <div class="p-8 rounded-xl" style="background-color: var(--color-brand-bg-secondary); border: 1px solid var(--color-brand-border);">
-      <h3 class="font-semibold text-brand-accent-green mb-2">97% automated. 3% escalated.</h3>
+      <h3 class="font-semibold text-brand-accent-green mb-2">Routine automated. Exceptions escalated.</h3>
       <p class="text-sm text-brand-text-secondary">Four-tier decision tree filters the noise. Your team sees only the edge cases that need human judgment.</p>
     </div>
     <div class="p-8 rounded-xl" style="background-color: var(--color-brand-bg-secondary); border: 1px solid var(--color-brand-border);">
@@ -68,8 +68,8 @@ import CodeBlock from "@/components/ui/CodeBlock.astro";
       <p class="text-base text-brand-text-secondary leading-relaxed mb-6">
         The decision tree flows through four levels: Rule (policy matches), Mode (context check),
         SafetyGate (risk threshold), and Human (escalation).
-        97% of decisions are resolved in the first three tiers. Your security team reviews the 3%
-        that genuinely need human judgment — not the noise.
+        Routine decisions are resolved in the first three tiers. Your security team reviews only
+        the exceptions that genuinely need human judgment — not the noise.
       </p>
       <DecisionTree locale="en" />
     </div>
@@ -100,7 +100,7 @@ import CodeBlock from "@/components/ui/CodeBlock.astro";
     <div class="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
       <div class="text-brand-text-muted">Defense layers</div><div class="text-brand-text-primary">8 independent layers</div>
       <div class="text-brand-text-muted">Decision tree</div><div class="text-brand-text-primary">4 tiers: Rule → Mode → SafetyGate → Human</div>
-      <div class="text-brand-text-muted">Auto decision rate</div><div class="text-brand-text-primary">97%</div>
+      <div class="text-brand-text-muted">State machine</div><div class="text-brand-text-primary">10-state Gray Code (Hamming distance = 1)</div>
       <div class="text-brand-text-muted">Audit signing</div><div class="text-brand-text-primary">HMAC-SHA256</div>
       <div class="text-brand-text-muted">Key interception layer</div><div class="text-brand-text-primary">Layer 5 — SafetyGate</div>
     </div>

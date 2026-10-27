@@ -28,7 +28,7 @@ MAREF 是 Agent 世界的操作系统内核 — 管理 Agent 集群的生命周�
 - **10 态 Gray Code 治理状态机** — 数学可证明收敛性 (6bit, 汉明距离=1)
 - **TLA+ 形式化验证** — 5 模型检查不变量（状态可达性、转换确定性、HALT 吸收、安全门完整性、红线不可变性）
 - **CircuitBreaker** — 3连败自动锁 + HALT 吸收态 + 30s 冷却
-- **四级安全决策树** — Rule→Mode→SafetyGate→User, 97% 自动化率
+- **四级安全决策树** — Rule→Mode→SafetyGate→User，常规操作自动放行
 - **LoRA/本体双重漂移检测** — KL/JS/Hellinger 三重散度 + 人工仲裁
 
 <p align="center">
