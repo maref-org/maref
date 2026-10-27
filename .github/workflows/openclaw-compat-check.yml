@@ -72,7 +72,7 @@ jobs:
 
       - name: "创建 Breaking Change Issue"
         if: steps.compat.outputs.exit_code == '2'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const { data: issues } = await github.rest.issues.listForRepo({
