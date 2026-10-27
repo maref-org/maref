@@ -45,7 +45,7 @@ import CodeBlock from "@/components/ui/CodeBlock.astro";
   <li>Has the circuit breaker been tripped for this agent or action type?</li>
 </ul>
 <p class="text-base text-brand-text-secondary leading-relaxed">
-  This multi-layer check happens in under 50ms per action, with 97% of decisions automated through the four-level safety decision tree (Rule → Mode → SafetyGate → Human-in-the-loop escalation).
+  This multi-layer check happens in under 50ms per action through the four-level safety decision tree (Rule → Mode → SafetyGate → Human-in-the-loop escalation).
 </p>
 </div>
 
@@ -163,7 +163,7 @@ for action in agent_actions:
   <h3 class="text-sm font-semibold uppercase tracking-wider text-brand-text-muted mb-6">Runtime Safety Specifications</h3>
   <div class="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
     <div class="text-brand-text-muted">Safety model</div><div class="text-brand-text-primary">Zero-trust per-agent with capability isolation</div>
-    <div class="text-brand-text-muted">Decision latency</div><div class="text-brand-text-primary">&#x3C;50ms per action (97% automated)</div>
+    <div class="text-brand-text-muted">Decision latency</div><div class="text-brand-text-primary">&#x3C;50ms per action</div>
     <div class="text-brand-text-muted">Escalation phases</div><div class="text-brand-text-primary">4: Warning → Sanction → Isolation → HALT</div>
     <div class="text-brand-text-muted">Drift detection</div><div class="text-brand-text-primary">LoRA weight + Ontology embedding, triple divergence metrics</div>
     <div class="text-brand-text-muted">Agent isolation</div><div class="text-brand-text-primary">SubAgent context isolation (Git Worktree-style)</div>

@@ -105,7 +105,7 @@ function SecurityArchitecture(): JSX.Element {
   const features = [
     {
       title: '4-Level Policy Decision Tree',
-      description: '97% automated safety decisions',
+      description: 'Escalates uncertain operations to humans',
     },
     {
       title: 'CircuitBreaker',

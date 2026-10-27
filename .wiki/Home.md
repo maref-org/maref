@@ -17,7 +17,7 @@
 - **10-State Gray Code Governance State Machine** — Mathematically provable convergence (6-bit, Hamming distance=1)
 - **TLA+ Formal Verification** — 5 model-checked invariants (state reachability, transition determinism, HALT absorption, safety gate integrity, red line immutability)
 - **CircuitBreaker** — Auto-lock after 3 consecutive failures + HALT absorb state + 30s cooldown
-- **Four-Tier Security Decision Tree** — Rule → Mode → SafetyGate → User, 97% automation rate
+- **Four-Tier Security Decision Tree** — Rule → Mode → SafetyGate → User, routine operations auto-cleared
 - **Dual Drift Detection (LoRA/Ontology)** — KL/JS/Hellinger triple divergence + human arbitration
 - **Verifier Cross-Validation** — Weighted majority and unanimous consensus protocols
 - **Three Loop Meta-Patterns** — Convergent / Exploratory / Interactive template library
