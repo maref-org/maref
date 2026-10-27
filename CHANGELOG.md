@@ -18,6 +18,7 @@
 - `eu_ai_act_v2` 报告 `assessed_at` 改为 UTC-aware，修复 UTC+8 凌晨时段 `test_report_generated_at_recent` 必失败的问题。
 - `scripts/oss-exclude-list.txt` 补全 4 条漏覆盖闭源路径，恢复第十一条 11.4 覆盖等价性门禁。
 - CI：将 `tests/maref/compliance`（49 个用例）纳入 `test` 与 `sonarcloud` 作业，此前该目录被 `--ignore` 排除、从未在 CI 执行。
+- 安全：移除公开归档 `archive/research-20261024/` 中与闭源原件字节一致的 `vector_store.py` 副本（历史泄漏，当前树已清理）。
 - 更正 `docs/releases/v0.55.0.md` 的 D1 预检时间与覆盖率口径（行覆盖 71881/90815=79.15%，分支 14925/22936=65.07%，综合 76.31%）。
 
 ## [v0.55.0] - 2026-10-26 (发布完整性；Experimental / Python-only)
