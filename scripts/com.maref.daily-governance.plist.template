@@ -10,7 +10,10 @@
 
     链路: probe_sampler → P-02/P-01/P-06/P-09 → P-03/P-05/P-07 → P-04/P-08
           → 晨报 → 阈值/告警/提案推送
-    依赖: /Volumes/1TB-M2 外置盘 (经 drive-wait.py 等待挂载)
+    依赖: {{DATA_ROOT}} 外置盘 (经 drive-wait.py 等待挂载)
+
+    占位符: {{HOME}} 用户主目录 / {{DATA_ROOT}} 数据盘 / {{PRODUCT_ROOT}} 本仓路径
+            / {{RUNTIME_DIR}} 运行目录（安装时按实际环境替换）
 -->
 <plist version="1.0">
 <dict>
@@ -20,9 +23,9 @@
     <key>ProgramArguments</key>
     <array>
         <string>/opt/homebrew/bin/python3</string>
-        <string>/Users/frankie/bin/drive-wait.py</string>
+        <string>{{HOME}}/bin/drive-wait.py</string>
         <string>/bin/bash</string>
-        <string>/Volumes/1TB-M2/public/maref/scripts/daily_governance_cycle.sh</string>
+        <string>{{PRODUCT_ROOT}}/scripts/daily_governance_cycle.sh</string>
         <string>--quiet</string>
     </array>
 
@@ -38,25 +41,25 @@
     <false/>
 
     <key>StandardOutPath</key>
-    <string>/Users/frankie/Library/Logs/maref/daily-governance.out.log</string>
+    <string>{{HOME}}/Library/Logs/maref/daily-governance.out.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/frankie/Library/Logs/maref/daily-governance.err.log</string>
+    <string>{{HOME}}/Library/Logs/maref/daily-governance.err.log</string>
 
     <key>WorkingDirectory</key>
-    <string>/Volumes/1TB-M2/public/maref</string>
+    <string>{{PRODUCT_ROOT}}</string>
 
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>
         <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
         <key>MAREF_RUNTIME_DIR</key>
-        <string>/Volumes/1TB-M2/openclaw</string>
+        <string>{{RUNTIME_DIR}}</string>
         <key>MAREF_SIDECAR_URL</key>
         <string>http://127.0.0.1:8931</string>
         <key>MAREF_REPORTS_DIR</key>
-        <string>/Volumes/1TB-M2/public/maref/reports</string>
+        <string>{{PRODUCT_ROOT}}/reports</string>
         <key>MAREF_CONFIGS_DIR</key>
-        <string>/Volumes/1TB-M2/public/maref/configs</string>
+        <string>{{PRODUCT_ROOT}}/configs</string>
     </dict>
 </dict>
 </plist>
