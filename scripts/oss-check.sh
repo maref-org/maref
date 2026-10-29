@@ -70,7 +70,7 @@ SENSITIVE_PREFIXES=(
   cache/ logs/ .evolution_vault/ policy_versions/ credentials/
   src/maref/federation/tla_engine/ src/maref/trustgnn/
   src/maref/cost_scheduler/ src/maref/multimodal_guard/
-  # 王炸层 2026-08-14 审计补登（登记表 docs/oss-deepwater-registry.md）:
+  # 王炸层 2026-08-14 审计补登（登记表见闭源仓 docs/oss-deepwater-registry.md）:
   # 供应链深度/边缘自愈/免疫基因库/攻击模式图谱/Agent PKI
   src/maref/supply_chain/deep/ src/maref/edge/self_heal/
   src/maref/immunity/gene_vault/ src/maref/attack_patterns/
@@ -199,10 +199,7 @@ while IFS= read -r hit; do
   path="${rest%%:*}"
   # 跳过关键词定义文件自身（本脚本），防止扫描器命中自己的 DEEPWATER_RE 定义
   [ "$path" = "scripts/oss-check.sh" ] && continue
-  # 跳过深水区登记表（docs/oss-deepwater-registry.md）: 它记录王炸层路径清单，
-  # 必然含 trustgnn/cost_scheduler 等关键词，属登记文档而非闭源实现，
-  # 与跳过本脚本自身定义同类的豁免（登记表受 path 级排除清单约束）。
-  [ "$path" = "docs/oss-deepwater-registry.md" ] && continue
+  # 深水区登记表已移出公开仓（仅闭源仓维护），公开面不再豁免任何登记文档。
   skip=0
   for pat in "${PATTERNS[@]}"; do
     if [[ "$path" == $pat ]]; then skip=1; break; fi
