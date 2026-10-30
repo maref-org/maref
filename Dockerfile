@@ -37,7 +37,7 @@ FROM python:3.12-slim AS runtime
 
 LABEL org.opencontainers.image.title="MAREF Desktop Agent"
 LABEL org.opencontainers.image.description="Multi-Agent Recursive Engineering Framework — Desktop Agent"
-LABEL org.opencontainers.image.version="0.54.3"
+LABEL org.opencontainers.image.version="0.55.1"
 LABEL org.opencontainers.image.licenses="Apache-2.0"
 
 ENV DEBIAN_FRONTEND=noninteractive

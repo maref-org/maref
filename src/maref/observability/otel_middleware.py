@@ -47,7 +47,7 @@ try:
         format_trace_id,
     )
 
-    _tracer = trace.get_tracer("maref.fastapi", "0.26.0")
+    _tracer = trace.get_tracer("maref.fastapi", "0.55.1")
     _OTEL_AVAILABLE = True
 except ImportError:
     pass
@@ -219,7 +219,7 @@ def create_maref_tracer(
         provider.add_span_processor(BatchSpanProcessor(exporter))
         set_tracer_provider(provider)
 
-    return trace.get_tracer("maref", "0.26.0")
+    return trace.get_tracer("maref", "0.55.1")
 
 
 def _create_resource(service_name: str) -> Any:
@@ -230,7 +230,7 @@ def _create_resource(service_name: str) -> Any:
         return Resource.create(
             {
                 "service.name": service_name,
-                "service.version": "0.26.0",
+                "service.version": "0.55.1",
                 "telemetry.sdk.name": "maref",
             }
         )

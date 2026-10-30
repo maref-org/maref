@@ -35,6 +35,14 @@ dependencies = [
     "aiohttp>=3.9",
 ]
 
+[project.urls]
+Homepage = "https://maref.cc"
+Repository = "https://github.com/maref-org/maref"
+Documentation = "https://maref.cc"
+Issues = "https://github.com/maref-org/maref/issues"
+Changelog = "https://github.com/maref-org/maref/blob/main/CHANGELOG.md"
+"Security Whitepaper" = "https://github.com/maref-org/maref/blob/main/docs/MAREF-Security-Whitepaper.md"
+
 [project.optional-dependencies]
 ml = [
     "torch>=2.0",
