@@ -1,16 +1,16 @@
 version: 24
-last_updated: '2026-10-26T21:20:00+08:00'
+last_updated: '2026-10-30T23:10:00+08:00'
 project:
   name: MAREF
   current_release: 0.55.1
-  release_evidence: docs/releases/v0.55.0.md
+  release_evidence: docs/releases/v0.55.1.md
   public_repo: https://github.com/maref-org/maref
   license: Apache-2.0
   rsi_level:
     value: conditional
     label: 'L2 (Conditional Pass / 待复审)'
     verified_at: '2026-10-26'
-    blocked_by: 'v0.55.0 已发布（PyPI + GitHub Release）；L2 Full Pass 仍待正式复审'
+    blocked_by: 'v0.55.1 已发布（PyPI + GitHub Release）；L2 Full Pass 仍待正式复审'
   rsi_score: 79.5
   rsi_report: docs/rsi/l2-acceptance-report-20260702.md
   rsi_status_note: '2026-10-19 审计发现证据链/版本声称缺口，L2 Full Pass 暂停；P0 修复后按 docs/plans/2026-10-19-audit-remediation-v0.54.1.md T3.4 重跑验收。'
@@ -81,8 +81,16 @@ track_b:
     checked_at: '2026-10-25T17:45:00+08:00'
 governance:
   deployment_status: open_source_release
-  deployment_status_note: '无生产闭环部署产物。当前为开源发布态：PyPI 最新已发布版本为 0.55.0（2026-10-26T13:15:56Z），GitHub Release v0.55.0 于 2026-10-26T13:16:08Z 发布；Experimental / Python-only，无桌面产物。历史上的 production_closed_loop 为未经验证声明，2026-10-25 审计后降级。'
+  deployment_status_note: '无生产闭环部署产物。当前为开源发布态：PyPI 最新已发布版本为 0.55.1（2026-10-30T14:52:42Z），GitHub Release v0.55.1 于 2026-10-30T14:53:06Z 发布；Experimental / Python-only，无桌面产物。历史上的 production_closed_loop 为未经验证声明，2026-10-25 审计后降级。'
   release_history:
+    '0.55.1':
+      run_id: 41073894340
+      conclusion: success
+      desktop: not_in_scope
+      artifacts: 'wheel + sdist'
+      pypi_uploaded_at: '2026-10-30T14:52:42Z'
+      release_published_at: '2026-10-30T14:53:06Z'
+      tag_sha: e91b387e0558a58f3fbe32c76b71bd7e9e66926e
     '0.55.0':
       run_id: 40327736584
       conclusion: success
