@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "maref"
-version = "0.55.0"
+version = "0.55.1"
 description = "Multi-Agent Recursive Engineering Framework"
 readme = "README.md"
 license = {text = "Apache-2.0"}
@@ -34,6 +34,14 @@ dependencies = [
     "psutil>=5.9",
     "aiohttp>=3.9",
 ]
+
+[project.urls]
+Homepage = "https://maref.cc"
+Repository = "https://github.com/maref-org/maref"
+Documentation = "https://maref.cc"
+Issues = "https://github.com/maref-org/maref/issues"
+Changelog = "https://github.com/maref-org/maref/blob/main/CHANGELOG.md"
+"Security Whitepaper" = "https://github.com/maref-org/maref/blob/main/docs/MAREF-Security-Whitepaper.md"
 
 [project.optional-dependencies]
 ml = [

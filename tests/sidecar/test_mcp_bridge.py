@@ -4,6 +4,7 @@ from typing import Any
 
 import pytest
 
+from maref import __version__
 from sidecar.mcp_bridge import (
     MCPBridge,
     MCPGovernanceInterceptor,
@@ -182,7 +183,7 @@ class TestSidecarMCPBridge:
         info = bridge.get_server_info()
         assert info["protocolVersion"] == "2024-11-05"
         assert info["serverInfo"]["name"] == "MAREF Sidecar"
-        assert info["serverInfo"]["version"] == "0.35.0-beta"
+        assert info["serverInfo"]["version"] == __version__
         assert "capabilities" in info
 
     def test_get_capabilities(self) -> None:
