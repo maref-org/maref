@@ -10,6 +10,11 @@ Reads version from pyproject.toml and updates:
   - gui/package.json
   - otel_middleware.py tracer version
   - mcp_bridge.py version
+  - src/maref/__init__.py __version__
+  - uv.lock editable project entry（CI `uv lock --check` 校验）
+  - STATE.yaml current_release（声称完整性门禁 C1 版本三角）
+
+传入 `--version` 时 pyproject.toml 源版本也会被写入。
 
 Usage:
     python scripts/sync_version.py              # Sync to pyproject.toml version
@@ -63,6 +68,26 @@ VERSION_FILES = {
         "path": ROOT / "src" / "maref" / "observability" / "otel_middleware.py",
         "pattern": r'"(0\.\d+\.\d+(?:-[a-z]+)?)"',
         "replacement": '"{version}"',
+        "priority": "derived",
+    },
+    "src/maref/__init__.py": {
+        "path": ROOT / "src" / "maref" / "__init__.py",
+        "pattern": r'^__version__\s*=\s*"([^"]+)"',
+        "replacement": '__version__ = "{version}"',
+        "priority": "derived",
+    },
+    "uv.lock": {
+        # 锁定文件中 editable 项目条目的版本（CI 的 `uv lock --check` 会校验）
+        "path": ROOT / "uv.lock",
+        "pattern": r'name = "maref"\nversion = "([^"]+)"',
+        "replacement": 'name = "maref"\nversion = "{version}"',
+        "priority": "derived",
+    },
+    "STATE.yaml": {
+        # 声称完整性门禁 C1 的版本三角依赖此字段
+        "path": ROOT / "STATE.yaml",
+        "pattern": r"^  current_release:\s*([^\s#]+)",
+        "replacement": "  current_release: {version}",
         "priority": "derived",
     },
     "mcp_bridge.py": {
@@ -122,6 +147,20 @@ def sync_version(target_version: str | None = None) -> bool:
     """Sync all version references to match."""
     if target_version is None:
         target_version = get_pyproject_version()
+    else:
+        # 显式指定版本时源文件也要更新（下方循环跳过 source 条目）
+        src = VERSION_FILES["pyproject.toml"]
+        content = src["path"].read_text()
+        new_content, count = re.subn(
+            src["pattern"],
+            src["replacement"].format(version=target_version),
+            content,
+            count=1,
+            flags=re.MULTILINE,
+        )
+        if count:
+            src["path"].write_text(new_content)
+            print(f"  UPDATED pyproject.toml: version = {target_version}")
 
     print(f"Syncing all versions to: {target_version}")
 
