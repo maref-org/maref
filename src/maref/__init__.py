@@ -1,6 +1,6 @@
 """MAREF — Multi-Agent Reliable Execution Framework."""
 
-__version__ = "0.55.0"
+__version__ = "0.55.1"
 __all__ = [
     "AgentCardConfig",
     "AGENT_DESCRIPTION",
