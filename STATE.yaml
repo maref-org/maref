@@ -1,9 +1,9 @@
 version: 24
-last_updated: '2026-10-30T23:10:00+08:00'
+last_updated: '2026-11-01T13:22:04+08:00'
 project:
   name: MAREF
-  current_release: 0.55.1
-  release_evidence: docs/releases/v0.55.1.md
+  current_release: 0.55.2
+  release_evidence: docs/releases/v0.55.2.md
   public_repo: https://github.com/maref-org/maref
   license: Apache-2.0
   rsi_level:
