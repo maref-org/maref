@@ -10,6 +10,9 @@
 ### Tests
 - 新增 `tests/scripts/test_check_openclaw_compat.py`：锁死“缺源 ≠ breaking”（exit 3）、自包含的兼容路径（exit 0），不依赖本地未跟踪目录。
 
+### Security
+- 升级传递依赖 `pyasn1` 0.6.4 → 0.6.5，修复 4 个 HIGH（DoS）：CVE-2026-119194 / 119195 / 119196 / 119197。该依赖经 `pyasn1-modules`、`ldap3`、`service-identity` 进入，无 API 变更，不影响本项目调用面。
+
 ### Chore
 - `scripts/vaccine_pipeline/patterns.json` 与 `vaccines.json` 移出版本控制并加入 `.gitignore`。二者由本机审计日志统计生成（pattern `count` 是本机数据），跨机器不可复现；CI 与测试均不依赖其真实内容，消费脚本在缺失时返回空列表。本地文件保留，可用 `01_extract_patterns.py` + `04_compile_vaccines.py` 重新生成。
 
