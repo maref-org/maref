@@ -9,6 +9,7 @@
 
 ### Tests
 - 新增 `tests/scripts/test_check_openclaw_compat.py`：锁死“缺源 ≠ breaking”（exit 3）、自包含的兼容路径（exit 0），不依赖本地未跟踪目录。
+- 新增 `tests/observability/test_otel_middleware.py`：锁定 `service.version` 发布位点与包版本一致，并覆盖 tracer 工厂。
 
 ### Security
 - 升级传递依赖 `pyasn1` 0.6.4 → 0.6.5，修复 4 个 HIGH（DoS）：CVE-2026-119194 / 119195 / 119196 / 119197。该依赖经 `pyasn1-modules`、`ldap3`、`service-identity` 进入，无 API 变更，不影响本项目调用面。
