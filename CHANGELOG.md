@@ -1,5 +1,16 @@
 # CHANGELOG
 
+## [v0.55.2] - 2026-11-01
+
+### Fixed
+- OpenClaw 兼容性检查在干净 checkout 下误报 breaking：`maref-governance/` 是被 `.gitignore` 排除的外部项目目录，CI 中必然缺失。检查脚本新增 `3 = 检查源不可用（skipped）` 语义，不再将“无法检查”判定为 `2 = breaking`。
+- 兼容性 workflow 在 `bash -e` 下无法写入 `exit_code` output：脚本非零退出会立即终止步骤，导致下游 `== '2'` 判定永不成立——真正的 breaking change 反而不会创建告警 Issue。改为 `set +e` 捕获退出码，并在末尾独立 gate 步骤判定失败。
+- `Summary` 步骤对退出码 3 显示为“completed with changes”，语义误导；改为显式区分 `0/1/2/3`。
+
+### Tests
+- 新增 `tests/scripts/test_check_openclaw_compat.py`：锁死“缺源 ≠ breaking”（exit 3）、自包含的兼容路径（exit 0），不依赖本地未跟踪目录。
+
+
 ## [v0.55.1] - 2026-10-30
 
 ### Added

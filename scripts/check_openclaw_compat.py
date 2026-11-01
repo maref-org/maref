@@ -11,13 +11,15 @@
   0 — 兼容（compatible）
   1 — 有变更需关注（minor changes）
   2 — 不兼容（breaking change）
+  3 — 本地检查源不可用（skipped，非 breaking）
+
+注意: maref-governance/ 被 .gitignore 排除（外部项目目录），干净 checkout
+下必然缺失。此时只能判定"无法检查"，不能判定"breaking"。
 """
 import json
-import os
 import re
 import sys
 from pathlib import Path
-from typing import Optional
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 GOVERNANCE_PKG = REPO_ROOT / "maref-governance" / "package.json"
@@ -26,8 +28,26 @@ SDK_PKG = REPO_ROOT / "sdk" / "typescript" / "package.json"
 GOVERNANCE_SRC = REPO_ROOT / "maref-governance" / "src" / "index.ts"
 PLUGIN_SRC = REPO_ROOT / "integrations" / "openclaw-plugin" / "src" / "index.ts"
 
+SOURCE_UNAVAILABLE = 3
 
-def load_json(path: Path) -> Optional[dict]:
+
+def _display(path: Path) -> str:
+    try:
+        return str(path.relative_to(REPO_ROOT))
+    except ValueError:
+        return str(path)
+
+
+def missing_governance_sources() -> list[str]:
+    """返回被 .gitignore 排除、干净 checkout 中不存在的检查源。"""
+    return [
+        _display(path)
+        for path in (GOVERNANCE_PKG, GOVERNANCE_SRC)
+        if not path.exists()
+    ]
+
+
+def load_json(path: Path) -> dict | None:
     if not path.exists():
         return None
     with open(path) as f:
@@ -105,7 +125,16 @@ def check_node_compat() -> tuple[int, str]:
 
 def main() -> int:
     quiet = "--quiet" in sys.argv
-    force = "--force" in sys.argv
+
+    missing = missing_governance_sources()
+    if missing:
+        # stderr 不受 --quiet 抑制：CI 需要看到"为什么跳过"。
+        print(
+            "SKIP: governance sources unavailable (ignored by .gitignore): "
+            + ", ".join(missing),
+            file=sys.stderr,
+        )
+        return SOURCE_UNAVAILABLE
 
     checks = [
         ("OpenClaw peerDep", check_openclaw_peer_dep),

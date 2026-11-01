@@ -55,8 +55,19 @@ jobs:
           if [[ "${{ github.event.inputs.force }}" == "true" ]]; then
             FLAGS="--force"
           fi
+          # bash -e 会让脚本非零退出直接终止步骤，exit_code 永远写不进 output，
+          # 下游 "创建 Breaking Change Issue" 的 == '2' 判定因此永不成立。
+          set +e
           python3 scripts/check_openclaw_compat.py --quiet $FLAGS
-          echo "exit_code=$?" >> $GITHUB_OUTPUT
+          code=$?
+          set -e
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          # 不在此处失败：否则后续 issue 创建与 Summary 会被跳过。
+          # 真正的 breaking 由末尾 "Breaking change gate" 判定。
+          if [ "$code" = "3" ]; then
+            echo "::warning ::OpenClaw compat check skipped: governance sources unavailable in this checkout"
+          fi
+          exit 0
 
       - name: "TypeScript SDK 单元测试"
         working-directory: sdk/typescript
@@ -71,7 +82,7 @@ jobs:
           npm test 2>&1 || echo "TESTS_FAILED=true" >> $GITHUB_OUTPUT
 
       - name: "创建 Breaking Change Issue"
-        if: steps.compat.outputs.exit_code == '2'
+        if: always() && steps.compat.outputs.exit_code == '2'
         uses: actions/github-script@v7
         with:
           script: |
@@ -117,15 +128,21 @@ jobs:
             });
 
       - name: "Summary"
+        if: always()
         run: |
           EXIT="${{ steps.compat.outputs.exit_code }}"
-          if [ "$EXIT" = "2" ]; then
-            echo "::error ::Breaking Changes detected in OpenClaw upstream API"
-          elif [ "$EXIT" = "0" ]; then
-            echo "::notice ::OpenClaw compatibility check passed"
-          else
-            echo "::warning ::OpenClaw compatibility check completed with changes"
-          fi
+          case "$EXIT" in
+            0) echo "::notice ::OpenClaw compatibility check passed" ;;
+            2) echo "::error ::Breaking Changes detected in OpenClaw upstream API" ;;
+            3) echo "::warning ::OpenClaw compat check skipped: governance sources absent from this checkout (.gitignore)" ;;
+            *) echo "::warning ::OpenClaw compatibility check completed with changes (exit=$EXIT)" ;;
+          esac
+
+      - name: "Breaking change gate"
+        if: steps.compat.outputs.exit_code == '2'
+        run: |
+          echo "::error ::Breaking Changes detected in OpenClaw upstream API"
+          exit 1
 
   notify-on-failure:
     name: "失败通知"
