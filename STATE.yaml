@@ -81,7 +81,7 @@ track_b:
     checked_at: '2026-10-25T17:45:00+08:00'
 governance:
   deployment_status: open_source_release
-  deployment_status_note: '无生产闭环部署产物。当前为开源发布态：PyPI 最新已发布版本为 0.55.1（2026-10-30T14:52:42Z），GitHub Release v0.55.1 于 2026-10-30T14:53:06Z 发布；Experimental / Python-only，无桌面产物。历史上的 production_closed_loop 为未经验证声明，2026-10-25 审计后降级。'
+  deployment_status_note: '无生产闭环部署产物。当前为开源发布态：PyPI 最新已发布版本为 0.55.1（2026-10-30T14:52:42Z），GitHub Release v0.55.1 于 2026-10-30T14:53:06Z 发布；Experimental；发布形态为 Python 包（wheel + sdist，sdist 含 gui/website/formal 资源），不含 Tauri 桌面二进制与容器镜像。历史上的 production_closed_loop 为未经验证声明，2026-10-25 审计后降级。'
   release_history:
     '0.55.1':
       run_id: 41073894340
@@ -110,12 +110,12 @@ governance:
   audit_score_previous: '8.8/10 (2026-08-04)'
   audit_note: 'v0.54.3 CI stabilization on top of P0 remediation; see docs/plans/2026-10-19-audit-remediation-v0.54.1.md'
   coverage:
-    value: 76.31
-    overall: 76.31
-    source_run_id: 40324746122
-    sha: 58932da8a8647d9c9324fa919f40dbc921502eb3
-    verified_at: '2026-10-26T13:17:00Z'
-    evidence: 'CI run 40324746122（MAREF CI / test，main@58932da8，conclusion success）产物 coverage-58932da8a8647d9c9324fa919f40dbc921502eb3：71879/90815 行，coverage.py 综合 76.31%（含分支），分支 14923/22936 = 65.06%；产物已下载本地解析核对。此前 820f17d1 指针 76.31% 已被本指针取代'
+    value: 76.50
+    overall: 76.50
+    source_run_id: 41286696518
+    sha: 234c52cf9436ba193fb361e3dca48d0b3dc84715
+    verified_at: '2026-11-01T09:43:00Z'
+    evidence: 'CI run 41286696518（MAREF CI，main@234c52cf，conclusion success）产物 coverage-234c52cf9436ba193fb361e3dca48d0b3dc84715：72771/91748 行，coverage.py 综合 76.50%（含分支），分支 15184/23226 = 65.38%；产物已下载本地解析核对。取代 58932da8 的 76.31% 指针'
     domains:
       governance: 87.70
       federation: 67.76
@@ -124,7 +124,7 @@ governance:
       execution: 71.62
       data_value: 95.95
     domains_note: '旧口径，未随 2026-10-24 全仓重算'
-  coverage_note: '2026-10-24 本机按 CI 标准域重跑：pytest tests/ -q --timeout=120 -m "not integration and not chaos and not benchmark and not slow and not real" --ignore=tests/maref/compliance --ignore=tests/desktop --ignore=tests/test_crypto.py（addopts --cov=src）。结果 15051 passed / 14 skipped / 495 deselected / 0 failed，76.36%（71797/90641 行），耗时 6m14s，HEAD feb31444。此前 10.68%（2026-10-23，全仓 89425 行）与 52.49%（2026-08-05，8158 tests）为不同口径历史值，均已被本次替代。CI 远程复跑仍需在下次 push 后确认。下方分域覆盖率数字仍为旧口径，未随本次重算。2026-10-25 审计：无对应 SHA 的覆盖率产物留存，76.36% 标注为待复现。2026-10-25 22:56 本机再次全量复跑：15104 passed / 0 failed / 13 skipped，76.41%（71941/90749 行），430.60s，工作区含未提交改动；仍无 CI SHA 绑定。2026-10-25 23:36 起以 CI 产物为准：PR #457 run 40205853879 test job 产物 76.28%（71862/90815），coverage 节点改为数值指针；2026-10-26 合并后 main@820f17d1 CI run 40283282776 复跑 76.31%（71881/90815，含分支口径），见 coverage.evidence。'
+  coverage_note: '2026-10-24 本机按 CI 标准域重跑：pytest tests/ -q --timeout=120 -m "not integration and not chaos and not benchmark and not slow and not real" --ignore=tests/maref/compliance --ignore=tests/desktop --ignore=tests/test_crypto.py（addopts --cov=src）。结果 15051 passed / 14 skipped / 495 deselected / 0 failed，76.36%（71797/90641 行），耗时 6m14s，HEAD feb31444。此前 10.68%（2026-10-23，全仓 89425 行）与 52.49%（2026-08-05，8158 tests）为不同口径历史值，均已被本次替代。CI 远程复跑仍需在下次 push 后确认。下方分域覆盖率数字仍为旧口径，未随本次重算。2026-10-25 审计：无对应 SHA 的覆盖率产物留存，76.36% 标注为待复现。2026-10-25 22:56 本机再次全量复跑：15104 passed / 0 failed / 13 skipped，76.41%（71941/90749 行），430.60s，工作区含未提交改动；仍无 CI SHA 绑定。2026-10-25 23:36 起以 CI 产物为准：PR #457 run 40205853879 test job 产物 76.28%（71862/90815），coverage 节点改为数值指针；2026-10-26 合并后 main@820f17d1 CI run 40283282776 复跑 76.31%（71881/90815，含分支口径），见 coverage.evidence。2026-11-01 起以 CI run 41286696518（main@234c52cf）为准：76.50%（72771/91748，含分支），产物已下载核对。'
   v051_features: 13/13 (W1-W6 enterprise value closure)
   coverage_target_v0350: 50%+
   mypy_errors: 0  # 2026-08-05 修复 report_generator.py:151 arg-type 后实测清零，见 audit-reinforcement-20260805-v0.52.md H-5
@@ -182,18 +182,18 @@ submission_pipeline:
     status: expired_or_expiring
 d1_gate:
   value: passed
-  sha: 58932da8a8647d9c9324fa919f40dbc921502eb3
-  verified_at: '2026-10-26T13:05:23Z'
+  sha: 234c52cf9436ba193fb361e3dca48d0b3dc84715
+  verified_at: '2026-11-01T09:39:35Z'
   source: 'scripts/d1_preflight_check.py --sha <sha>'
   exit_code: 0
   checks:
     G1_branch_protection: true  # 10 contexts，10 必需
-    G2_ci_green: true  # main@58932da8：6 个必需 check-runs 成功
-    G3_security_clean: true  # Security Scan run 40324746191
+    G2_ci_green: true  # main@234c52cf：6 个必需 check-runs 成功
+    G3_security_clean: true  # Security Scan run 41286696516
     G4_no_runtime_artifacts: true
-  detail: 'main@58932da8（PR #461 合并后）D1 Pre-Flight G1–G4 全过（exit 0）；pre-push 在同一 SHA 复跑并放行 v0.55.0 tag'
-  evidence: docs/audit-reports/d1-preflight-58932da8.md
-  last_preflight_run: '2026-10-26'
+  detail: 'main@234c52cf（PR #499 合并后）D1 Pre-Flight G1–G4 全过（exit 0）；2026-11-01 09:39:35Z 本机复验 exit 0'
+  evidence: docs/audit-reports/d1-preflight-234c52cf.md
+  last_preflight_run: '2026-11-01'
   last_push_blocked_by: null  # v0.55.0 tag push 通过；A5 计费阻塞仅影响内部仓
   external_gate_override:  # arXiv/期刊等外部闸门已由人类决策取消，回归内功补强，不受外部影响
     arxiv_id: cancelled_by_human
