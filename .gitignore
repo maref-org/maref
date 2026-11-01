@@ -163,6 +163,12 @@ docs/website/.docusaurus/
 # Policy versions (runtime generated)
 policy_versions/
 
+# Vaccine pipeline runtime artifacts: 由本机审计日志统计生成，跨机器不可复现。
+# 重新生成: python3 scripts/vaccine_pipeline/01_extract_patterns.py
+#           python3 scripts/vaccine_pipeline/04_compile_vaccines.py
+scripts/vaccine_pipeline/patterns.json
+scripts/vaccine_pipeline/vaccines.json
+
 # Mission workspaces (internal)
 .missions/
 

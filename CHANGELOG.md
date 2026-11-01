@@ -10,6 +10,9 @@
 ### Tests
 - 新增 `tests/scripts/test_check_openclaw_compat.py`：锁死“缺源 ≠ breaking”（exit 3）、自包含的兼容路径（exit 0），不依赖本地未跟踪目录。
 
+### Chore
+- `scripts/vaccine_pipeline/patterns.json` 与 `vaccines.json` 移出版本控制并加入 `.gitignore`。二者由本机审计日志统计生成（pattern `count` 是本机数据），跨机器不可复现；CI 与测试均不依赖其真实内容，消费脚本在缺失时返回空列表。本地文件保留，可用 `01_extract_patterns.py` + `04_compile_vaccines.py` 重新生成。
+
 
 ## [v0.55.1] - 2026-10-30
 
