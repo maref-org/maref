@@ -19,8 +19,14 @@ if str(SCRIPTS_DIR) not in sys.path:
 import check_openclaw_compat as compat  # noqa: E402
 
 
-def test_missing_sources_empty_in_full_checkout():
-    assert compat.missing_governance_sources() == []
+def test_missing_sources_reflect_existence():
+    """完整 checkout 与干净 checkout 都必须自洽，测试不能假设本地有源。"""
+    expected = [
+        path
+        for path in (compat.GOVERNANCE_PKG, compat.GOVERNANCE_SRC)
+        if not path.exists()
+    ]
+    assert len(compat.missing_governance_sources()) == len(expected)
 
 
 def test_missing_sources_reports_paths_outside_repo(tmp_path, monkeypatch):
