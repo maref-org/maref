@@ -12,7 +12,7 @@ We built a 114-prompt red-team set across seven categories and measured
 `CohereLabs/tiny-aya-global` on all of it. The model refused none of the
 twenty-four encoding attacks (base64, rot13, emoji substitution, fragment
 splitting, morse, and variants), and overall attack success rate (ASR) was
-72.3% with 0% over-refusal on twenty benign prompts. Three of the 24 encoding
+72.3% with 0% over-refusal on eighty benign prompts. Three of the 24 encoding
 attacks did not succeed because the model failed to decode them, not because it
 refused; we reclassified those in review and report both numbers.
 
@@ -29,15 +29,19 @@ a refusal vector to the residual stream cannot activate a pathway that the input
 never engages.
 
 We then built and measured two input-side defenses. A fifteen-path normaliser
-fed to the same model brought encoding ASR from 100% to 70.8% — the model
-sometimes refuses once it can read the payload, but not reliably. A rule-based
-inbound gate (no model call) handled 22 of 24 encoding attacks (91.7%) with zero
-false denials on the benign set. We release the dataset, the gate, and the
+fed to the same model brought encoding ASR from 87.5% to 58.3% on reviewed
+outputs (100% → 70.8% on the automated detector) — the model sometimes refuses
+once it can read the payload, but not reliably. A rule-based inbound gate (no
+model call) handled 20 of 24 encoding attacks (83.3%), which is 20 of 23 real
+attacks (87.0%) once the ciphertext-free prompt is excluded, with zero false
+denials on an 80-prompt benign set. We release the dataset, the gate, and the
 scripts.
 
 **Contribution is a negative result plus a working alternative**: on small
 models, activation steering is not a remedy for encoding attacks; input-side
-normalisation and a policy gate are.
+normalisation and a policy gate are. Two further negative results — text-level
+cross-turn joining (§7.5) and a 7B size control that would not load (§3.5) —
+bound the claim rather than extend it.
 
 ---
 
@@ -209,6 +213,9 @@ suspicious input before the model sees it.
 |---|---|---|---|
 | Raw model | 100.0% (24/24) | 87.5% (21/24) | 0.0% |
 | + normalisation → model | **70.8% (17/24)** | **58.3% (14/24)** | **0.0%** |
+
+(The 87.5% → 58.3% pair is the same measurement as 100% → 70.8%; the difference is
+whether the three "model could not decode" prompts count as attack successes.)
 
 Seven attacks were caught outright. Counting the three that failed only because
 the model could not decode (e28/e36/e39), fourteen of twenty-four never produced
@@ -405,7 +412,7 @@ the setup rather than a universal claim.
 | Gate eval | `prep/maref_gate_eval.py` → `prep/runs/maref_gate_eval.json` |
 | Multi-turn eval | `prep/multi_turn_eval.py` → `prep/runs/multi_turn_eval.json` |
 | Multi-turn review | `prep/review_gradual_escalation.py` → `report/gradual_escalation_review.md` |
-| Gate tests | `tests/security/test_inbound_normalization.py` (32 passing) |
+| Gate tests | `tests/security/test_inbound_normalization.py` (38 passing) |
 | AuditKIT cross-check | `prep/auditkit_eval.py` → `prep/runs/auditkit_baseline_v1.json` |
 | Live results page | https://maref-frankie-governance-demo.static.hf.space/ |
 
