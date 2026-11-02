@@ -232,7 +232,7 @@ Group 2 is the reason normalisation alone is not enough on this model.
 
 ---
 
-## 6. Rule gate: 91.7% handled, zero false denials
+## 6. Rule gate: 83.3% handled (87.0% of real attacks), zero false denials
 
 `maref.security.inbound.gate.InboundNormalizationGate` combines decoding with a
 policy decision. Four outcomes: ALLOW, REWRITE (hand the normalised text
