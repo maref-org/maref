@@ -1,0 +1,67 @@
+name: Anchor TSA Smoke
+
+# 用合成审计记录端到端验证 anchor_governance_audit.py 与 freeTSA 的集成。
+# 刻意不接入 pull_request 必检：TSA 是外部网络依赖，抖动不应阻断常规 PR。
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 4 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install package
+        run: pip install -e .
+
+      - name: Build synthetic audit log
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          from maref.governance.audit import AuditLogger
+
+          logger = AuditLogger(log_path=Path("/tmp/smoke-audit.jsonl"), hmac_key="smoke")
+          for index in range(10):
+              logger.log(
+                  event_type="governance_decision",
+                  actor="anchor-smoke",
+                  action=f"decision-{index}",
+                  details=f"ALLOW: synthetic step {index}",
+                  metadata={"step": index},
+              )
+          PY
+
+      - name: Anchor synthetic chain
+        run: |
+          set -euo pipefail
+          python3 scripts/anchor_governance_audit.py \
+            --audit /tmp/smoke-audit.jsonl \
+            --out-dir /tmp/smoke-anchors \
+            --batch-size 5
+
+      - name: Verify anchored artifacts offline
+        run: |
+          set -euo pipefail
+          python3 scripts/verify_anchor_manifest.py \
+            --dir /tmp/smoke-anchors \
+            --audit /tmp/smoke-audit.jsonl
+
+      - name: Upload smoke artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: anchor-smoke-${{ github.run_id }}
+          path: /tmp/smoke-anchors
+          retention-days: 30
+          if-no-files-found: warn
