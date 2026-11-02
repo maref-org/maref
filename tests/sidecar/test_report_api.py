@@ -3,10 +3,16 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 
 from maref.reporting.generator import ReportGenerator
 from maref.signing.signing_key import ReportSigningKey
+
+
+@pytest.fixture(autouse=True)
+def _allow_tmp_reports(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("MAREF_REPORT_ALLOWED_ROOTS", tempfile.gettempdir())
 
 
 def _setup_report_dir(tmp: Path) -> tuple[ReportSigningKey, Path]:
@@ -118,6 +124,23 @@ class TestReportAPI:
             data = resp.json()
             assert "report_id" in data
             assert data["signer_fingerprint"] == key.fingerprint
+
+    def test_generate_rejects_path_outside_allowed_roots(self) -> None:
+        import sidecar.report_router as report_router
+
+        with tempfile.TemporaryDirectory() as tmp:
+            report_router._REPORT_DIR = Path(tmp)
+
+            from fastapi import FastAPI
+            app = FastAPI()
+            app.include_router(report_router.router)
+
+            client = TestClient(app)
+            resp = client.post(
+                "/api/v1/report/generate",
+                params={"audit_log": "/etc/hosts"},
+            )
+            assert resp.status_code == 400
 
     def test_generate_report_no_key_ephemeral(self) -> None:
         import sidecar.report_router as report_router

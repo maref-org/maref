@@ -14,6 +14,7 @@ from maref.tools.web_search_server import (
     _DuckDuckGoResultParser,
     _execute_search,
     _fallback_parse,
+    _is_duckduckgo_host,
     _parse_search_results,
     create_web_search_server,
 )
@@ -47,6 +48,23 @@ class TestQuerySanitizer:
         assert "3.12" in result
         assert "+" in result
         assert "-" in result
+
+
+class TestDuckDuckGoHostCheck:
+    def test_scheme_relative_internal_link(self) -> None:
+        assert _is_duckduckgo_host("//duckduckgo.com/l/?uddg=x")
+
+    def test_https_internal_link(self) -> None:
+        assert _is_duckduckgo_host("https://lite.duckduckgo.com/lite")
+
+    def test_lookalike_host_is_not_internal(self) -> None:
+        assert not _is_duckduckgo_host("//duckduckgo.com.evil.example/l/?uddg=x")
+
+    def test_substring_in_path_is_not_internal(self) -> None:
+        assert not _is_duckduckgo_host("https://evil.example/?u=duckduckgo.com")
+
+    def test_relative_path_is_not_internal(self) -> None:
+        assert not _is_duckduckgo_host("/l/?uddg=x")
 
 
 class TestResultLimit:
