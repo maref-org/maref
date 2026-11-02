@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -11,6 +12,21 @@ from fastapi import APIRouter, HTTPException
 router = APIRouter(prefix="/api/v1/report")
 
 _REPORT_DIR = Path("docs/verify")
+
+
+def _allowed_roots() -> tuple[Path, ...]:
+    raw = os.environ.get("MAREF_REPORT_ALLOWED_ROOTS", "")
+    roots = tuple(Path(p).expanduser().resolve() for p in raw.split(os.pathsep) if p)
+    return roots or (Path.cwd().resolve(),)
+
+
+def _resolve_user_path(raw: str, field: str) -> Path:
+    resolved = os.path.realpath(os.path.abspath(os.path.expanduser(raw)))
+    for root in _allowed_roots():
+        root_str = str(root)
+        if resolved == root_str or resolved.startswith(root_str + os.sep):
+            return Path(resolved)
+    raise HTTPException(status_code=400, detail=f"{field} is outside the allowed roots")
 
 
 def _find_report(id_suffix: str) -> Path | None:
@@ -37,9 +53,7 @@ def report_latest() -> dict[str, Any]:
 def report_by_id(report_id: str) -> dict[str, Any]:
     path = _find_report(report_id)
     if path is None:
-        raise HTTPException(
-            status_code=404, detail=f"Report not found: {report_id}"
-        )
+        raise HTTPException(status_code=404, detail=f"Report not found: {report_id}")
     try:
         return json.loads(path.read_text("utf-8"))
     except (json.JSONDecodeError, OSError) as e:
@@ -56,23 +70,21 @@ def report_generate(
     from maref.reporting.generator import ReportGenerator
     from maref.signing.signing_key import ReportSigningKey
 
-    log_path = Path(audit_log) if audit_log else _default_audit_log_path()
+    log_path = (
+        _resolve_user_path(audit_log, "audit_log") if audit_log else _default_audit_log_path()
+    )
     if not log_path.exists():
         raise HTTPException(status_code=404, detail=f"Audit log not found: {log_path}")
 
     key: ReportSigningKey | None = None
     if signing_key:
-        key_path = Path(signing_key)
+        key_path = _resolve_user_path(signing_key, "signing_key")
         if not key_path.exists():
-            raise HTTPException(
-                status_code=400, detail=f"Signing key not found: {signing_key}"
-            )
+            raise HTTPException(status_code=400, detail=f"Signing key not found: {signing_key}")
         try:
             key = ReportSigningKey.from_private_key_file(key_path)
         except Exception as e:
-            raise HTTPException(
-                status_code=400, detail=f"Failed to load signing key: {e}"
-            ) from e
+            raise HTTPException(status_code=400, detail=f"Failed to load signing key: {e}") from e
     else:
         key = ReportSigningKey.generate()
 

@@ -23,6 +23,11 @@ NEWS_SEARCH_URL = "https://lite.duckduckgo.com/lite"
 _DISALLOWED_DOMAINS: set[str] = set()
 
 
+def _is_duckduckgo_host(href: str) -> bool:
+    host = (urllib.parse.urlsplit(href).hostname or "").lower()
+    return host == "duckduckgo.com" or host.endswith(".duckduckgo.com")
+
+
 class QuerySanitizer:
     def __init__(self, max_length: int = 500) -> None:
         self._max_length = max_length
@@ -88,7 +93,7 @@ class _DuckDuckGoResultParser(HTMLParser):
 
         if self._in_result_row and tag == "a":
             href = attrs_dict.get("href", "")
-            if href and not href.startswith("//duckduckgo.com"):
+            if href and not _is_duckduckgo_host(href):
                 self._in_link = True
                 self._link_href = href
                 text_class = attrs_dict.get("class", "") or ""
