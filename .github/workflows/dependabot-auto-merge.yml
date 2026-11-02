@@ -1,10 +1,9 @@
 name: Dependabot Auto-Merge
 
-# 自动合并已暂停：GITHUB_TOKEN 触发的 squash 合并不会触发 push CI，
-# 导致 main 缺少 6 项必需 check-runs，D1 Pre-Flight 必然失败。
-# 恢复条件：配置 GitHub App 或 PAT（MAREF_AUTOMERGE_TOKEN），
-# 使合并由非 GITHUB_TOKEN 身份发起；在此之前仅提示人工合并。
-# 本 job 不 checkout/执行 PR 代码，仅读取 PR 元数据。
+# GITHUB_TOKEN 触发的 squash 合并不会触发 push CI，导致 main 缺少必需
+# check-runs，D1 Pre-Flight 必然失败。因此仅在配置了 PAT
+# （MAREF_AUTOMERGE_TOKEN，需 repo scope）时启用 auto-merge；未配置时
+# 保持只读并提示人工合并。本 job 不 checkout/执行 PR 代码，仅读取元数据。
 on:
   pull_request_target:
     types: [opened, synchronize, reopened]
@@ -21,9 +20,9 @@ jobs:
     if: github.event.pull_request.user.login == 'dependabot[bot]'
     steps:
       # 历史背景：原 action 依赖评论合并会被 cla-assistant 永久 pending 阻塞，
-      # 故改用 GitHub 原生 auto-merge。现因 GITHUB_TOKEN 合并不触发 push CI
-      # 而暂停，待配置 App/PAT 后恢复。
-      - name: Report dependabot PR (auto-merge paused)
+      # 故改用 GitHub 原生 auto-merge。
+      - name: Classify update type
+        id: classify
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # 不 checkout 仓库，gh 需显式知道目标仓库。
@@ -37,7 +36,24 @@ jobs:
             exit 1
           }
           if grep -q 'version-update:semver-major' <<<"$commits"; then
-            echo "::notice::major update; manual review required"
+            echo "major=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "major=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Enable auto-merge with PAT
+        if: steps.classify.outputs.major != 'true'
+        env:
+          AUTOMERGE_TOKEN: ${{ secrets.MAREF_AUTOMERGE_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          if [ -z "$AUTOMERGE_TOKEN" ]; then
+            echo "::warning::MAREF_AUTOMERGE_TOKEN is not configured; PR #$PR requires manual merge"
             exit 0
           fi
-          echo "::warning::Dependabot auto-merge paused; PR #$PR requires manual merge until MAREF_AUTOMERGE_TOKEN is configured"
+          GH_TOKEN="$AUTOMERGE_TOKEN" gh pr merge "$PR" --auto --squash
+
+      - name: Major update notice
+        if: steps.classify.outputs.major == 'true'
+        run: echo "::notice::major update; manual review required"
