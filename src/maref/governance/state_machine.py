@@ -126,7 +126,13 @@ def _last_chain_hash(log_path: Path) -> str:
                 continue
             try:
                 prev = json.loads(line)
-                return prev.get("chain_hash", prev.get("id", ""))
+                # 旁路写入的无链记录（如 ipk_fsm 事件）不能作为链尾：用其 id
+                # 当 previous_hash 会让下一条记录指向没有 chain_hash 的节点，
+                # 验证器跳过该节点后必然报断链（历史 22 处断点根因）。
+                value = prev.get("chain_hash") or ""
+                if value:
+                    return value
+                continue
             except json.JSONDecodeError:
                 # Only a line truncated at the seek boundary can fail to parse
                 continue
@@ -157,7 +163,9 @@ def _last_chain_hash_from_fh(fh) -> str:
                 prev = json.loads(line)
             except json.JSONDecodeError:
                 continue
-            return prev.get("chain_hash", prev.get("id", ""))
+            value = prev.get("chain_hash") or ""
+            if value:
+                return value
     except OSError:
         pass
     return ""

@@ -27,7 +27,7 @@ import hashlib
 import json
 import time
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from maref.governance.audit import AuditLogger
 from maref.identity.aic_adapter import AIC, AICIdentityAdapter
@@ -35,6 +35,9 @@ from maref.identity.did_registry import AgentDID, DIDRegistry
 from maref.integration.acs_parser import ACSParser, AgentCapabilitySpec
 from maref.orchestration.decomposer import SubTask
 from maref.orchestration.dispatcher import AgentDispatcher, DispatchResult
+
+if TYPE_CHECKING:
+    from maref.governance.inbound_gate import InboundGate, InboundRequest
 
 
 @dataclass
@@ -52,6 +55,9 @@ class FederationRequest:
             validated during registration.
         acs_public_key_pem: Optional PEM-encoded Ed25519 public key for
             verifying the ACS signature.
+        inbound: Optional governance envelope (authentication, passport,
+            delegation chain). Required when the gateway has an
+            ``inbound_gate``.
     """
 
     aic_string: str
@@ -61,6 +67,7 @@ class FederationRequest:
     did_namespace: str = "federated"
     acs_signature: str = ""
     acs_public_key_pem: str = ""
+    inbound: InboundRequest | None = None
 
 
 @dataclass
@@ -174,6 +181,7 @@ class FederationGateway:
         did_registry: DIDRegistry | None = None,
         audit_logger: AuditLogger | None = None,
         require_acs_signature: bool = False,
+        inbound_gate: InboundGate | None = None,
     ) -> None:
         self._identity = identity_adapter or AICIdentityAdapter()
         self._acs_parser = acs_parser or ACSParser()
@@ -181,6 +189,7 @@ class FederationGateway:
         self._did_registry = did_registry
         self._audit = audit_logger
         self._require_acs_signature = require_acs_signature
+        self._inbound_gate = inbound_gate
         self._agents: dict[AgentDID, FederatedAgent] = {}
         self._aic_to_agent: dict[str, FederatedAgent] = {}
 
@@ -188,6 +197,15 @@ class FederationGateway:
     def agent_count(self) -> int:
         """Number of federated agents currently registered."""
         return len(self._agents)
+
+    def _check_inbound(self, inbound: InboundRequest | None) -> str:
+        """返回入向拒绝原因；边界通过或未启用时返回空串。"""
+        if self._inbound_gate is None:
+            return ""
+        if inbound is None:
+            return "inbound_gate:missing_request"
+        decision = self._inbound_gate.evaluate(inbound)
+        return "" if decision.allowed else (decision.rule or decision.reason)
 
     def register_agent(self, request: FederationRequest) -> FederationResponse:
         """Register an external agent with the MAREF federation.
@@ -201,6 +219,14 @@ class FederationGateway:
         Returns:
             A :class:`FederationResponse` with the assigned DID on success.
         """
+        rejection = self._check_inbound(request.inbound)
+        if rejection:
+            return FederationResponse(
+                success=False,
+                aic_string=request.aic_string,
+                error=f"inbound rejected: {rejection}",
+            )
+
         try:
             aic = AIC.parse(request.aic_string)
         except ValueError as exc:
@@ -399,7 +425,12 @@ class FederationGateway:
             if any(skill.id == capability for skill in agent.acs.skills)
         ]
 
-    def dispatch_task(self, task: SubTask) -> DispatchResult | None:
+    def dispatch_task(
+        self,
+        task: SubTask,
+        *,
+        inbound: InboundRequest | None = None,
+    ) -> DispatchResult | None:
         """Dispatch a task to the most suitable federated agent.
 
         Delegates to the configured :class:`AgentDispatcher`. If no
@@ -407,10 +438,18 @@ class FederationGateway:
 
         Args:
             task: The MAREF :class:`SubTask` to dispatch.
+            inbound: Governance envelope required when an ``inbound_gate``
+                is configured.
 
         Returns:
             A :class:`DispatchResult` if a match was found, None otherwise.
+
+        Raises:
+            FederationGatewayError: If the inbound boundary rejects the request.
         """
+        rejection = self._check_inbound(inbound)
+        if rejection:
+            raise FederationGatewayError(f"inbound rejected: {rejection}")
         if self._dispatcher is None:
             return None
         result = self._dispatcher.dispatch(task)

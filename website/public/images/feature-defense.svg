@@ -42,7 +42,7 @@
 
   <!-- Badge -->
   <rect x="350" y="770" width="324" height="50" rx="25" fill="#10b981" opacity="0.1" stroke="#10b981" stroke-width="1" />
-  <text x="512" y="800" text-anchor="middle" fill="#10b981" font-size="18" font-weight="800" font-family="monospace">97% Decision Automation</text>
+  <text x="512" y="800" text-anchor="middle" fill="#10b981" font-size="18" font-weight="800" font-family="monospace">Decision Automation</text>
 
   <!-- Title -->
   <text x="512" y="160" text-anchor="middle" fill="#3b82f6" font-size="20" font-weight="700" font-family="sans-serif">8-Layer Defense in Depth</text>

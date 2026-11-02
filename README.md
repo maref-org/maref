@@ -93,7 +93,7 @@ Most agent frameworks (LangGraph, CrewAI, AutoGen) help you **build** multi-agen
 - **10-State Gray Code Governance State Machine** — Mathematically provable convergence (4-bit, Hamming distance=1)
 - **TLA+ Formal Verification** — 5 model-checked invariants (state reachability, transition determinism, halt absorption, safety gate integrity, red line immutability)
 - **CircuitBreaker** — Auto-lock after 3 consecutive failures + HALT absorb state + 30s cooldown
-- **Four-Tier Security Decision Tree** — Rule→Mode→SafetyGate→User, 97% automation rate
+- **Four-Tier Security Decision Tree** — Rule→Mode→SafetyGate→User, routine operations auto-cleared
 - **LoRA/Ontology Dual Drift Detection** — KL/JS/Hellinger triple divergence + human arbitration
 - **Verifier Cross-Validation** — VerifierRegistry + VerifierConsensus (weighted majority / unanimous)
 - **MAREFLoop Adapter** — Connect any Loop to MAREF governance in 5 lines of code
@@ -405,7 +405,7 @@ MAREF 是 Agent 世界的操作系统内核 — 管理 Agent 集群的生命周�
 - **10 态 Gray Code 治理状态机** — 数学可证明收敛性 (4-bit, 汉明距离=1)
 - **TLA+ 形式化验证** — 5 模型检查不变量
 - **CircuitBreaker** — 3连败自动锁 + HALT 吸收态 + 30s 冷却
-- **四级安全决策树** — Rule→Mode→SafetyGate→User, 97% 自动化率
+- **四级安全决策树** — Rule→Mode→SafetyGate→User，常规操作自动放行
 - **LoRA/本体双重漂移检测** — KL/JS/Hellinger 三重散度 + 人工仲裁
 
 #### 操作层

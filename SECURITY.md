@@ -27,7 +27,7 @@ agent security. See [MAREF Security Whitepaper](docs/MAREF-Security-Whitepaper.m
 for full details.
 
 Key security features:
-- **4-Level Policy Decision Tree**: 97% automated safety decisions
+- **4-Level Policy Decision Tree**: Rule→Mode→SafetyGate→User, routine operations auto-cleared
 - **CircuitBreaker**: 3 consecutive failures trigger automatic lockout
 - **RedactionEngine**: Automatic screenshot redaction of sensitive content
 - **AuditLogger**: Append-only, HMAC-signed audit trail

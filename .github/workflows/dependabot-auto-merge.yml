@@ -1,15 +1,17 @@
 name: Dependabot Auto-Merge
 
-# Dependabot PR 在 pull_request 事件下只拿到只读 token 且无 secrets，
-# 无法合并；pull_request_target 在 base 上下文运行才具备写权限。
-# 本 job 不 checkout/执行 PR 代码，仅读取 PR 元数据后开启 auto-merge。
+# 自动合并已暂停：GITHUB_TOKEN 触发的 squash 合并不会触发 push CI，
+# 导致 main 缺少 6 项必需 check-runs，D1 Pre-Flight 必然失败。
+# 恢复条件：配置 GitHub App 或 PAT（MAREF_AUTOMERGE_TOKEN），
+# 使合并由非 GITHUB_TOKEN 身份发起；在此之前仅提示人工合并。
+# 本 job 不 checkout/执行 PR 代码，仅读取 PR 元数据。
 on:
   pull_request_target:
     types: [opened, synchronize, reopened]
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
+  pull-requests: read
 
 jobs:
   auto-merge:
@@ -18,29 +20,24 @@ jobs:
     # 触发的 synchronize 事件 actor 是维护者，但内容仍完全来自 Dependabot。
     if: github.event.pull_request.user.login == 'dependabot[bot]'
     steps:
-      # 原 ahmadnassri/action-dependabot-auto-merge 只发 `@dependabot merge`
-      # 评论；Dependabot 会等全部 status 通过才合并，而 cla-assistant 的
-      # license/cla 对 bot 永远 pending（无法签署），导致合并永不发生。
-      # 改用 GitHub 原生 auto-merge：只以分支保护要求为条件
-      # （required checks 为空、已有批准），不受非必需 status 阻塞。
-      - name: Enable auto-merge for patch/minor updates
+      # 历史背景：原 action 依赖评论合并会被 cla-assistant 永久 pending 阻塞，
+      # 故改用 GitHub 原生 auto-merge。现因 GITHUB_TOKEN 合并不触发 push CI
+      # 而暂停，待配置 App/PAT 后恢复。
+      - name: Report dependabot PR (auto-merge paused)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # 不 checkout 仓库，gh 需显式知道目标仓库。
           GH_REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
         run: |
-          # update-type 元数据在 Dependabot 提交信息的 trailer 里，不在 PR body；
-          # 旧实现只查 title/body，守卫从未命中，major 更新也被开启 auto-merge。
-          # 先取回提交正文再判断：默认 shell 没有 pipefail，直接管道时
-          # gh 失败会被 grep 的退出码掩盖，守卫会 fail-open 打开 auto-merge。
+          # update-type 元数据在 Dependabot 提交信息的 trailer 里，不在 PR body。
           commits=$(gh pr view "$PR" --json commits \
               --jq '[.commits[].messageBody // ""] | join("\n")') || {
-            echo "::error::failed to read PR commits; refusing to enable auto-merge"
+            echo "::error::failed to read PR commits; refusing to classify"
             exit 1
           }
           if grep -q 'version-update:semver-major' <<<"$commits"; then
-            echo "skip: major update"
+            echo "::notice::major update; manual review required"
             exit 0
           fi
-          gh pr merge "$PR" --auto --squash
+          echo "::warning::Dependabot auto-merge paused; PR #$PR requires manual merge until MAREF_AUTOMERGE_TOKEN is configured"
