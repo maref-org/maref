@@ -2,10 +2,13 @@
 
 Phase Alpha A8: 接收 OpenClaw 侧提案 + 提供提案查询
 """
+
 from __future__ import annotations
 
 import json
 import logging
+import os
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -19,12 +22,22 @@ _PROPOSAL_DIR = Path("data/proposals")
 _PROPOSAL_DIR.mkdir(parents=True, exist_ok=True)
 _INDEX_FILE = _PROPOSAL_DIR / "proposals_index.jsonl"
 
+_SAFE_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+
+
+def _safe_component(value: Any, field: str) -> str:
+    if not isinstance(value, str) or not _SAFE_ID_RE.fullmatch(value):
+        raise HTTPException(status_code=400, detail=f"invalid {field}")
+    # basename is a no-op after the regex; it makes the path sanitizer explicit.
+    return os.path.basename(value)
+
 
 @router.post("/ingest")
 def proposal_ingest(payload: dict[str, Any]) -> dict[str, Any]:
-    proposal_id = payload.get("proposal_id")
-    if not proposal_id:
+    raw_id = payload.get("proposal_id")
+    if not raw_id:
         raise HTTPException(status_code=400, detail="proposal_id is required")
+    proposal_id = _safe_component(raw_id, "proposal_id")
 
     entry = {
         "proposal_id": proposal_id,
@@ -73,11 +86,17 @@ def proposal_count() -> dict[str, Any]:
             except json.JSONDecodeError:
                 pass
 
-    return {"total": total, "by_source": by_source, "by_risk_level": by_risk, "by_verdict": by_verdict}
+    return {
+        "total": total,
+        "by_source": by_source,
+        "by_risk_level": by_risk,
+        "by_verdict": by_verdict,
+    }
 
 
 @router.get("/{proposal_id}")
 def proposal_get(proposal_id: str) -> dict[str, Any]:
+    proposal_id = _safe_component(proposal_id, "proposal_id")
     detail_file = _PROPOSAL_DIR / f"{proposal_id}.json"
     if not detail_file.exists():
         raise HTTPException(status_code=404, detail=f"Proposal {proposal_id} not found")

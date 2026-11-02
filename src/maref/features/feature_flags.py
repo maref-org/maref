@@ -164,4 +164,5 @@ class FeatureFlagManager:
 
     @staticmethod
     def _hash_user(user_id: str) -> int:
+        # Stable non-security bucketing; md5 is deterministic across processes.
         return int(hashlib.md5(user_id.encode(), usedforsecurity=False).hexdigest(), 16) % 100
