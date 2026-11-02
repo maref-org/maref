@@ -21,10 +21,12 @@ def _allowed_roots() -> tuple[Path, ...]:
 
 
 def _resolve_user_path(raw: str, field: str) -> Path:
-    path = Path(raw).expanduser().resolve()
-    if not any(path.is_relative_to(root) for root in _allowed_roots()):
-        raise HTTPException(status_code=400, detail=f"{field} is outside the allowed roots")
-    return path
+    resolved = os.path.realpath(os.path.abspath(os.path.expanduser(raw)))
+    for root in _allowed_roots():
+        root_str = str(root)
+        if resolved == root_str or resolved.startswith(root_str + os.sep):
+            return Path(resolved)
+    raise HTTPException(status_code=400, detail=f"{field} is outside the allowed roots")
 
 
 def _find_report(id_suffix: str) -> Path | None:

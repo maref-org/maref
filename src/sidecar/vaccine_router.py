@@ -24,10 +24,13 @@ _SAFE_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 
 
 def _safe_component(value: Any, field: str) -> str:
-    if not isinstance(value, str) or not _SAFE_ID_RE.fullmatch(value):
+    if not isinstance(value, str):
         raise HTTPException(status_code=400, detail=f"invalid {field}")
-    # basename is a no-op after the regex; it makes the path sanitizer explicit.
-    return os.path.basename(value)
+    match = _SAFE_ID_RE.fullmatch(value)
+    if match is None:
+        raise HTTPException(status_code=400, detail=f"invalid {field}")
+    # Redundant after the regex; explicit for path/log sanitizer analysis.
+    return os.path.basename(match.group(0)).replace("\n", "").replace("\r", "")
 
 
 _VACCINE_DIR = Path("data/vaccines")
