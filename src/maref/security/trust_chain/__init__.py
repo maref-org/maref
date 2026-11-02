@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import hashlib
+import hmac as _hmac
+import json
+import secrets
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -43,6 +47,9 @@ class ChainNode:
     metadata: dict[str, Any] = field(default_factory=dict)
     signature: str = ""
     signer_id: str = ""
+    signature_alg: str = "ed25519"
+    key_id: str = ""
+    nonce: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -53,7 +60,27 @@ class ChainNode:
             "metadata": self.metadata,
             "signature": self.signature,
             "signer_id": self.signer_id,
+            "signature_alg": self.signature_alg,
+            "key_id": self.key_id,
+            "nonce": self.nonce,
         }
+
+
+def hmac_payload(node: ChainNode, chain_id: str, root_principal: str, hop_index: int) -> bytes:
+    """Canonical bytes covered by a per-hop HMAC signature."""
+    data = {
+        "chain_id": chain_id,
+        "root_principal": root_principal,
+        "hop_index": hop_index,
+        "agent_id": node.agent_id,
+        "capability": node.capability.value,
+        "parent_id": node.parent_id or "",
+        "timestamp": node.timestamp.isoformat(),
+        "nonce": node.nonce,
+    }
+    return json.dumps(data, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode(
+        "utf-8"
+    )
 
 
 @dataclass
@@ -77,6 +104,7 @@ class DelegationChain:
     nodes: list[ChainNode] = field(default_factory=list)
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     policy_version: str = "1.0"
+    root_principal: str = ""
     metadata: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
@@ -145,9 +173,15 @@ class DelegationChain:
         root_signing_key: Any,
         max_depth: int = 5,
         policy_version: str = "1.0",
+        root_principal: str = "",
     ) -> DelegationChain:
-        """Create a chain whose root node carries a signature from the root agent."""
+        """Create a chain whose root node carries a signature from the root agent.
+
+        ``root_principal`` is bound into every node signature when non-empty;
+        setting it after signing invalidates the chain.
+        """
         chain = cls.create(root_agent_id, max_depth=max_depth, policy_version=policy_version)
+        chain.root_principal = root_principal
         chain._sign_node(chain.nodes[0], root_agent_id, root_signing_key)
         return chain
 
@@ -169,6 +203,119 @@ class DelegationChain:
             return False
         self._sign_node(self.nodes[-1], parent_agent_id, signing_key)
         return True
+
+    @classmethod
+    def create_hmac(
+        cls,
+        root_agent_id: str,
+        hmac_key: bytes | str,
+        key_id: str = "",
+        root_principal: str = "",
+        max_depth: int = 5,
+        policy_version: str = "1.0",
+    ) -> DelegationChain:
+        """Create a chain whose nodes are HMAC-signed with a deployment key."""
+        chain = cls.create(
+            root_agent_id,
+            max_depth=max_depth,
+            policy_version=policy_version,
+        )
+        chain.root_principal = root_principal
+        chain.sign_hmac(hmac_key, key_id=key_id)
+        return chain
+
+    def sign_hmac(self, hmac_key: bytes | str, key_id: str = "") -> None:
+        """Sign every node with HMAC-SHA256 (idempotent)."""
+        key = hmac_key.encode("utf-8") if isinstance(hmac_key, str) else hmac_key
+        for index, node in enumerate(self.nodes):
+            node.nonce = node.nonce or secrets.token_hex(8)
+            node.signature_alg = "hmac-sha256"
+            node.key_id = key_id
+            node.signature = _hmac.new(
+                key,
+                hmac_payload(node, self.chain_id, self.root_principal, index),
+                hashlib.sha256,
+            ).hexdigest()
+
+    def add_delegation_hmac(
+        self,
+        parent_agent_id: str,
+        child_agent_id: str,
+        capability: DelegationCapability,
+        hmac_key: bytes | str,
+        key_id: str = "",
+        metadata: dict[str, Any] | None = None,
+    ) -> bool:
+        """Add a delegation and HMAC-sign the new node.
+
+        The parent node must already be signed by :meth:`sign_hmac` or
+        :meth:`create_hmac`; otherwise verification fails (fail-closed).
+        """
+        if not self.add_delegation(
+            parent_agent_id,
+            child_agent_id,
+            capability,
+            metadata=metadata,
+        ):
+            return False
+        node = self.nodes[-1]
+        node.nonce = secrets.token_hex(8)
+        key = hmac_key.encode("utf-8") if isinstance(hmac_key, str) else hmac_key
+        node.signature_alg = "hmac-sha256"
+        node.key_id = key_id
+        node.signature = _hmac.new(
+            key,
+            hmac_payload(node, self.chain_id, self.root_principal, len(self.nodes) - 1),
+            hashlib.sha256,
+        ).hexdigest()
+        return True
+
+    def validate_hmac(
+        self, keys: bytes | str | list[bytes | str] | dict[str, bytes | str]
+    ) -> ValidationResult:
+        """Verify every node's HMAC signature against the supplied key(s)."""
+        if isinstance(keys, dict):
+            candidates = [
+                (key_id, key.encode("utf-8") if isinstance(key, str) else key)
+                for key_id, key in keys.items()
+            ]
+        elif isinstance(keys, (bytes, str)):
+            candidates = [("", keys.encode("utf-8") if isinstance(keys, str) else keys)]
+        else:
+            candidates = [
+                ("", key.encode("utf-8") if isinstance(key, str) else key) for key in keys
+            ]
+
+        for index, node in enumerate(self.nodes):
+            if node.signature_alg != "hmac-sha256" or not node.signature:
+                return ValidationResult(
+                    status=ValidationStatus.INVALID_SIGNATURE,
+                    message=f"Node {node.agent_id} is not HMAC-signed",
+                    depth=self.depth,
+                    max_depth=self.max_depth,
+                )
+            payload = hmac_payload(node, self.chain_id, self.root_principal, index)
+            matched = False
+            for key_id, key in candidates:
+                if node.key_id and key_id and node.key_id != key_id:
+                    continue
+                expected = _hmac.new(key, payload, hashlib.sha256).hexdigest()
+                if _hmac.compare_digest(expected, node.signature):
+                    matched = True
+                    break
+            if not matched:
+                return ValidationResult(
+                    status=ValidationStatus.INVALID_SIGNATURE,
+                    message=f"HMAC mismatch for node {node.agent_id}",
+                    depth=self.depth,
+                    max_depth=self.max_depth,
+                )
+        return ValidationResult(
+            status=ValidationStatus.VALID,
+            message="Chain HMAC signatures verified",
+            depth=self.depth,
+            max_depth=self.max_depth,
+        )
 
     def validate_signed(self, public_keys: dict[str, str]) -> ValidationResult:
         """Verify every signed node against the provided public keys.
@@ -206,6 +353,10 @@ class DelegationChain:
             f"{node.signer_id}|{node.parent_id or ''}|{node.agent_id}|"
             f"{node.capability.value}|{node.timestamp.isoformat()}|{self.chain_id}"
         )
+        # 非空 root_principal 必须进签名载荷，否则可把合法链改挂到任意委托根；
+        # 空值保持旧载荷，兼容历史链。
+        if self.root_principal:
+            payload += f"|{self.root_principal}"
         return payload.encode("utf-8")
 
     def _sign_node(self, node: ChainNode, signer_id: str, signing_key: Any) -> None:
@@ -261,6 +412,7 @@ class DelegationChain:
         return {
             "chain_id": self.chain_id,
             "root_agent_id": self.root_agent_id,
+            "root_principal": self.root_principal,
             "depth": self.depth,
             "max_depth": self.max_depth,
             "nodes": [n.to_dict() for n in self.nodes],
@@ -269,3 +421,37 @@ class DelegationChain:
             "chain_hash": self.get_chain_hash(),
             "metadata": self.metadata,
         }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> DelegationChain:
+        """Rebuild a chain from :meth:`to_dict` output."""
+        nodes = [
+            ChainNode(
+                agent_id=item["agent_id"],
+                capability=DelegationCapability(item["capability"]),
+                timestamp=datetime.fromisoformat(item["timestamp"]),
+                parent_id=item.get("parent_id"),
+                metadata=dict(item.get("metadata") or {}),
+                signature=item.get("signature", ""),
+                signer_id=item.get("signer_id", ""),
+                signature_alg=item.get("signature_alg", "ed25519"),
+                key_id=item.get("key_id", ""),
+                nonce=item.get("nonce", ""),
+            )
+            for item in data.get("nodes", [])
+        ]
+        created_at = data.get("created_at")
+        return cls(
+            chain_id=data.get("chain_id") or str(uuid.uuid4()),
+            root_agent_id=data.get("root_agent_id", ""),
+            # 深度由节点数推导：声明的 depth 不在签名载荷内，不可信。
+            depth=len(nodes),
+            max_depth=int(data.get("max_depth", 5)),
+            nodes=nodes,
+            created_at=(
+                datetime.fromisoformat(created_at) if created_at else datetime.now(timezone.utc)
+            ),
+            policy_version=data.get("policy_version", "1.0"),
+            root_principal=data.get("root_principal", ""),
+            metadata=dict(data.get("metadata") or {}),
+        )

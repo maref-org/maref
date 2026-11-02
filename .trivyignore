@@ -40,3 +40,20 @@ CVE-2026-93748
 #   GUI 构建产物或运行时。
 # 失效条件: pnpm lock 出现真实 vite < 8.3.3 时，立即重评并移除。
 CVE-2026-112942
+
+# CVE-2026-115905 / CVE-2026-115909 — Rust zip crate 4.6.1（gui/src-tauri/Cargo.lock）
+# 理由:
+#   1) 位置: 仅桌面壳 gui/ 的 Rust 依赖链，不进入 PyPI wheel/sdist 与
+#      Dockerfile 运行时（PyPI 发布物不含 Tauri 桌面产物）。
+#   2) 升级不可行于本次补丁版: 修复版本为 zip 9.0.0/9.0.5（跨大版本），
+#      需随 Tauri 生态整体升级并做桌面端回归，不属 v0.55.1 范围。
+# 失效条件: gui 依赖树升级到 zip>=9.0.5 时移除；若证实影响 Tauri 打包产物则立即重评。
+CVE-2026-115905
+CVE-2026-115909
+
+# CVE-2026-111497 — brotli 1.2.0 越界写（与 GHSA-9v8h-qqgm-4m35 同一缺陷，trivy 以 CVE 编号重复报告）
+# 理由: 同 GHSA-9v8h-qqgm-4m35 条目——mitmproxy 12.3.0 硬 pin Brotli<=1.2.0，
+#   uv.lock 只能锁 1.2.0；Dockerfile/Dockerfile.sidecar 在安装后用
+#   `pip install --no-deps --force-reinstall "brotli>=1.2.1"` 覆盖，镜像内实际为 1.2.1。
+# 失效条件: mitmproxy 放宽 Brotli 约束时，与 GHSA 条目一并移除。
+CVE-2026-111497

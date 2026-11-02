@@ -75,6 +75,16 @@ class Verdict:
     confidence: float = 0.0
     judge_name: str = ""
 
+    @property
+    def advisory(self) -> bool:
+        """模型/法官输出只是建议，永远不构成授权。"""
+        return True
+
+    @property
+    def authority(self) -> str:
+        """裁决不具备任何策略权威，不能被当作 ALLOW 的依据。"""
+        return "none"
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "decision": self.decision.value,
@@ -82,6 +92,8 @@ class Verdict:
             "evidence_refs": list(self.evidence_refs),
             "confidence": self.confidence,
             "judge_name": self.judge_name,
+            "advisory": self.advisory,
+            "authority": self.authority,
         }
 
     @property

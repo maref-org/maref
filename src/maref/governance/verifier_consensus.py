@@ -7,11 +7,24 @@ from maref.governance.trace import Trace, VerdictDecision
 from maref.governance.verifier_registry import VerifierEntry, VerifierRegistry
 from maref.security.decorators import security_critical
 
+__all__ = [
+    "CONSENSUS_TYPE",
+    "IS_SAFETY_SIGNAL",
+    "ConsensusResult",
+    "ConsensusStrategy",
+    "VerifierConsensus",
+]
+
 
 class ConsensusStrategy(str, Enum):
     SIMPLE_MAJORITY = "simple_majority"
     WEIGHTED_MAJORITY = "weighted_majority"
     UNANIMITY = "unanimity"
+
+
+# 多模型一致只说明「压缩器彼此同意」，既不是安全信号也不构成授权。
+CONSENSUS_TYPE = "compressor_consensus"
+IS_SAFETY_SIGNAL = False
 
 
 class ConsensusResult:
@@ -33,6 +46,10 @@ class ConsensusResult:
             "votes": self.votes,
             "strategy": self.strategy.value,
             "agreement": self.agreement,
+            "consensus_type": CONSENSUS_TYPE,
+            "is_safety_signal": IS_SAFETY_SIGNAL,
+            "advisory": True,
+            "authority": "none",
         }
 
 
