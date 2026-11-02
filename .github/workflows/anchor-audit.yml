@@ -31,13 +31,18 @@ jobs:
       - name: Anchor local audit chain
         id: anchor
         env:
-          # 仓库变量可覆盖；默认指向本机公开仓的运行时审计链。
+          # 必须由部署侧配置仓库变量；不内置任何主机绝对路径，
+          # 避免把内部卷布局写进公开仓库。
           AUDIT_PATH: ${{ vars.MAREF_AUDIT_PATH }}
           ANCHORS_ROOT: ${{ vars.MAREF_ANCHORS_ROOT }}
         run: |
           set -euo pipefail
-          audit_path="${AUDIT_PATH:-/Volumes/1TB-M2/public/maref/.governance/governance_audit.jsonl}"
-          anchors_root="${ANCHORS_ROOT:-/Volumes/1TB-M2/maref-anchors}"
+          if [ -z "$AUDIT_PATH" ] || [ -z "$ANCHORS_ROOT" ]; then
+            echo "::error::set repository variables MAREF_AUDIT_PATH and MAREF_ANCHORS_ROOT"
+            exit 1
+          fi
+          audit_path="$AUDIT_PATH"
+          anchors_root="$ANCHORS_ROOT"
           if [ ! -f "$audit_path" ]; then
             echo "::error::audit log not found: $audit_path"
             exit 1
