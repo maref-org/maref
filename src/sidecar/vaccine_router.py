@@ -4,10 +4,13 @@ C1: POST /api/vaccine/inject — 接收疫苗 JSON，写入 SafetyGate 规则库
 C2: 批次注入 + A/B 测量
 C3: 误伤率监控 + 自动回滚
 """
+
 from __future__ import annotations
 
 import json
 import logging
+import os
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -16,6 +19,19 @@ from fastapi import APIRouter, HTTPException
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/vaccine")
+
+_SAFE_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+
+
+def _safe_component(value: Any, field: str) -> str:
+    if not isinstance(value, str):
+        raise HTTPException(status_code=400, detail=f"invalid {field}")
+    match = _SAFE_ID_RE.fullmatch(value)
+    if match is None:
+        raise HTTPException(status_code=400, detail=f"invalid {field}")
+    # Redundant after the regex; explicit for path/log sanitizer analysis.
+    return os.path.basename(match.group(0)).replace("\n", "").replace("\r", "")
+
 
 _VACCINE_DIR = Path("data/vaccines")
 _VACCINE_DIR.mkdir(parents=True, exist_ok=True)
@@ -37,6 +53,13 @@ def vaccine_inject(payload: dict[str, Any]) -> dict[str, Any]:
 
     if not batch_id or not vaccines:
         raise HTTPException(status_code=400, detail="batch_id and vaccines are required")
+    batch_id = _safe_component(batch_id, "batch_id")
+    vaccine_ids = [
+        _safe_component(v.get("vaccine_id", "unknown"), "vaccine_id")
+        if v.get("safetygate_rule")
+        else ""
+        for v in vaccines
+    ]
 
     batch = {
         "batch_id": batch_id,
@@ -53,19 +76,40 @@ def vaccine_inject(payload: dict[str, Any]) -> dict[str, Any]:
         json.dump(batch, f, indent=2, ensure_ascii=False)
 
     with open(_BATCH_LOG, "a") as f:
-        f.write(json.dumps({"event": "injected", "batch_id": batch_id, "count": len(vaccines), "time": batch["injected_at"]}) + "\n")
+        f.write(
+            json.dumps(
+                {
+                    "event": "injected",
+                    "batch_id": batch_id,
+                    "count": len(vaccines),
+                    "time": batch["injected_at"],
+                }
+            )
+            + "\n"
+        )
 
     rules_injected = 0
-    for vaccine in vaccines:
+    for vaccine, vaccine_id in zip(vaccines, vaccine_ids, strict=True):
         rule = vaccine.get("safetygate_rule", {})
         if rule:
-            rule_file = _SAFETYGATE_DIR / f"{vaccine.get('vaccine_id', 'unknown')}.json"
+            rule_file = _SAFETYGATE_DIR / f"{vaccine_id}.json"
             with open(rule_file, "w") as f:
                 json.dump(rule, f, ensure_ascii=False)
             rules_injected += 1
 
-    logger.info("vaccine batch injected: %s (%d vaccines, %d rules)", batch_id, len(vaccines), rules_injected)
-    return {"status": "ok", "batch_id": batch_id, "vaccines": len(vaccines), "rules_written": rules_injected, "stored_in": str(batch_file)}
+    logger.info(
+        "vaccine batch injected: %s (%d vaccines, %d rules)",
+        batch_id,
+        len(vaccines),
+        rules_injected,
+    )
+    return {
+        "status": "ok",
+        "batch_id": batch_id,
+        "vaccines": len(vaccines),
+        "rules_written": rules_injected,
+        "stored_in": str(batch_file),
+    }
 
 
 @router.post("/report-fpr")

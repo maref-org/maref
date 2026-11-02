@@ -128,6 +128,7 @@ class TenantManager:
 
         if api_key is None:
             api_key = f"mk_{secrets.token_urlsafe(32)}"
+        # API keys are 256-bit random tokens, not passwords; SHA-256 is sufficient.
         key_hash = hashlib.sha256(api_key.encode()).hexdigest()
         tenant.api_key_hash = key_hash
 
@@ -165,6 +166,7 @@ class TenantManager:
         return self._tenants.get(tenant_id)
 
     def get_by_api_key(self, api_key: str) -> Tenant | None:
+        # API keys are 256-bit random tokens, not passwords; SHA-256 is sufficient.
         key_hash = hashlib.sha256(api_key.encode()).hexdigest()
         if self._db is not None:
             row = self._db.fetchone(
