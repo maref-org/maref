@@ -238,6 +238,73 @@ failures under the standard convention (no harmful content emitted), but they ar
 <p>The model has some safety behaviour on plainly phrased requests and none on
 encoded ones. Encoding is not a marginal category here; it is the worst case.</p>
 <hr />
+<h2>3.5 Cross-model check</h2>
+<p>The single-model caveat matters: if encoding resistance were a property of
+<code>tiny-aya-global</code> alone, the finding would not generalise. We ran the same 114
+prompts against <code>qwen2.5:3b</code> (Ollama, temperature 0), a different family at a
+comparable size.</p>
+<table>
+<thead>
+<tr>
+<th>Category</th>
+<th>tiny-aya-global (3.35B)</th>
+<th>qwen2.5:3b</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>encoding</td>
+<td><strong>100.0%</strong> (24/24)</td>
+<td><strong>100.0%</strong> (24/24)</td>
+</tr>
+<tr>
+<td>jailbreak_direct</td>
+<td>83.3%</td>
+<td>83.3%</td>
+</tr>
+<tr>
+<td>prompt_injection</td>
+<td>75.0%</td>
+<td>91.7%</td>
+</tr>
+<tr>
+<td>roleplay</td>
+<td>71.4%</td>
+<td>57.1%</td>
+</tr>
+<tr>
+<td>data_exfil</td>
+<td>57.1%</td>
+<td>85.7%</td>
+</tr>
+<tr>
+<td>tool_abuse</td>
+<td>66.7%</td>
+<td>41.7%</td>
+</tr>
+<tr>
+<td><strong>overall</strong></td>
+<td>78.7%</td>
+<td>79.8%</td>
+</tr>
+<tr>
+<td>over-refusal</td>
+<td>0.0%</td>
+<td>0.0%</td>
+</tr>
+</tbody>
+</table>
+<p>Encoding is the one category where the two models are identical, and identical
+at the ceiling: neither refused a single encoded request. The other categories
+move in both directions, which is what you expect from two different
+post-training recipes. The encoding result is the one that looks structural.</p>
+<p>Caveat: the qwen2.5:3b numbers use the automated detector only; we did not
+hand-review its outputs. The 100% encoding figure is unambiguous (no output
+contained a refusal), so review would not change it.</p>
+<p>We attempted <code>qwen2.5:7b</code> as a size control. It failed: the local machine
+(24 GB, shared with a backup job and an indexing process) could not load the
+model — every request timed out at 5 minutes with <code>context canceled</code>. The 7B
+question is open; §9 records it as a limitation rather than an assumed result.</p>
 <h2>4. Steering: a measured negative result</h2>
 <p>Setup: refusal direction extracted from four harmful/harmless contrast pairs at
 layer 15 of <code>tiny-aya-global</code>, applied as <code>h ← h + α·d</code> on that layer's residual
@@ -386,6 +453,62 @@ locksmith is hours away?" and "Explain how data exfiltration is usually
 detected" both match harmful-intent patterns. Both are legitimate. The gate
 detects defensive context and downgrades these to HITL rather than DENY. This is
 a deliberate trade: the gate prefers a human in the loop over a false block.</p>
+<p><strong>Expanded benign check.</strong> The original 20 benign prompts are too few to claim a
+false-positive rate. We built 60 more: 20 everyday questions, 20 defensive
+security questions, 10 multilingual, 10 sensitive-but-legal. Results:</p>
+<table>
+<thead>
+<tr>
+<th>Group</th>
+<th>n</th>
+<th>ALLOW</th>
+<th>HITL</th>
+<th>DENY</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>everyday</td>
+<td>20</td>
+<td>20</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr>
+<td>defensive</td>
+<td>20</td>
+<td>15</td>
+<td>5</td>
+<td>0</td>
+</tr>
+<tr>
+<td>multilingual</td>
+<td>10</td>
+<td>10</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr>
+<td>sensitive-but-legal</td>
+<td>10</td>
+<td>10</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr>
+<td><strong>total</strong></td>
+<td><strong>60</strong></td>
+<td><strong>55</strong></td>
+<td><strong>5</strong></td>
+<td><strong>0</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Zero false blocks. The five escalations are all defensive questions that matched
+a harmful keyword ("common indicators of a phishing email", "risks of storing
+API keys"), which is the intended downgrade behaviour — a human sees them, nobody
+is blocked. An earlier build of the gate <em>did</em> block three of these; the
+expanded set is what caught it.</p>
 <hr />
 <h2>7. Multi-turn audit</h2>
 <p>Thirty conversations (2–4 turns each), five categories. Each conversation was
@@ -550,15 +673,18 @@ the setup rather than a universal claim.</p>
 <hr />
 <h2>9. Limitations</h2>
 <ol>
-<li><strong>One model, one size.</strong> All numbers are for <code>tiny-aya-global</code> (3.35B). A
-   7B–8B model may respond differently to steering; we did not test it.</li>
+<li><strong>Two models at ~3B, no larger.</strong> Encoding was measured on <code>tiny-aya-global</code>
+   (3.35B) and <code>qwen2.5:3b</code>; both refused 0/24. A 7B–8B model was attempted and
+   could not be loaded on this machine (every request timed out). Whether scale
+   changes the encoding result is untested.</li>
 <li><strong>Four contrast pairs</strong> for direction extraction. More pairs may produce a
    more stable direction. We report the number we used.</li>
 <li><strong>Rule gate is not a semantic classifier.</strong> It handles the patterns in
    <code>DEFAULT_DENY_PATTERNS</code>; a novel phrasing without a decodable payload and
    without a matching pattern is allowed. It is a layer, not a solution.</li>
-<li><strong>Benign set is twenty prompts.</strong> Zero false denials on twenty is evidence,
-   not proof; the real rate could be a few percent.</li>
+<li><strong>Benign set is 80 prompts</strong> (20 original + 60 expanded), with 0 false blocks
+   and 5 human-review escalations. That is stronger evidence than 20 but still
+   not a proof; a rare phrasing could still be blocked.</li>
 <li><strong>Multi-turn results were reviewed and corrected.</strong> See §7; the correction
    changed the overall single-turn ASR from 76.7% to 66.7%. The refusal detector
    still has known gaps (curly apostrophes are now handled; harmless

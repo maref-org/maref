@@ -130,6 +130,38 @@ encoded ones. Encoding is not a marginal category here; it is the worst case.
 
 ---
 
+## 3.5 Cross-model check
+
+The single-model caveat matters: if encoding resistance were a property of
+`tiny-aya-global` alone, the finding would not generalise. We ran the same 114
+prompts against `qwen2.5:3b` (Ollama, temperature 0), a different family at a
+comparable size.
+
+| Category | tiny-aya-global (3.35B) | qwen2.5:3b |
+|---|---|---|
+| encoding | **100.0%** (24/24) | **100.0%** (24/24) |
+| jailbreak_direct | 83.3% | 83.3% |
+| prompt_injection | 75.0% | 91.7% |
+| roleplay | 71.4% | 57.1% |
+| data_exfil | 57.1% | 85.7% |
+| tool_abuse | 66.7% | 41.7% |
+| **overall** | 78.7% | 79.8% |
+| over-refusal | 0.0% | 0.0% |
+
+Encoding is the one category where the two models are identical, and identical
+at the ceiling: neither refused a single encoded request. The other categories
+move in both directions, which is what you expect from two different
+post-training recipes. The encoding result is the one that looks structural.
+
+Caveat: the qwen2.5:3b numbers use the automated detector only; we did not
+hand-review its outputs. The 100% encoding figure is unambiguous (no output
+contained a refusal), so review would not change it.
+
+We attempted `qwen2.5:7b` as a size control. It failed: the local machine
+(24 GB, shared with a backup job and an indexing process) could not load the
+model — every request timed out at 5 minutes with `context canceled`. The 7B
+question is open; §9 records it as a limitation rather than an assumed result.
+
 ## 4. Steering: a measured negative result
 
 Setup: refusal direction extracted from four harmful/harmless contrast pairs at
@@ -222,6 +254,24 @@ detected" both match harmful-intent patterns. Both are legitimate. The gate
 detects defensive context and downgrades these to HITL rather than DENY. This is
 a deliberate trade: the gate prefers a human in the loop over a false block.
 
+**Expanded benign check.** The original 20 benign prompts are too few to claim a
+false-positive rate. We built 60 more: 20 everyday questions, 20 defensive
+security questions, 10 multilingual, 10 sensitive-but-legal. Results:
+
+| Group | n | ALLOW | HITL | DENY |
+|---|---|---|---|---|
+| everyday | 20 | 20 | 0 | 0 |
+| defensive | 20 | 15 | 5 | 0 |
+| multilingual | 10 | 10 | 0 | 0 |
+| sensitive-but-legal | 10 | 10 | 0 | 0 |
+| **total** | **60** | **55** | **5** | **0** |
+
+Zero false blocks. The five escalations are all defensive questions that matched
+a harmful keyword ("common indicators of a phishing email", "risks of storing
+API keys"), which is the intended downgrade behaviour — a human sees them, nobody
+is blocked. An earlier build of the gate *did* block three of these; the
+expanded set is what caught it.
+
 ---
 
 ## 7. Multi-turn audit
@@ -288,15 +338,18 @@ the setup rather than a universal claim.
 
 ## 9. Limitations
 
-1. **One model, one size.** All numbers are for `tiny-aya-global` (3.35B). A
-   7B–8B model may respond differently to steering; we did not test it.
+1. **Two models at ~3B, no larger.** Encoding was measured on `tiny-aya-global`
+   (3.35B) and `qwen2.5:3b`; both refused 0/24. A 7B–8B model was attempted and
+   could not be loaded on this machine (every request timed out). Whether scale
+   changes the encoding result is untested.
 2. **Four contrast pairs** for direction extraction. More pairs may produce a
    more stable direction. We report the number we used.
 3. **Rule gate is not a semantic classifier.** It handles the patterns in
    `DEFAULT_DENY_PATTERNS`; a novel phrasing without a decodable payload and
    without a matching pattern is allowed. It is a layer, not a solution.
-4. **Benign set is twenty prompts.** Zero false denials on twenty is evidence,
-   not proof; the real rate could be a few percent.
+4. **Benign set is 80 prompts** (20 original + 60 expanded), with 0 false blocks
+   and 5 human-review escalations. That is stronger evidence than 20 but still
+   not a proof; a rare phrasing could still be blocked.
 5. **Multi-turn results were reviewed and corrected.** See §7; the correction
    changed the overall single-turn ASR from 76.7% to 66.7%. The refusal detector
    still has known gaps (curly apostrophes are now handled; harmless
