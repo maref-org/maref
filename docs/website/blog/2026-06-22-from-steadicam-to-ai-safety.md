@@ -114,7 +114,7 @@ Results: FNR from 37% to 2% (-96%), FPR from 26% to 1%.
 
 **Team experience**: On set, there are four levels of decision-making — operator judges composition → assistant checks equipment status → director confirms the frame → producer oversees the big picture. Not every level participates in every shot, but **critical decisions must escalate**.
 
-Rule → Mode → SafetyGate → User. 97% of safety decisions are automated (operator level); the remaining 3% go to humans (director/producer level).
+Rule → Mode → SafetyGate → User. Routine safety decisions are automated; the uncertain ones go to humans (director/producer level).
 
 ## Production Validation
 

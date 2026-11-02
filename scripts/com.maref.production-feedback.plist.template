@@ -14,7 +14,7 @@
       launchctl bootout gui/$(id -u)/com.maref.production-feedback
 
     时序: 02:30 (承 02:00 nightly-evolution 红蓝产出；供 06:00 daily-governance 消费)
-    依赖: /Volumes/1TB-M2 外置盘 (经 drive-wait.py 等待挂载)
+    依赖: {{DATA_ROOT}} 外置盘 (经 drive-wait.py 等待挂载)
 -->
 <plist version="1.0">
 <dict>
@@ -24,9 +24,9 @@
     <key>ProgramArguments</key>
     <array>
         <string>/opt/homebrew/bin/python3</string>
-        <string>/Users/frankie/bin/drive-wait.py</string>
+        <string>{{HOME}}/bin/drive-wait.py</string>
         <string>/opt/homebrew/bin/python3</string>
-        <string>/Volumes/1TB-M2/public/maref/scripts/production_feedback_pipeline.py</string>
+        <string>{{PRODUCT_ROOT}}/scripts/production_feedback_pipeline.py</string>
         <string>--report</string>
     </array>
 
@@ -42,23 +42,23 @@
     <false/>
 
     <key>StandardOutPath</key>
-    <string>/Users/frankie/Library/Logs/maref/production-feedback.out.log</string>
+    <string>{{HOME}}/Library/Logs/maref/production-feedback.out.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/frankie/Library/Logs/maref/production-feedback.err.log</string>
+    <string>{{HOME}}/Library/Logs/maref/production-feedback.err.log</string>
 
     <key>WorkingDirectory</key>
-    <string>/Volumes/1TB-M2/public/maref</string>
+    <string>{{PRODUCT_ROOT}}</string>
 
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>
         <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
         <key>MAREF_RUNTIME_DIR</key>
-        <string>/Volumes/1TB-M2/openclaw</string>
+        <string>{{RUNTIME_DIR}}</string>
         <key>MAREF_EXPERIENCE_DB</key>
-        <string>/Volumes/1TB-M2/openclaw/.evolution_vault/experience.db</string>
+        <string>{{RUNTIME_DIR}}/.evolution_vault/experience.db</string>
         <key>MAREF_REPORTS_DIR</key>
-        <string>/Volumes/1TB-M2/public/maref/reports</string>
+        <string>{{PRODUCT_ROOT}}/reports</string>
     </dict>
 </dict>
 </plist>

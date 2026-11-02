@@ -43,7 +43,9 @@ _BODY_HASH_HEADER = "X-MAREF-Fed-Body-Hash"
 # ── Helpers ───────────────────────────────────────────────────────────────
 
 
-def _build_base_components() -> tuple[FederationGateway, FederatedTrustEngine, FederatedPolicySubscriber]:
+def _build_base_components() -> tuple[
+    FederationGateway, FederatedTrustEngine, FederatedPolicySubscriber
+]:
     gateway = FederationGateway()
     trust_engine = FederatedTrustEngine(local_engine=TrustEngineV2())
     subscriber = FederatedPolicySubscriber(
@@ -128,9 +130,7 @@ def test_signed_request_accepted_when_verifier_configured() -> None:
     key = ReportSigningKey.generate()
     client = _build_app(request_verifier={"org-alpha": key.public_key_pem})
     body_bytes = _report_body_bytes()
-    headers = _signed_headers(
-        key, "org-alpha", "POST", TRUST_REPORT_PATH, body_bytes
-    )
+    headers = _signed_headers(key, "org-alpha", "POST", TRUST_REPORT_PATH, body_bytes)
     response = client.post(TRUST_REPORT_PATH, content=body_bytes, headers=_json_headers(headers))
     assert response.status_code == 200
     assert response.json()["accepted"] is True
@@ -148,9 +148,7 @@ def test_wrong_signature_rejected() -> None:
     attacker_key = ReportSigningKey.generate()
     client = _build_app(request_verifier={"org-alpha": server_key.public_key_pem})
     body_bytes = _report_body_bytes()
-    headers = _signed_headers(
-        attacker_key, "org-alpha", "POST", TRUST_REPORT_PATH, body_bytes
-    )
+    headers = _signed_headers(attacker_key, "org-alpha", "POST", TRUST_REPORT_PATH, body_bytes)
     response = client.post(TRUST_REPORT_PATH, content=body_bytes, headers=_json_headers(headers))
     assert response.status_code == 401
 
@@ -160,9 +158,7 @@ def test_tampered_body_rejected() -> None:
     key = ReportSigningKey.generate()
     client = _build_app(request_verifier={"org-alpha": key.public_key_pem})
     body_bytes = _report_body_bytes()
-    headers = _signed_headers(
-        key, "org-alpha", "POST", TRUST_REPORT_PATH, body_bytes
-    )
+    headers = _signed_headers(key, "org-alpha", "POST", TRUST_REPORT_PATH, body_bytes)
     tampered = body_bytes.replace(b"88.5", b"99.0")
     response = client.post(TRUST_REPORT_PATH, content=tampered, headers=_json_headers(headers))
     assert response.status_code == 401
@@ -213,7 +209,11 @@ def test_ssrf_rejects_link_local_peer() -> None:
     client = _build_reconcile_client(peer_url_policy={"allowed_hosts": set()})
     response = client.post(
         RECONCILE_PATH,
-        json={"peer_url": "http://169.254.169.254/latest/meta-data", "arbitrate": False, "timeout": 1.0},
+        json={
+            "peer_url": "http://169.254.169.254/latest/meta-data",
+            "arbitrate": False,
+            "timeout": 1.0,
+        },
     )
     assert response.status_code == 400
 
@@ -290,7 +290,8 @@ def test_http_client_auto_signs_requests() -> None:
 
     # 1) The signing hook attaches X-MAREF-Fed-* headers to a POST.
     request = httpx.Request(
-        "POST", "http://testserver/api/v1/federation/trust/report",
+        "POST",
+        "http://testserver/api/v1/federation/trust/report",
         json=_valid_report(),
     )
     fed_client._sign_request(request)
@@ -298,9 +299,7 @@ def test_http_client_auto_signs_requests() -> None:
     assert "X-MAREF-Fed-Body-Hash" in request.headers
 
     # 2) Those headers pass the server's verifier.
-    verifier = FederationRequestVerifier(
-        {"org-beta": client_key.public_key_pem}
-    )
+    verifier = FederationRequestVerifier({"org-beta": client_key.public_key_pem})
     ok = verifier.verify(
         method="POST",
         path="/api/v1/federation/trust/report",
@@ -314,7 +313,8 @@ def test_http_client_auto_signs_requests() -> None:
     async def _run() -> int:
         async_client = httpx.AsyncClient(transport=transport, timeout=5.0)
         signed = httpx.Request(
-            "POST", "http://testserver/api/v1/federation/trust/report",
+            "POST",
+            "http://testserver/api/v1/federation/trust/report",
             json=_valid_report(),
         )
         fed_client._sign_request(signed)
@@ -323,6 +323,33 @@ def test_http_client_auto_signs_requests() -> None:
         return response.status_code
 
     assert asyncio.run(_run()) == 200
+
+
+def test_http_layer_verifies_signed_nonce() -> None:
+    """传输层读取签名覆盖的 nonce；只替换 nonce 的重放必须被拒。"""
+    import json
+
+    from maref.federation.federation_auth import (
+        NONCE_HEADER,
+        FederationRequestSigner,
+    )
+
+    key = ReportSigningKey.generate()
+    client = _build_app(request_verifier={"org-alpha": key.public_key_pem})
+    body = json.dumps(_valid_report())
+    headers = {
+        "Content-Type": "application/json",
+        **FederationRequestSigner(key, "org-alpha").sign(
+            "POST", TRUST_REPORT_PATH, body.encode(), nonce="nonce-1"
+        ),
+    }
+
+    accepted = client.post(TRUST_REPORT_PATH, content=body, headers=headers)
+    assert accepted.status_code == 200
+
+    headers[NONCE_HEADER] = "nonce-2"
+    replayed = client.post(TRUST_REPORT_PATH, content=body, headers=headers)
+    assert replayed.status_code == 401
 
 
 def test_auth_failed_audit_recorded_on_rejection() -> None:

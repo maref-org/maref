@@ -131,23 +131,37 @@ def _base_payload(entry: dict[str, Any]) -> dict[str, Any]:
     return payload
 
 
+# to_dict() 曾漏写 layer，但签名载荷一直包含它；复算历史记录时按源码中
+# 实际出现的 layer 取值逐个尝试，否则带非默认 layer 的记录会被误报篡改。
+_KNOWN_LAYERS = (
+    "governance",
+    "orchestration",
+    "execution",
+    "evolution",
+    "meta",
+    "inner",
+    "outer",
+    "memory",
+    "economy",
+    "federation",
+    "decision_market",
+)
+
+
 def _payload_variants(entry: dict[str, Any], unified: bool) -> list[str]:
     """Return de-duplicated serializations used by historical writers."""
     base = _base_payload(entry)
     dicts = [base]
     if unified:
-        with_unified = dict(base)
-        if entry.get("tenant_id"):
-            with_unified["tenant_id"] = entry["tenant_id"]
-        if entry.get("layer"):
-            with_unified["layer"] = entry["layer"]
-        else:
-            # AuditEntry defaults layer="governance" and signs it even though
-            # to_dict() omits the field. Accept both forms.
-            with_unified["layer"] = "governance"
-        if entry.get("round"):
-            with_unified["round"] = entry["round"]
-        dicts.append(with_unified)
+        layer_values = [entry["layer"]] if entry.get("layer") else _KNOWN_LAYERS
+        for layer_value in layer_values:
+            with_unified = dict(base)
+            if entry.get("tenant_id"):
+                with_unified["tenant_id"] = entry["tenant_id"]
+            with_unified["layer"] = layer_value
+            if entry.get("round"):
+                with_unified["round"] = entry["round"]
+            dicts.append(with_unified)
     variants: list[str] = []
     for payload in dicts:
         variants.append(json.dumps(payload, ensure_ascii=False, default=str))
