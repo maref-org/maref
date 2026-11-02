@@ -23,6 +23,10 @@ from maref.governance.canonical_json import canonical_bytes
 MODEL_ROUTE_EVENT = "model_route_decision"
 MODEL_ROUTE_SCHEMA_VERSION = "1"
 
+# 路由/模型输出只提供建议，不构成授权；标注不可由调用方改写。
+MODEL_ROUTE_ADVISORY = True
+MODEL_ROUTE_AUTHORITY = "none"
+
 
 class RouteAttestationError(RuntimeError):
     """Raised when an external route record fails signature or replay checks."""
@@ -100,7 +104,10 @@ class ModelRouteDecision:
     parent_action_id: str = ""
     attestation_hash: str = ""
     route_decision_id: str = ""
+    model_id: str = ""
     schema_version: str = MODEL_ROUTE_SCHEMA_VERSION
+    advisory: bool = field(default=MODEL_ROUTE_ADVISORY, init=False)
+    authority: str = field(default=MODEL_ROUTE_AUTHORITY, init=False)
 
     def to_payload(self) -> dict[str, Any]:
         """Signed payload.  ``route_decision_id`` is assigned by MAREF."""
@@ -114,6 +121,7 @@ class ModelRouteDecision:
             "session_id": self.session_id,
             "requested_model": self.requested_model,
             "selected_model": self.selected_model,
+            "model_id": self.model_id or self.selected_model,
             "provider": self.provider,
             "deployment_id": self.deployment_id,
             "model_version": self.model_version,
@@ -132,6 +140,8 @@ class ModelRouteDecision:
             "retention_class": self.retention_class,
             "parent_action_id": self.parent_action_id,
             "attestation_hash": self.attestation_hash,
+            "advisory": self.advisory,
+            "authority": self.authority,
         }
 
     @classmethod
@@ -168,7 +178,9 @@ class ModelRouteDecision:
             retention_class=str(payload.get("retention_class", "")),
             parent_action_id=str(payload.get("parent_action_id", "")),
             attestation_hash=str(payload.get("attestation_hash", "")),
+            model_id=str(payload.get("model_id", "")),
             schema_version=schema_version,
+            # payload 中的 advisory/authority 一律忽略：外部路由不能自称权威。
         )
 
 
@@ -244,6 +256,7 @@ class ModelRouteRecorder:
         tenant_id: str = "",
         model_version: str = "",
         provider: str = "",
+        agent_id: str = "",
     ) -> bool:
         """Verify that route evidence exists and optional bindings match."""
 
@@ -253,6 +266,8 @@ class ModelRouteRecorder:
         if tenant_id and decision.tenant_id != tenant_id:
             return False
         if model_version and decision.model_version != model_version:
+            return False
+        if agent_id and decision.agent_id != agent_id:
             return False
         return not (provider and decision.provider != provider)
 
@@ -312,6 +327,8 @@ class RouteIngestAdapter:
 
 
 __all__ = [
+    "MODEL_ROUTE_ADVISORY",
+    "MODEL_ROUTE_AUTHORITY",
     "MODEL_ROUTE_EVENT",
     "MODEL_ROUTE_SCHEMA_VERSION",
     "ModelRouteDecision",

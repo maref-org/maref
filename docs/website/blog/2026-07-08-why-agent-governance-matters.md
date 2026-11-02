@@ -76,7 +76,7 @@ Agent governance is not "adding safety to your agent". It's a distinct infrastru
 
 Every agent goal must be validated at runtime, not just at launch. If the goal drifts (the agent starts pursuing something different), the governance layer must detect and halt it.
 
-**MAREF's approach**: The [10-state Gray Code governance state machine](https://maref.cc/en/features/governance/) tracks agent state transitions with Hamming distance=1, making drift mathematically detectable. The [Four-Tier Security Decision Tree](https://maref.cc/en/features/defense/) validates goals at Rule → Mode → SafetyGate → User levels, achieving 97% automation.
+**MAREF's approach**: The [10-state Gray Code governance state machine](https://maref.cc/en/features/governance/) tracks agent state transitions with Hamming distance=1, making drift mathematically detectable. The [Four-Tier Security Decision Tree](https://maref.cc/en/features/defense/) validates goals at Rule → Mode → SafetyGate → User levels, clearing routine operations automatically.
 
 ### Pillar 2: Cryptographic Identity
 

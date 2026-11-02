@@ -45,7 +45,7 @@ Layer 8: ActionRecorder → 不可变操作审计 (OpenAdapt 范式录制→回�
 ```
 
 **关键安全特性**:
-- 决策树中 **97%** 的操作由自动化规则处理（Rule+Mode+SafetyGate），仅 3% 需要用户确认
+- 决策树中，常规操作由自动化规则处理（Rule+Mode+SafetyGate），不确定的操作升级给用户确认
 - CircuitBreaker **3连败自动锁** + 30秒冷却，防止暴力重试
 - HALT 吸收态：一旦进入 HALT，系统不可自行恢复（需要外部干预），防止攻击者让系统"自愈"绕过防护
 

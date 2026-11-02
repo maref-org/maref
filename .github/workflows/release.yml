@@ -88,6 +88,10 @@ jobs:
           python-version: "3.12"
       - name: Build package
         run: pip install build && python -m build
+      # 外部锚：产物清单的 RFC 3161 时间戳。失败即阻断发布（fail-closed），
+      # 因为"何时存在"无法由仓库自身证明，只能由外部 TSA 证明。
+      - name: Timestamp artifacts (RFC 3161)
+        run: python scripts/rfc3161_stamp.py --files dist/* --out-dir dist
       - name: Publish to PyPI
         if: github.event_name == 'push' || github.event.inputs.dry_run != 'true'
         uses: pypa/gh-action-pypi-publish@release/v1
@@ -115,6 +119,16 @@ jobs:
             for f in dist/*; do
               echo "  - \`$(basename "$f")\`"
             done
+            echo
+            echo "### 外部时间证明（RFC 3161）"
+            echo
+            echo "本地校验产物完整性: \`sha256sum -c SHA256SUMS\`"
+            echo
+            echo "第三方校验时间戳（无需信任本仓库）:"
+            echo '```'
+            echo "openssl ts -verify -in SHA256SUMS.tsr -queryfile SHA256SUMS.tsq \\"
+            echo "    -CAfile freetsa-cacert.pem"
+            echo '```'
           } > release-body.md
           cat release-body.md
 

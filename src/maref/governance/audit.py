@@ -94,6 +94,9 @@ class AuditEntry:
             result["signer_fingerprint"] = self.signer_fingerprint
         if self.tenant_id:
             result["tenant_id"] = self.tenant_id
+        # layer 参与签名载荷，必须随记录落盘，否则读取方无法复算 chain_hash。
+        if self.layer:
+            result["layer"] = self.layer
         if self.round:
             result["round"] = self.round
         return result

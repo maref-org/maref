@@ -15,11 +15,11 @@ from __future__ import annotations
 import functools
 import logging
 from collections.abc import Callable
-from typing import Any, TypeVar
+from typing import Any, Protocol, TypeVar
 
 from maref.governance.core_pipeline import (
-    GovernancePipeline,
     GovernanceRequest,
+    GovernanceResult,
     Verdict,
 )
 
@@ -50,25 +50,32 @@ class GovernanceAlternativeError(GovernanceDeniedError):
         self.alternatives: list[Any] = list(alternatives or [])
 
 
-_default_pipeline: GovernancePipeline | None = None
+class _Governor(Protocol):
+    """最小治理接口；``GovernedPipeline`` 等外层装配也可作为默认管道。"""
+
+    def govern(self, request: GovernanceRequest) -> GovernanceResult:
+        """治理契约；由装配的管道实现。"""
 
 
-def set_default_pipeline(pipeline: GovernancePipeline) -> None:
-    """Set the default GovernancePipeline for all @governed decorators."""
+_default_pipeline: _Governor | None = None
+
+
+def set_default_pipeline(pipeline: _Governor | None) -> None:
+    """Set the default pipeline for all @governed decorators."""
     global _default_pipeline
     _default_pipeline = pipeline
     logger.info("Default governance pipeline set: %s", type(pipeline).__name__)
 
 
-def get_default_pipeline() -> GovernancePipeline | None:
-    """Get the default GovernancePipeline."""
+def get_default_pipeline() -> _Governor | None:
+    """Get the default pipeline."""
     return _default_pipeline
 
 
 def governed(
     require: str = "",
     action: str | None = None,
-    pipeline: GovernancePipeline | None = None,
+    pipeline: _Governor | None = None,
     agent_id: str = "decorated",
     tenant_id: str = "default",
 ) -> Callable[[F], F]:
@@ -77,7 +84,7 @@ def governed(
     Args:
         require: Action name to govern (e.g. "file.write", "shell.exec").
         action: Alias for require (prefer require).
-        pipeline: GovernancePipeline to use. Falls back to global default.
+        pipeline: Governance pipeline to use. Falls back to global default.
         agent_id: Agent identifier for governance logging.
         tenant_id: Tenant identifier for governance routing.
 

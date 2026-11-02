@@ -1,6 +1,49 @@
 # CHANGELOG
 
-## [Unreleased]
+## [v0.55.2] - 2026-11-01
+
+### Fixed
+- OpenClaw 兼容性检查在干净 checkout 下误报 breaking：`maref-governance/` 是被 `.gitignore` 排除的外部项目目录，CI 中必然缺失。检查脚本新增 `3 = 检查源不可用（skipped）` 语义，不再将“无法检查”判定为 `2 = breaking`。
+- 兼容性 workflow 在 `bash -e` 下无法写入 `exit_code` output：脚本非零退出会立即终止步骤，导致下游 `== '2'` 判定永不成立——真正的 breaking change 反而不会创建告警 Issue。改为 `set +e` 捕获退出码，并在末尾独立 gate 步骤判定失败。
+- `Summary` 步骤对退出码 3 显示为“completed with changes”，语义误导；改为显式区分 `0/1/2/3`。
+
+### Tests
+- 新增 `tests/scripts/test_check_openclaw_compat.py`：锁死“缺源 ≠ breaking”（exit 3）、自包含的兼容路径（exit 0），不依赖本地未跟踪目录。
+- 新增 `tests/observability/test_otel_middleware.py`：锁定 `service.version` 发布位点与包版本一致，并覆盖 tracer 工厂。
+
+### Security
+- 升级传递依赖 `pyasn1` 0.6.4 → 0.6.5，修复 4 个 HIGH（DoS）：CVE-2026-119194 / 119195 / 119196 / 119197。该依赖经 `pyasn1-modules`、`ldap3`、`service-identity` 进入，无 API 变更，不影响本项目调用面。
+
+### Chore
+- `scripts/vaccine_pipeline/patterns.json` 与 `vaccines.json` 移出版本控制并加入 `.gitignore`。二者由本机审计日志统计生成（pattern `count` 是本机数据），跨机器不可复现；CI 与测试均不依赖其真实内容，消费脚本在缺失时返回空列表。本地文件保留，可用 `01_extract_patterns.py` + `04_compile_vaccines.py` 重新生成。
+
+
+## [v0.55.1] - 2026-10-30
+
+### Added
+- 治理内核接线（#466）：`GovernedPipeline` 默认装配破坏性操作门、预算熔断器与 kill switch；入口闸（身份/委托链/入向消毒）与模型闸默认关闭，通过构造参数或 `MAREF_ENTRY_GATE` / `MAREF_MODEL_GATE` 显式启用。
+- 审计外部锚定（#466）：`AuditAnchor` 与 `scripts/verify_audit_anchor.py`，支持批次 Merkle 锚点、Ed25519 签名与离线校验。
+- PyPI 元数据：新增 `[project.urls]`（官网、仓库、文档、Issue、变更日志、安全白皮书），修复此前 PyPI 页面无项目链接的问题。
+
+### Changed
+- **兼容性影响（相对 v0.55.0）**：`GovernedPipeline` 默认启用三道行动闸：
+  - 破坏性操作门：命中破坏性模式（如递归删除、强推）时升级 HITL 或 `DENY`，不再直接放行；
+  - 预算熔断：默认 `MAREF_BUDGET_MAX_PER_AGENT=1000`、`MAREF_BUDGET_MAX_PER_TASK=200`、`MAREF_BUDGET_MAX_BURN_RATE=100`，超限 `DENY`；
+  - kill switch：仅在显式 `engage()` 后阻断对应作用域（global/tenant/agent），未触发时无行为变化。
+- **迁移**：按需注入自定义实例（如 `destructive_gate=DestructiveOperationGate(enabled=False)`）或调整 `MAREF_BUDGET_*` 环境变量；入口闸与模型闸保持默认关闭，无需迁移。
+- **回滚**：无需回退代码；注入禁用的 gate 实例并恢复预算阈值即可回到 v0.55.0 行为。
+
+### Fixed
+- 审计记录落盘 `layer` 字段并修复链尾回退（#494）。
+- `eu_ai_act_v2` 报告 `assessed_at` 改为 UTC-aware，修复 UTC+8 凌晨时段 `test_report_generated_at_recent` 必失败的问题。
+- `scripts/oss-exclude-list.txt` 补全 4 条漏覆盖闭源路径，恢复第十一条 11.4 覆盖等价性门禁。
+- CI：将 `tests/maref/compliance`（49 个用例）纳入 `test` 与 `sonarcloud` 作业，此前该目录被 `--ignore` 排除、从未在 CI 执行。
+- 安全：移除公开归档 `archive/research-20261024/` 中与闭源原件字节一致的 `vector_store.py` 副本（历史泄漏，当前树已清理）。
+- 更正 `docs/releases/v0.55.0.md` 的 D1 预检时间与覆盖率口径。
+- 移除无测量依据的「97% 自动化率」表述（#493）。
+
+### Chore
+- 深水区登记表移出公开仓，模板路径占位符化（#495）。
 
 ## [v0.55.0] - 2026-10-26 (发布完整性；Experimental / Python-only)
 
