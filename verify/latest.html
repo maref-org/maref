@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MAREF Governance Report — f9b9428e</title>
+<title>MAREF Governance Report — b46e7fde</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; color: #1a1a2e; background: #f8f9fa; }
@@ -26,22 +26,22 @@
 <body>
 <h1>MAREF Governance Report</h1>
 <div class="meta">
-  <strong>Report ID:</strong> f9b9428e-d0cb-492e-9669-623d2cd5a514<br>
-  <strong>Generated:</strong> 2026-11-01T12:17:43.133848+00:00<br>
+  <strong>Report ID:</strong> b46e7fde-58f4-40c1-80c8-504960eb9bd9<br>
+  <strong>Generated:</strong> 2026-11-02T14:05:12.904818+00:00<br>
   <strong>Version:</strong> 1.0 — maref v0.39.0
 </div>
 
 <div class="summary">
   <span class="num">2</span> audit events
-  &middot; Signed by <span class="fp">7301d59f5b332b8f</span>
+  &middot; Signed by <span class="fp">b7b7c7ea91baf02c</span>
 </div>
 
 <h2>Audit Summary</h2>
 <table>
   <tr><th>Metric</th><th>Value</th></tr>
   <tr><td>Total Events</td><td>2</td></tr>
-  <tr><td>Time Range Start</td><td>1793535461.9273338</td></tr>
-  <tr><td>Time Range End</td><td>1793535461.927622</td></tr>
+  <tr><td>Time Range Start</td><td>1793628312.019171</td></tr>
+  <tr><td>Time Range End</td><td>1793628312.0195763</td></tr>
 </table>
 
 <h3>Event Types</h3>
@@ -65,17 +65,17 @@
 </table>
 
 <h2>Merkle Root</h2>
-<div class="merkle">4ad84fb8ed8df41e2f68c3f617deef76e838fa5fc85e01856387acc99995cd07</div>
+<div class="merkle">71fa21a819349b5869be63f7fccedf46c6b15f003c66de0efe70e5073ed9510b</div>
 
 <button class="btn" onclick="downloadJson()">Download JSON</button>
 
 <script>
 function downloadJson() {
-  var data = {"report_id": "f9b9428e-d0cb-492e-9669-623d2cd5a514", "report_version": "1.0", "created_at": "2026-11-01T12:17:43.133848+00:00", "generated_by": "maref v0.39.0", "signer_fingerprint": "7301d59f5b332b8f", "merkle_root": "4ad84fb8ed8df41e2f68c3f617deef76e838fa5fc85e01856387acc99995cd07", "audit_summary": {"total_events": 2, "time_range_start": 1793535461.9273338, "time_range_end": 1793535461.927622, "event_types": {"governance_decision": 1, "verify": 1}, "actor_counts": {"ci-runner": 2}}, "system_state": {"governance_state": "", "active_agents_count": 0, "merkle_tree_size": 2, "version": ""}, "previous_report_id": "", "metadata": {}, "signature": "+2TLvov+FfjWm7l/+9PIY51uJR0eRDJ0AfiH2Vbqbp+LPl10kNMfEGDQ3oahZUPwd8n8ibcG8J/7mNmu3bVuAQ=="};
+  var data = {"report_id": "b46e7fde-58f4-40c1-80c8-504960eb9bd9", "report_version": "1.0", "created_at": "2026-11-02T14:05:12.904818+00:00", "generated_by": "maref v0.39.0", "signer_fingerprint": "b7b7c7ea91baf02c", "merkle_root": "71fa21a819349b5869be63f7fccedf46c6b15f003c66de0efe70e5073ed9510b", "audit_summary": {"total_events": 2, "time_range_start": 1793628312.019171, "time_range_end": 1793628312.0195763, "event_types": {"governance_decision": 1, "verify": 1}, "actor_counts": {"ci-runner": 2}}, "system_state": {"governance_state": "", "active_agents_count": 0, "merkle_tree_size": 2, "version": ""}, "previous_report_id": "", "metadata": {}, "signature": "mh9K2BnhDAmNI0yL+gxk/8WosDjuwN5L/BZbwKtFAso308YFgNIKCygz7fTwl/5mPmmow4GpqteoVbJMb74gAQ=="};
   var blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
   var a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'governance-report-f9b9428e.json';
+  a.download = 'governance-report-b46e7fde.json';
   a.click();
 }
 </script>
