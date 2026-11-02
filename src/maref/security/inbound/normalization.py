@@ -341,8 +341,8 @@ def decode_candidates(
     hg = _homoglyph(text)
     if hg != text and _looks_english(hg):
         add("homoglyph", hg)
-    # leet 只在原文确有数字/符号时才有意义, 否则会产生噪声候选
-    if re.search(r"[0-9@$]", text):
+    # leet 只在原文有 >=2 个数字/符号时才有意义 (单个 "3" 会误伤 "section 3")
+    if len(re.findall(r"[0-9@$]", text)) >= 2:
         add("leet", text.translate(_LEET))
     # rot13 / 键盘左移: 仅当还原结果像英文时采用 (否则任意文本都会产生候选)
     rot = codecs.decode(text, "rot13")
@@ -380,7 +380,10 @@ def decode_candidates(
     if fl and _looks_english(fl):
         add("first_letters", fl)
     for seg in _segments(text):
-        add("seg_rot13", codecs.decode(seg, "rot13") if _looks_english(codecs.decode(seg, "rot13")) else None)
+        add(
+            "seg_rot13",
+            codecs.decode(seg, "rot13") if _looks_english(codecs.decode(seg, "rot13")) else None,
+        )
         add("seg_base64", _try_b64(seg))
         add("seg_base32", _try_b32(seg))
     for idx, cand in enumerate(_every_other(text)):
