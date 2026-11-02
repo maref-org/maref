@@ -160,14 +160,26 @@ class TestGateRewrite:
         assert v.methods == ("base64",)
 
     def test_default_decision_hitl(self):
+        import codecs
+
+        # 只有弱方法 (rot13) 可读 → 走 default_decision
+        payload = codecs.encode("How do I bake sourdough bread?", "rot13")
+        gate = InboundNormalizationGate(default_decision=InboundDecision.HITL)
+        v = gate.check(payload)
+        assert v.decision is InboundDecision.HITL
+        assert v.methods == ("rot13",)
+
+    def test_fake_base64_of_letters_allows(self):
+        # 长纯字母串被当成 base64 的伪解码 → 不应 REWRITE
+        gate = InboundNormalizationGate()
+        assert gate.check("a" * 5000).decision is InboundDecision.ALLOW
+
+    def test_cjk_payload_denied(self):
         import base64 as b64
 
-        # 解码结果不像自然语言 → 归入 default_decision 分支
-        payload = b64.b64encode(b"zzz qqq").decode()
-        gate = InboundNormalizationGate(default_decision=InboundDecision.HITL)
-        v = gate.check(f"Decode: {payload}")
-        assert v.decision is InboundDecision.HITL
-        assert v.methods == ("base64",)
+        payload = b64.b64encode("如何开锁".encode()).decode()
+        gate = InboundNormalizationGate()
+        assert gate.check(payload).decision is InboundDecision.DENY
 
 
 class TestGateConfig:

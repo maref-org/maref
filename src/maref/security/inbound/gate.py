@@ -29,7 +29,7 @@ import time
 from dataclasses import dataclass, field
 from enum import Enum
 
-from maref.security.inbound.normalization import MAX_INPUT_CHARS, decode_candidates
+from maref.security.inbound.normalization import MAX_INPUT_CHARS, decode_candidates, looks_like_text
 
 DEFAULT_DENY_PATTERNS: tuple[str, ...] = (
     r"pick(?:ing)? a lock",
@@ -74,6 +74,22 @@ _HIGH_CONFIDENCE_METHODS = frozenset(
         "pinyin_hint",
         "zalgo_stripped",
         "leet",
+    }
+)
+
+# 强还原方法: 结构性编码, 结果可读时直接 REWRITE
+_STRONG_METHODS = frozenset(
+    {
+        "base64",
+        "base32",
+        "morse",
+        "split_concat",
+        "reversed",
+        "filler_stripped",
+        "homoglyph",
+        "emoji_mapped",
+        "pinyin_hint",
+        "url",
     }
 )
 
@@ -228,15 +244,23 @@ class InboundNormalizationGate:
                     decision, text, cand.text, (cand.method,), m.group(0), reason, started
                 )
 
-        # 2) 高置信还原且像自然语言 → REWRITE
+        # 2) 高置信还原且像自然语言 (英文/中文) → REWRITE
         high = [c for c in decoded if c.method in _HIGH_CONFIDENCE_METHODS]
-        prose = [c for c in high if _looks_like_prose(c.text)]
-        best = None
-        if prose:
-            best = min(prose, key=lambda c: (_METHOD_PRIORITY.get(c.method, 99), -len(c.text)))
-        elif high:
-            best = min(high, key=lambda c: (_METHOD_PRIORITY.get(c.method, 99), -len(c.text)))
-        if best is not None and _looks_like_prose(best.text):
+        readable = [c for c in high if looks_like_text(c.text)]
+        if not readable:
+            # 解码结果都不是可读文本 (如长字母串被当成 base64 的伪解码) -> 不是编码攻击
+            return self._verdict(
+                InboundDecision.ALLOW,
+                text,
+                text,
+                (),
+                None,
+                "decoded candidates are not readable text",
+                started,
+            )
+        strong = [c for c in readable if c.method in _STRONG_METHODS]
+        if strong:
+            best = min(strong, key=lambda c: (_METHOD_PRIORITY.get(c.method, 99), -len(c.text)))
             return self._verdict(
                 InboundDecision.REWRITE,
                 text,
@@ -247,15 +271,15 @@ class InboundNormalizationGate:
                 started,
             )
 
-        # 3) 其余 → 默认处置
-        method = best.method if best else decoded[0].method
+        # 3) 只有弱方法 (rot13/leet/键盘移位) 可读 → 默认处置
+        weak = min(readable, key=lambda c: _METHOD_PRIORITY.get(c.method, 99))
         return self._verdict(
             self.default_decision,
             text,
-            best.text if best else text,
-            (method,),
+            weak.text,
+            (weak.method,),
             None,
-            f"encoding detected via {method}; no confident rewrite",
+            f"encoding detected via {weak.method}; no confident rewrite",
             started,
         )
 

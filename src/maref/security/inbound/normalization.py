@@ -203,6 +203,18 @@ def _looks_english(s: str) -> bool:
     return bool(s.strip()) and 0.18 <= _vowel_ratio(s) <= 0.58 and _common_word_hits(s) >= 1
 
 
+def looks_like_text(s: str) -> bool:
+    """英文或中文文本 (用于判断解码结果是否是"可读内容")。"""
+    if _looks_english(s):
+        return True
+    cjk = sum(1 for c in s if "\u4e00" <= c <= "\u9fff")
+    if cjk >= 4:
+        return True
+    # 含空格且大多是字母/中文字符
+    letters = sum(1 for c in s if c.isalpha() or "\u4e00" <= c <= "\u9fff")
+    return " " in s.strip() and letters >= len(s.strip()) * 0.5 and letters >= 8
+
+
 def _strip_zalgo(s: str) -> str:
     return "".join(c for c in unicodedata.normalize("NFD", s) if unicodedata.category(c) != "Mn")
 
@@ -336,8 +348,9 @@ def decode_candidates(
         pass
 
     for tok in re.findall(r"[A-Za-z0-9+/=_-]{12,}", text):
-        add("base64", _try_b64(tok))
-        add("base32", _try_b32(tok))
+        if len(tok) <= 4096:
+            add("base64", _try_b64(tok))
+            add("base32", _try_b32(tok))
         if len(out) >= max_candidates:
             break
 
@@ -352,4 +365,10 @@ def decode_candidates(
     return tuple(out[:max_candidates])
 
 
-__all__ = ["DecodedCandidate", "decode_candidates", "MAX_INPUT_CHARS", "MAX_CANDIDATES"]
+__all__ = [
+    "DecodedCandidate",
+    "decode_candidates",
+    "looks_like_text",
+    "MAX_INPUT_CHARS",
+    "MAX_CANDIDATES",
+]
