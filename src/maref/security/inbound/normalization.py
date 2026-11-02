@@ -292,6 +292,20 @@ def _split_concat(s: str) -> list[str]:
     return ["".join(parts)] if len(parts) >= 2 else []
 
 
+def _segments(s: str) -> list[str]:
+    """按标点/引号切段，用于对"说明 + 密文"混合输入逐段解码。"""
+    parts = re.split(r"[:;\n\"'\u2018\u2019\u201c\u201d]", s)
+    return [p.strip() for p in parts if len(p.strip()) >= 8]
+
+
+def _first_letters(s: str) -> str | None:
+    """每句首字母拼词 (e.g. 'Ignore. All. Rules.' -> 'IAR')。"""
+    sentences = [p.strip() for p in re.split(r"[.!?]+", s) if p.strip()]
+    letters = [p[0] for p in sentences if p and p[0].isalpha()]
+    out = "".join(letters)
+    return out if len(out) >= 4 else None
+
+
 def _pinyin_hint(s: str) -> str | None:
     toks = re.findall(r"[a-z]{3,}", s.lower())
     hits = [_PINYIN_HINT[t] for t in toks if t in _PINYIN_HINT]
@@ -320,8 +334,13 @@ def decode_candidates(
         out.append(DecodedCandidate(method, value))
 
     add("nfkc", unicodedata.normalize("NFKC", text))
-    add("zalgo_stripped", _strip_zalgo(text))
-    add("homoglyph", _homoglyph(text))
+    zs = _strip_zalgo(text)
+    mn = sum(1 for c in unicodedata.normalize("NFD", text) if unicodedata.category(c) == "Mn")
+    if mn >= 5 and _looks_english(zs):
+        add("zalgo_stripped", zs)
+    hg = _homoglyph(text)
+    if hg != text and _looks_english(hg):
+        add("homoglyph", hg)
     # leet 只在原文确有数字/符号时才有意义, 否则会产生噪声候选
     if re.search(r"[0-9@$]", text):
         add("leet", text.translate(_LEET))
@@ -329,11 +348,13 @@ def decode_candidates(
     rot = codecs.decode(text, "rot13")
     if _looks_english(rot):
         add("rot13", rot)
-    rev = text[::-1]
-    if _looks_english(rev):
-        add("reversed", rev)
+    for seg in _segments(text):
+        rev = seg[::-1]
+        if _common_word_hits(rev) >= max(2, _common_word_hits(seg) + 2) and _looks_english(rev):
+            add("reversed", rev)
+            break
     fill = _strip_filler(text)
-    if len(text) - len(fill) >= 3 and _looks_english(fill):
+    if len(text) - len(fill) >= max(3, int(len(text) * 0.15)) and _looks_english(fill):
         add("filler_stripped", fill)
     kb = _keyboard_left(text)
     if _looks_english(kb):
@@ -355,6 +376,13 @@ def decode_candidates(
             break
 
     add("morse", _try_morse(text))
+    fl = _first_letters(text)
+    if fl and _looks_english(fl):
+        add("first_letters", fl)
+    for seg in _segments(text):
+        add("seg_rot13", codecs.decode(seg, "rot13") if _looks_english(codecs.decode(seg, "rot13")) else None)
+        add("seg_base64", _try_b64(seg))
+        add("seg_base32", _try_b32(seg))
     for idx, cand in enumerate(_every_other(text)):
         if _looks_english(cand):
             add(f"every_other_{idx}", cand)

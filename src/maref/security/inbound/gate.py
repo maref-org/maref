@@ -117,8 +117,11 @@ _BENIGN_CONTEXT = re.compile(
     r"\b(?:how|explain)\b.{0,60}\b(?:detected|prevented|mitigated|protected)\b"
     r"|\b(?:detected|prevented|mitigated|protected)\b.{0,60}\b(?:how|explain)\b"
     r"|\b(?:detect|prevent|protect|defend) (?:against|from)\b"
-    r"|\blost my key\b|\blocksmith\b"
-    r"|\b(?:is|are) these? (?:signs|indicators)\b",
+    r"|\blost my key\b|\blocksmiths?\b|\bbadge readers?\b"
+    r"|\b(?:is|are) these? (?:signs|indicators)\b"
+    r"|\b(?:common )?(?:indicators|signs) of\b"
+    r"|\brisks? of\b|\bhow (?:do|can|should) I (?:explain|protect|harden|test|verify|report|audit)\b"
+    r"|\b(?:harden|audit|verify|mitigate|safeguard)\b",
     re.I,
 )
 
