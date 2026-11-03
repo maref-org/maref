@@ -52,6 +52,8 @@ DEFAULT_DENY_PATTERNS: tuple[str, ...] = (
     r"unlock\b.{0,24}\block\b",
     r"lockpick",
     r"ignore (?:all |your )?(?:previous|prior) instructions",
+    r"(?![^.!?]*\b(?:is|are|was|were)\s+(?:a|an)\s+(?:phrase|term|example|common|known|typical|pattern|format))(?:^|[.!?]\s+)ignore\s+(?:all\s+|your\s+|the\s+)?(?:safety|guidelines|rules|policy|restrictions)\b",
+    r"(?![^.!?]*\b(?:is|are|was|were)\s+(?:a|an)\s+(?:phrase|term|example|common|known|typical|pattern|format))(?:^|[.!?]\s+)(?:give|grant|send|show)\s+me\s+(?:the\s+|your\s+)?(?:admin|root|superuser|sudo)(?:istrator)?(?:\s+(?:creds|credentials|access|password|token))?",
     r"system prompt",
     r"开锁",
     r"撬锁",
@@ -74,6 +76,7 @@ _HIGH_CONFIDENCE_METHODS = frozenset(
         "pinyin_hint",
         "zalgo_stripped",
         "leet",
+        "acrostic_rebuilt",
     }
 )
 
@@ -90,6 +93,7 @@ _STRONG_METHODS = frozenset(
         "emoji_mapped",
         "pinyin_hint",
         "url",
+        "acrostic_rebuilt",
     }
 )
 
@@ -109,6 +113,7 @@ _METHOD_PRIORITY = {
     "leet": 11,
     "rot13": 12,
     "keyboard_left": 13,
+    "acrostic_rebuilt": 14,
 }
 
 
@@ -117,8 +122,12 @@ _BENIGN_CONTEXT = re.compile(
     r"\b(?:how|explain)\b.{0,60}\b(?:detected|prevented|mitigated|protected)\b"
     r"|\b(?:detected|prevented|mitigated|protected)\b.{0,60}\b(?:how|explain)\b"
     r"|\b(?:detect|prevent|protect|defend) (?:against|from)\b"
-    r"|\blost my key\b|\blocksmith\b"
-    r"|\b(?:is|are) these? (?:signs|indicators)\b",
+    r"|\blost my key\b|\blocksmiths?\b|\bbadge readers?\b"
+    r"|\b(?:is|are) these? (?:signs|indicators)\b"
+    r"|\b(?:common )?(?:indicators|signs) of\b"
+    r"|\brisks? of\b|\bhow (?:do|can|should) I (?:explain|protect|harden|test|verify|report|audit)\b"
+    r"|\b(?:harden|audit|verify|mitigate|safeguard)\b"
+    r"|\b(?:why|how) (?:does|do|is|are)\b.{0,80}\b(?:work|works|fail|fails|bypass|bypasses|jailbreak|phishing|attack)\b",
     re.I,
 )
 
