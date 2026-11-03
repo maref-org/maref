@@ -43,6 +43,7 @@ jobs:
           scripts/probe_threshold_calibrate.py
           scripts/rfc3161_stamp.py
           scripts/anchor_governance_audit.py
+          scripts/verify_anchor_manifest.py
           tests/scripts
 
   test:
