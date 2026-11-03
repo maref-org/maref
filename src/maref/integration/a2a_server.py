@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import logging
 import time
 from typing import Any
 
@@ -12,6 +13,8 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from maref.integration.a2a_bridge import A2ABridge, CommunicationBlockedError
 from maref.integration.a2a_types import A2A_PROTOCOL_VERSION, A2ATaskState
 from maref.signing.signing_key import ReportSigningKey
+
+logger = logging.getLogger(__name__)
 
 
 def create_a2a_router(
@@ -317,8 +320,9 @@ def create_a2a_router(
             event = body.get("event", {})
             bridge.handle_push_notification(task_id, event)
             return JSONResponse(status_code=200, content={"success": True, "task_id": task_id})
-        except ValueError as exc:
-            return JSONResponse(status_code=404, content={"detail": str(exc)})
+        except ValueError:
+            logger.warning("a2a push notification rejected: invalid task")
+            return JSONResponse(status_code=404, content={"detail": "Task not found"})
         except CommunicationBlockedError:
             return JSONResponse(
                 status_code=503,
@@ -368,10 +372,11 @@ def create_a2a_router(
             )
         except HTTPException:
             raise
-        except CommunicationBlockedError as exc:
+        except CommunicationBlockedError:
+            logger.warning("a2a agent card request blocked: circuit breaker open")
             return JSONResponse(
                 status_code=503,
-                content={"detail": str(exc)},
+                content={"detail": "Circuit breaker is OPEN"},
             )
         except Exception:
             return JSONResponse(status_code=500, content={"detail": "Server error"})
