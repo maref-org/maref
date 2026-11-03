@@ -4,6 +4,7 @@ Lexsi D6 实测沉淀: 编码攻击必须先在输入侧还原, 语义层的安�
 inference-time steering) 对编码输入无效。
 """
 
+from maref.security.inbound.conversational import ConversationalInboundGate
 from maref.security.inbound.gate import (
     DEFAULT_DENY_PATTERNS,
     InboundDecision,
@@ -18,6 +19,7 @@ from maref.security.inbound.normalization import (
 )
 
 __all__ = [
+    "ConversationalInboundGate",
     "DEFAULT_DENY_PATTERNS",
     "DecodedCandidate",
     "InboundDecision",
