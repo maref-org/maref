@@ -217,25 +217,11 @@ runtime_status:
   note: 'G9：launchd/心跳非零项 0 未分类；以下为显式豁免清单（retired 7 / paused 11）'
   exemptions:
     retired:
-      - chaos-nightly
-      - scrcpy-keepalive-samsung
-      - ztest78
-      - twitter-vol01-resume
-      - openxlab-bind-retry
-      - maref-douyin-daily
-      - maref-wechat-daily
+      count: 7
+      items: '<redacted — role names in private ops repo>'
     paused:
-      - orchestrator
-      - supervisor
-      - laborer-o1
-      - laborer-o2
-      - laborer-t1
-      - laborer-t2
-      - laborer-t3
-      - maref-contact-agent
-      - maref-contact-wechat
-      - cursor
-      - ipk-zhihu-scheduler
+      count: 11
+      items: '<redacted — role names in private ops repo>'
 dns_setup:
   domain: maref.cc
   registrar: 'alibaba cloud computing ltd. d (id: 1599)'
