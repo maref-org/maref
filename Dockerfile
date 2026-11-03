@@ -60,7 +60,11 @@ ENV PATH="/opt/venv/bin:$PATH"
 # 基础镜像自带的系统 pip 留在 /usr/local, 运行时实际用 /opt/venv, 但 Trivy 会扫到
 # 其元数据并判定多个 CVE (CVE-2025-8869/2026-13346/2026-3219/2026-6357/2026-8643/2026-1703)。
 # 显式升级系统 pip 到修复版本 (26.2.0 未在 PyPI 发布, 最新稳定 26.3)。
-RUN /usr/local/bin/python3.12 -m pip install --no-cache-dir --upgrade "pip>=26.3"
+# pip 26.3 的 bom.cdx.json 声明 pkg:pypi/setuptools@70.3.0, Trivy 会当成已安装包报出
+# CVE-2025-47273 (HIGH); 与 /opt/venv 同样删除 SBOM/vendor 清单, 实际未安装该版本。
+RUN /usr/local/bin/python3.12 -m pip install --no-cache-dir --upgrade "pip>=26.3" \
+    && rm -f /usr/local/lib/python3.12/site-packages/pip/_vendor/vendor.txt \
+             /usr/local/lib/python3.12/site-packages/pip/_vendor/bom.cdx.json
 
 # Create necessary directories with correct ownership
 RUN mkdir -p /app/data /app/logs /app/research_output && \
