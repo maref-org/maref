@@ -1,0 +1,84 @@
+name: Audit Chain Anchor
+
+# 在审计链所在主机上（self-hosted runner）批次锚定 .governance 审计日志。
+#
+# 安全边界：
+# - 只由 schedule / workflow_dispatch 触发，绝不监听 pull_request——
+#   公开仓库的 self-hosted runner 若被 fork PR 触发，等于允许任意代码执行。
+# - runner 必须放在独立目录，不得与仓库工作区重叠（checkout 会清理工作区）。
+# - 审计原文不上传：artifact 只含 Merkle 根、TSA 令牌与哈希，且 audit_file
+#   路径在上传前脱敏为 <deployment-local>。
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 2 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: audit-chain-anchor
+  cancel-in-progress: false
+
+jobs:
+  anchor:
+    runs-on: [self-hosted, macOS, maref-audit]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Anchor local audit chain
+        id: anchor
+        env:
+          # 必须由部署侧配置仓库变量；不内置任何主机绝对路径，
+          # 避免把内部卷布局写进公开仓库。
+          AUDIT_PATH: ${{ vars.MAREF_AUDIT_PATH }}
+          ANCHORS_ROOT: ${{ vars.MAREF_ANCHORS_ROOT }}
+        run: |
+          set -euo pipefail
+          if [ -z "$AUDIT_PATH" ] || [ -z "$ANCHORS_ROOT" ]; then
+            echo "::error::set repository variables MAREF_AUDIT_PATH and MAREF_ANCHORS_ROOT"
+            exit 1
+          fi
+          audit_path="$AUDIT_PATH"
+          anchors_root="$ANCHORS_ROOT"
+          if [ ! -f "$audit_path" ]; then
+            echo "::error::audit log not found: $audit_path"
+            exit 1
+          fi
+          out_dir="$anchors_root/$(date -u +%Y%m%d)"
+          mkdir -p "$out_dir"
+          PYTHONPATH="$PWD/src" python3 scripts/anchor_governance_audit.py \
+            --audit "$audit_path" \
+            --out-dir "$out_dir" \
+            --batch-size 1000
+          echo "out_dir=$out_dir" >> "$GITHUB_OUTPUT"
+
+      - name: Stage artifact without local paths
+        run: |
+          set -euo pipefail
+          stage="$RUNNER_TEMP/anchor-artifact"
+          rm -rf "$stage"
+          mkdir -p "$stage"
+          cp -R "${{ steps.anchor.outputs.out_dir }}/." "$stage"/
+          python3 - "$stage/ANCHOR_MANIFEST.json" <<'PY'
+          import json
+          import sys
+
+          path = sys.argv[1]
+          with open(path, encoding="utf-8") as fh:
+              manifest = json.load(fh)
+          manifest["audit_file"] = "<deployment-local>"
+          with open(path, "w", encoding="utf-8") as fh:
+              json.dump(manifest, fh, ensure_ascii=False, indent=2)
+              fh.write("\n")
+          PY
+
+      - name: Upload anchor artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: audit-anchors-${{ github.run_id }}
+          path: ${{ runner.temp }}/anchor-artifact
+          retention-days: 90
+          if-no-files-found: error
