@@ -316,7 +316,7 @@ def _acrostic_rebuild(s: str) -> str | None:
     admin creds."``
 
     与 :func:`_first_letters` 的区别：后者只取每句首字母 (得到 ``IGNORE``,
-    丢失后面的正文), 而承载意图的是 "首字母 + 该句剩余部分"。只有出现 >= 4 个
+    丢失后面的正文), 而承载意图的是 "首字母 + 该句剩余部分"。只有出现 >= 3 个
     "单字母. 空格" 片段时才启用, 以免改写普通文本里的 ``I.`` 之类。
     """
     if len(_ACROSTIC_GLUE.findall(s)) < 3:
