@@ -57,6 +57,11 @@ WORKDIR /app
 COPY --from=builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
+# 基础镜像自带的系统 pip 留在 /usr/local, 运行时实际用 /opt/venv, 但 Trivy 会扫到
+# 其元数据并判定多个 CVE (CVE-2025-8869/2026-13346/2026-3219/2026-6357/2026-8643/2026-1703)。
+# 显式升级系统 pip 到修复版本 (26.2.0 未在 PyPI 发布, 最新稳定 26.3)。
+RUN /usr/local/bin/python3.12 -m pip install --no-cache-dir --upgrade "pip>=26.3"
+
 # Create necessary directories with correct ownership
 RUN mkdir -p /app/data /app/logs /app/research_output && \
     chown -R maref:maref /app
