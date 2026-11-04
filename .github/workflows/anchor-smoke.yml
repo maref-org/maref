@@ -21,7 +21,9 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install package
-        run: pip install -e .
+        # identity extra 提供 gmssl/cryptography：governance.audit 导入链
+        # 会加载 maref.crypto，缺失时 ModuleNotFoundError。
+        run: pip install -e ".[identity]"
 
       - name: Build synthetic audit log
         run: |
