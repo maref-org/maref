@@ -28,6 +28,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install package dependencies
+        # setup-python 在 self-hosted 上会硬编码写入 /Users/runner，这里改用
+        # 系统 python3 的 venv；identity extra 提供 gmssl/cryptography，
+        # 锚定脚本的导入链需要。
+        run: |
+          set -euo pipefail
+          python3 -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install -e ".[identity]"
+          echo "$RUNNER_TEMP/venv/bin" >> "$GITHUB_PATH"
+
       - name: Anchor local audit chain
         id: anchor
         env:
