@@ -25,6 +25,10 @@ jobs:
   anchor:
     runs-on: [self-hosted, macOS, maref-audit]
     timeout-minutes: 30
+    env:
+      # setup-python 默认写 /Users/runner/hostedtoolcache（仅 GitHub 托管
+      # runner 可写），self-hosted 必须指向 runner 自己的 tool cache。
+      AGENT_TOOLSDIRECTORY: ${{ runner.tool_cache }}
     steps:
       - uses: actions/checkout@v4
 
