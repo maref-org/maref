@@ -1,14 +1,14 @@
 {
-  "report_id": "32e57c85-92b9-4651-af84-621d5902e1c7",
+  "report_id": "8c578b40-eb28-4f59-9bfc-fbdc9950710b",
   "report_version": "1.0",
-  "created_at": "2026-11-03T13:12:00.312747+00:00",
+  "created_at": "2026-11-04T13:26:25.065190+00:00",
   "generated_by": "maref v0.39.0",
-  "signer_fingerprint": "3a9fa440b40d0397",
-  "merkle_root": "e513250f8f4d7ab0cbe74446867e44c3951e7660909f456c99a651ea66fb474e",
+  "signer_fingerprint": "4b89e10094e4d70d",
+  "merkle_root": "2ae6adaf7e5b1474b8ded2359eec10e15990600f8ecc0485c6f0e60d8d0aa8e5",
   "audit_summary": {
     "total_events": 2,
-    "time_range_start": 1793711519.534501,
-    "time_range_end": 1793711519.5347373,
+    "time_range_start": 1793798783.8469145,
+    "time_range_end": 1793798783.8472137,
     "event_types": {
       "governance_decision": 1,
       "verify": 1
@@ -25,5 +25,5 @@
   },
   "previous_report_id": "",
   "metadata": {},
-  "signature": "AIfq9ahslZZ85y9bizrxTg5DORAVZ4mgJ3h7icX6CQbGskLJC74Ssgl+frFbYz8IqzOx3BxSvymDNYTGkE1VBQ=="
+  "signature": "keFtm68BM3myRB8YnYI2XYdLmJ3A3172mj6Aj2bMJHJ9ei0VdqRSc51URA8l8FXuaCqNrvimn3OpYCLqjpNyDQ=="
 }
