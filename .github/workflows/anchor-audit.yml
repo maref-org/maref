@@ -28,6 +28,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Install package dependencies
+        # identity extra 提供 gmssl/cryptography，锚定脚本的导入链需要。
+        run: pip install -e ".[identity]"
+
       - name: Anchor local audit chain
         id: anchor
         env:
