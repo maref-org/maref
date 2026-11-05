@@ -58,6 +58,38 @@ DEFAULT_DENY_PATTERNS: tuple[str, ...] = (
     r"开锁",
     r"撬锁",
     r"系统提示",
+    # 敏感文件读取/外泄意图（要求动作词 + 目标路径共现，避免误伤"如何保护"）
+    r"(?:output|print|show|reveal|display|dump|cat|read|exfiltrate|send)\b.{0,40}(?:/etc/(?:shadow|passwd|sudoers)|/root/\.ssh)",
+    # DAN "do anything now" 越狱模板
+    r"\byou are now\b.{0,24}\bDAN\b",
+    r"\bdo anything now\b",
+    r"\bDAN\b.{0,40}\b(?:unrestricted|no restrictions|without restrictions)\b",
+)
+
+# shell/CLI 语法特征：用于在未显式声明 kind 时判定为 TOOL_CALL。
+# 只匹配强特征（flag/$VAR/管道到 shell/maref CLI），避免把普通文本里的 "--" 误判。
+_TOOL_CALL_SYNTAX = re.compile(
+    r"(?:^|\s)--[A-Za-z][\w-]*"
+    r"|(?:^|\s)\$[A-Za-z_]\w*"
+    r"|\|\s*(?:sh|bash|zsh)\b"
+    r"|\bmaref\s+(?:invoke|audit)\b"
+)
+
+# 命令上下文的危险信号（这些在编码层永远不会被识别为"危险"）。
+_TOOL_DANGER = re.compile(
+    r"\|\s*(?:sh|bash|zsh)\b"                       # curl ... | sh
+    r"|\brm\s+-[a-z]*[rf][a-z]*\s+/(?:\s|$|\*)"     # rm -rf /
+    r"|\b(?:drop|truncate)\s+table\b"                # SQL 破坏
+    r"|:\(\)\s*\{.*\};\s*:",                       # fork bomb
+    re.I,
+)
+
+# 敏感路径：单独出现是正常技术讨论，不能无条件判危险。
+# 仅当伴随命令语法（--target/等）或读取动词时才视为访问意图。
+_SENSITIVE_PATH = re.compile(r"/etc/(?:shadow|passwd|sudoers)\b|/root/\.ssh")
+_READ_VERB = re.compile(
+    r"\b(?:cat|read|dump|output|print|show|reveal|display|exfiltrate|send)\b",
+    re.I,
 )
 
 # 这些方法产出的候选才视为"真实还原" (排除键盘移位等易误报项)
@@ -77,6 +109,7 @@ _HIGH_CONFIDENCE_METHODS = frozenset(
         "zalgo_stripped",
         "leet",
         "acrostic_rebuilt",
+        "zero_width_stripped",
     }
 )
 
@@ -130,6 +163,18 @@ _BENIGN_CONTEXT = re.compile(
     r"|\b(?:why|how) (?:does|do|is|are)\b.{0,80}\b(?:work|works|fail|fails|bypass|bypasses|jailbreak|phishing|attack)\b",
     re.I,
 )
+
+
+class InputKind(str, Enum):
+    """输入来源：决定走哪条检查路径。
+
+    CONTENT   — 模型读到的文本（用户消息、RAG 片段、网页），可能被编码混淆。
+    TOOL_CALL — agent 工具调用（shell/SQL/HTTP 参数），不会被"编码绕过"，
+                但可能有危险命令（管道到 shell、DROP TABLE、读敏感文件）。
+    """
+
+    CONTENT = "content"
+    TOOL_CALL = "tool_call"
 
 
 class InboundDecision(str, Enum):
@@ -198,8 +243,14 @@ class InboundNormalizationGate:
             raise ValueError("default_decision must be REWRITE or HITL")
         self.default_decision = default_decision
 
-    def check(self, text: str) -> InboundVerdict:
-        """对单条输入做裁决 (无副作用)。"""
+    def check(
+        self, text: str, *, kind: InputKind | str | None = None
+    ) -> InboundVerdict:
+        """对单条输入做裁决 (无副作用)。
+
+        kind: 输入类型。None 时按 shell 语法启发式判定（见 _TOOL_CALL_SYNTAX）。
+              TOOL_CALL 走危险命令检查，不做编码解码。
+        """
         started = time.perf_counter()
         if not isinstance(text, str):
             raise TypeError("text must be str")
@@ -209,6 +260,57 @@ class InboundNormalizationGate:
         if not text.strip():
             return self._verdict(
                 InboundDecision.ALLOW, text, text, (), None, "empty input", started
+            )
+
+        # 危险命令信号优先：命中即 DENY，与 kind 无关。
+        # （rm -rf / 没有 --flag，不能靠 shell 语法判定；漏掉它等于放过。）
+        m_danger = _TOOL_DANGER.search(text)
+        if m_danger:
+            return self._verdict(
+                InboundDecision.DENY,
+                text,
+                text,
+                (),
+                m_danger.group(0),
+                "dangerous command pattern",
+                started,
+            )
+
+        # 敏感路径：仅在命令语法或读取动词旁才判访问意图（避免误伤技术讨论）。
+        m_path = _SENSITIVE_PATH.search(text)
+        if m_path and (_TOOL_CALL_SYNTAX.search(text) or _READ_VERB.search(text)):
+            return self._verdict(
+                InboundDecision.DENY,
+                text,
+                text,
+                (),
+                m_path.group(0),
+                "sensitive path access in command context",
+                started,
+            )
+
+        if kind is None:
+            kind = (
+                InputKind.TOOL_CALL
+                if _TOOL_CALL_SYNTAX.search(text)
+                else InputKind.CONTENT
+            )
+        else:
+            kind = InputKind(kind)
+
+        if kind is InputKind.TOOL_CALL:
+            # 命令上下文：不做编码解码（命令不会"被编码绕过"），只查 deny 词表。
+            m_cmd = self._deny_re.search(text)
+            return self._verdict(
+                InboundDecision.DENY if m_cmd else InboundDecision.ALLOW,
+                text,
+                text,
+                (),
+                m_cmd.group(0) if m_cmd else None,
+                "tool_call: dangerous command blocked"
+                if m_cmd
+                else "tool_call: no dangerous command",
+                started,
             )
 
         candidates = decode_candidates(text, max_candidates=self.max_candidates)
