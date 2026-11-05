@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import re
 from dataclasses import dataclass, field
 from enum import Enum
@@ -41,6 +42,29 @@ class BashValidator:
     BLOCKED_COMMANDS: set[str] = {"sudo", "su", "doas", "pkexec"}
     BLOCKED_PATHS: set[str] = {"/etc", "/proc", "/sys", "/dev"}
 
+    def __init__(
+        self,
+        *,
+        audit_logger: object | None = None,
+        audit_all: bool = False,
+    ) -> None:
+        self._audit_logger = audit_logger
+        self._audit_all = audit_all
+
+    def _audit(self, decision: str, reason: str, command: str) -> None:
+        """本层裁决留痕（命令只记 digest）。"""
+        logger = self._audit_logger
+        if logger is None:
+            return
+        if decision == "ALLOW" and not self._audit_all:
+            return
+        logger.log_decision(  # type: ignore[attr-defined]
+            actor="bash_validator",
+            action=f"BASH_{decision}",
+            reason=reason,
+            command_digest=hashlib.sha256(command.encode("utf-8", "ignore")).hexdigest()[:16],
+        )
+
     def validate(self, command: str) -> tuple[bool, str, list[str]]:
         warnings: list[str] = []
 
@@ -60,11 +84,15 @@ class BashValidator:
             warnings.append("IFS injection detected")
 
         if self.PROC_ENVIRON_PATTERN.search(command):
-            return False, "Access to process environment is blocked", warnings
+            reason = "Access to process environment is blocked"
+            self._audit("DENY", reason, command)
+            return False, reason, warnings
 
         tokens = command.split()
         if tokens and tokens[0] in self.BLOCKED_COMMANDS:
-            return False, f"Command '{tokens[0]}' is blocked", warnings
+            reason = f"Command '{tokens[0]}' is blocked"
+            self._audit("DENY", reason, command)
+            return False, reason, warnings
 
         sleep_match = self.SLEEP_PATTERN.search(command)
         if sleep_match and int(sleep_match.group(1)) >= 2:
@@ -73,8 +101,10 @@ class BashValidator:
             )
 
         if not tokens:
+            self._audit("DENY", "Empty command", command)
             return False, "Empty command", warnings
 
+        self._audit("ALLOW", "", command)
         return True, "", warnings
 
 
