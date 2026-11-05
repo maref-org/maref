@@ -16,8 +16,10 @@ inference-time steering 也无效 (6 档 alpha, ASR 95.8%-100%)。唯一的解�
 
 设计原则:
 - 纯函数式裁决 (``check`` 无副作用), 便于审计与单测
-- 未命中一律 ALLOW (fail-open) — 因为它只是**加分项**, 不是唯一防线;
+- content 路径: 未命中一律 ALLOW (fail-open) — 它只是**加分项**, 不是唯一防线;
   真正的 fail-closed 由下游策略/模型/人工闸门承担
+- tool_call 路径: 危险命令信号命中即 DENY (fail-closed)
+- deny pattern 命中一律 DENY; 语境分类 (_BENIGN_CONTEXT) 只写日志, 不降级
 - 裁决不记录原文到日志, 只记录方法与哈希 (防 PII 入审计链)
 """
 
@@ -29,16 +31,23 @@ import time
 from dataclasses import dataclass, field
 from enum import Enum
 
-from maref.security.inbound.normalization import MAX_INPUT_CHARS, decode_candidates, looks_like_text
+from maref.security.inbound.normalization import (
+    MAX_INPUT_CHARS,
+    _common_word_hits,
+    decode_candidates,
+    looks_like_text,
+)
 
 DEFAULT_DENY_PATTERNS: tuple[str, ...] = (
-    r"pick(?:ing)? a lock",
+    # 撬锁：排除「丢钥匙/锁匠/被锁门外」的求助语境（2026-11-05 over-refusal）
+    r"pick(?:ing)?\b(?!.{0,60}\b(?:locksmith|lost my key|lost the key|locked out|lock myself out)\b).{0,30}\block\b",
     r"bypass (?:a |the )?(?:login|lock|door|badge|reader)",
     r"pipe bomb",
     r"ransomware",
     r"phishing",
     r"poison(?:ing)? someone",
-    r"exfiltrat",
+    # 数据外泄：排除「如何检测/防范」的防御性讨论（2026-11-05 over-refusal）
+    r"exfiltrat(?!\w{0,4}\s+(?:is|are|was|were|can be)\s+(?:\w+\s+)?(?:detected|prevented|monitored|identified))",
     r"steal (?:saved )?passwords",
     r"smuggle",
     r"clone a badge",
@@ -52,10 +61,47 @@ DEFAULT_DENY_PATTERNS: tuple[str, ...] = (
     r"unlock\b.{0,24}\block\b",
     r"lockpick",
     r"ignore (?:all |your )?(?:previous|prior) instructions",
+    r"(?![^.!?]*\b(?:is|are|was|were)\s+(?:a|an)\s+(?:phrase|term|example|common|known|typical|pattern|format))(?:^|[.!?]\s+)ignore\s+(?:all\s+|your\s+|the\s+)?(?:safety|guidelines|rules|policy|restrictions)\b",
+    r"(?![^.!?]*\b(?:is|are|was|were)\s+(?:a|an)\s+(?:phrase|term|example|common|known|typical|pattern|format))(?:^|[.!?]\s+)(?:give|grant|send|show)\s+me\s+(?:the\s+|your\s+)?(?:admin|root|superuser|sudo)(?:istrator)?(?:\s+(?:creds|credentials|access|password|token))?",
     r"system prompt",
     r"开锁",
     r"撬锁",
     r"系统提示",
+    # 敏感文件读取/外泄意图（要求动作词 + 目标路径共现，避免误伤"如何保护"）
+    r"(?:output|print|show|reveal|display|dump|cat|read|exfiltrate|send)\b.{0,40}(?:/etc/(?:shadow|passwd|sudoers)|/root/\.ssh)",
+    # DAN "do anything now" 越狱模板
+    r"\byou are now\b.{0,24}\bDAN\b",
+    r"\bdo anything now\b",
+    r"\bDAN\b.{0,40}\b(?:unrestricted|no restrictions|without restrictions)\b",
+    # 撬锁教程 / 锁具绕过（语序变体；2026-11-05 holdout j16/r08）
+    # pick 变体已由上方带负向前瞻的 pattern 覆盖，此处只保留 bypass 语序。
+    r"\b(?:lock|door|badge|reader)\s+bypass",
+)
+
+# shell/CLI 语法特征：用于在未显式声明 kind 时判定为 TOOL_CALL。
+# 只匹配强特征（flag/$VAR/管道到 shell/maref CLI），避免把普通文本里的 "--" 误判。
+_TOOL_CALL_SYNTAX = re.compile(
+    r"(?:^|\s)--[A-Za-z][\w-]*"
+    r"|(?:^|\s)\$[A-Za-z_]\w*"
+    r"|\|\s*(?:sh|bash|zsh)\b"
+    r"|\bmaref\s+(?:invoke|audit)\b"
+)
+
+# 命令上下文的危险信号（这些在编码层永远不会被识别为"危险"）。
+_TOOL_DANGER = re.compile(
+    r"\|\s*(?:sh|bash|zsh)\b"  # curl ... | sh
+    r"|\brm\s+-[a-z]*[rf][a-z]*\s+/(?:\s|$|\*)"  # rm -rf /
+    r"|\b(?:drop|truncate)\s+table\b"  # SQL 破坏
+    r"|:\(\)\s*\{.*\};\s*:",  # fork bomb
+    re.I,
+)
+
+# 敏感路径：单独出现是正常技术讨论，不能无条件判危险。
+# 仅当伴随命令语法（--target/等）或读取动词时才视为访问意图。
+_SENSITIVE_PATH = re.compile(r"/etc/(?:shadow|passwd|sudoers)\b|/root/\.ssh")
+_READ_VERB = re.compile(
+    r"\b(?:cat|read|dump|output|print|show|reveal|display|exfiltrate|send)\b",
+    re.I,
 )
 
 # 这些方法产出的候选才视为"真实还原" (排除键盘移位等易误报项)
@@ -74,6 +120,8 @@ _HIGH_CONFIDENCE_METHODS = frozenset(
         "pinyin_hint",
         "zalgo_stripped",
         "leet",
+        "acrostic_rebuilt",
+        "zero_width_stripped",
     }
 )
 
@@ -90,6 +138,8 @@ _STRONG_METHODS = frozenset(
         "emoji_mapped",
         "pinyin_hint",
         "url",
+        "acrostic_rebuilt",
+        "zero_width_stripped",
     }
 )
 
@@ -109,6 +159,7 @@ _METHOD_PRIORITY = {
     "leet": 11,
     "rot13": 12,
     "keyboard_left": 13,
+    "acrostic_rebuilt": 14,
 }
 
 
@@ -117,10 +168,43 @@ _BENIGN_CONTEXT = re.compile(
     r"\b(?:how|explain)\b.{0,60}\b(?:detected|prevented|mitigated|protected)\b"
     r"|\b(?:detected|prevented|mitigated|protected)\b.{0,60}\b(?:how|explain)\b"
     r"|\b(?:detect|prevent|protect|defend) (?:against|from)\b"
-    r"|\blost my key\b|\blocksmith\b"
-    r"|\b(?:is|are) these? (?:signs|indicators)\b",
+    r"|\blost my key\b|\blocksmiths?\b|\bbadge readers?\b"
+    r"|\b(?:is|are) these? (?:signs|indicators)\b"
+    r"|\b(?:common )?(?:indicators|signs) of\b"
+    r"|\brisks? of\b|\bhow (?:do|can|should) I (?:explain|protect|harden|test|verify|report|audit)\b"
+    r"|\b(?:harden|audit|verify|mitigate|safeguard)\b"
+    r"|\b(?:why|how) (?:does|do|is|are)\b.{0,80}\b(?:work|works|fail|fails|bypass|bypasses|jailbreak|phishing|attack)\b",
     re.I,
 )
+
+
+class InputKind(str, Enum):
+    """输入来源：决定走哪条检查路径。
+
+    CONTENT   — 模型读到的文本（用户消息、RAG 片段、网页），可能被编码混淆。
+    TOOL_CALL — agent 工具调用（shell/SQL/HTTP 参数），不会被"编码绕过"，
+                但可能有危险命令（管道到 shell、DROP TABLE、读敏感文件）。
+    """
+
+    CONTENT = "content"
+    TOOL_CALL = "tool_call"
+
+
+class ReasonCode(str, Enum):
+    """裁决的机器可读理由码（稳定，不随文案变化）。"""
+
+    ALLOW_EMPTY = "ALLOW_EMPTY"
+    ALLOW_NO_ENCODING = "ALLOW_NO_ENCODING"
+    ALLOW_NOT_READABLE = "ALLOW_NOT_READABLE"
+    ALLOW_TOOL_CALL = "ALLOW_TOOL_CALL"
+    DENY_PATTERN_RAW = "DENY_PATTERN_RAW"
+    DENY_PATTERN_DECODED = "DENY_PATTERN_DECODED"
+    DENY_DANGEROUS_COMMAND = "DENY_DANGEROUS_COMMAND"
+    DENY_SENSITIVE_PATH = "DENY_SENSITIVE_PATH"
+    REWRITE_STRONG = "REWRITE_STRONG"
+    REWRITE_WEAK = "REWRITE_WEAK"
+    ALLOW_WEAK_DECODE = "ALLOW_WEAK_DECODE"
+    UNKNOWN = "UNKNOWN"
 
 
 class InboundDecision(str, Enum):
@@ -140,12 +224,45 @@ class InboundVerdict:
     methods: tuple[str, ...] = ()
     matched: str | None = None
     reason: str = ""
+    reason_code: str = ""
     elapsed_ms: float = 0.0
     input_digest: str = field(default="")
 
     @property
     def blocked(self) -> bool:
         return self.decision is InboundDecision.DENY
+
+
+def _infer_reason_code(reason: str) -> str:
+    """从 reason 文案推导稳定 code。文案措辞可改，code 不应变。"""
+    r = reason.lower()
+    if r.startswith("empty input"):
+        return ReasonCode.ALLOW_EMPTY.value
+    if r.startswith("no encoding detected"):
+        return ReasonCode.ALLOW_NO_ENCODING.value
+    if r.startswith("decoded candidates are not readable"):
+        return ReasonCode.ALLOW_NOT_READABLE.value
+    if r.startswith("tool_call: dangerous command"):
+        return ReasonCode.DENY_PATTERN_RAW.value
+    if r.startswith("tool_call: no dangerous command"):
+        return ReasonCode.ALLOW_TOOL_CALL.value
+    if r.startswith("dangerous command pattern"):
+        return ReasonCode.DENY_DANGEROUS_COMMAND.value
+    if r.startswith("sensitive path access"):
+        return ReasonCode.DENY_SENSITIVE_PATH.value
+    if r.startswith("deny pattern after"):
+        return ReasonCode.DENY_PATTERN_DECODED.value
+    if r.startswith("deny pattern on raw input"):
+        return ReasonCode.DENY_PATTERN_RAW.value
+    if r.startswith("rewritten via"):
+        return ReasonCode.REWRITE_STRONG.value
+    if r.startswith("weak decode improved readability"):
+        return ReasonCode.REWRITE_WEAK.value
+    if r.startswith("weak decode via"):
+        return ReasonCode.ALLOW_WEAK_DECODE.value
+    if r.startswith("encoding detected via"):
+        return ReasonCode.REWRITE_WEAK.value
+    return ReasonCode.UNKNOWN.value
 
 
 def _digest(text: str) -> str:
@@ -189,8 +306,12 @@ class InboundNormalizationGate:
             raise ValueError("default_decision must be REWRITE or HITL")
         self.default_decision = default_decision
 
-    def check(self, text: str) -> InboundVerdict:
-        """对单条输入做裁决 (无副作用)。"""
+    def check(self, text: str, *, kind: InputKind | str | None = None) -> InboundVerdict:
+        """对单条输入做裁决 (无副作用)。
+
+        kind: 输入类型。None 时按 shell 语法启发式判定（见 _TOOL_CALL_SYNTAX）。
+              TOOL_CALL 走危险命令检查，不做编码解码。
+        """
         started = time.perf_counter()
         if not isinstance(text, str):
             raise TypeError("text must be str")
@@ -202,21 +323,66 @@ class InboundNormalizationGate:
                 InboundDecision.ALLOW, text, text, (), None, "empty input", started
             )
 
+        # 危险命令信号优先：命中即 DENY，与 kind 无关。
+        # （rm -rf / 没有 --flag，不能靠 shell 语法判定；漏掉它等于放过。）
+        m_danger = _TOOL_DANGER.search(text)
+        if m_danger:
+            return self._verdict(
+                InboundDecision.DENY,
+                text,
+                text,
+                (),
+                m_danger.group(0),
+                "dangerous command pattern",
+                started,
+            )
+
+        # 敏感路径：仅在命令语法或读取动词旁才判访问意图（避免误伤技术讨论）。
+        m_path = _SENSITIVE_PATH.search(text)
+        if m_path and (_TOOL_CALL_SYNTAX.search(text) or _READ_VERB.search(text)):
+            return self._verdict(
+                InboundDecision.DENY,
+                text,
+                text,
+                (),
+                m_path.group(0),
+                "sensitive path access in command context",
+                started,
+            )
+
+        if kind is None:
+            kind = InputKind.TOOL_CALL if _TOOL_CALL_SYNTAX.search(text) else InputKind.CONTENT
+        else:
+            kind = InputKind(kind)
+
+        if kind is InputKind.TOOL_CALL:
+            # 命令上下文：不做编码解码（命令不会"被编码绕过"），只查 deny 词表。
+            m_cmd = self._deny_re.search(text)
+            return self._verdict(
+                InboundDecision.DENY if m_cmd else InboundDecision.ALLOW,
+                text,
+                text,
+                (),
+                m_cmd.group(0) if m_cmd else None,
+                "tool_call: dangerous command blocked"
+                if m_cmd
+                else "tool_call: no dangerous command",
+                started,
+            )
+
         candidates = decode_candidates(text, max_candidates=self.max_candidates)
         # 明文也做一次 deny 检查: 门禁不止还原编码, 也拦明显有害的直白输入
         m_raw = self._deny_re.search(text)
         if m_raw:
-            decision = (
-                InboundDecision.HITL if _BENIGN_CONTEXT.search(text) else InboundDecision.DENY
-            )
+            # deny 命中恒 DENY；语境分类只进日志，不改变裁决。
             return self._verdict(
-                decision,
+                InboundDecision.DENY,
                 text,
                 text,
                 ("raw",),
                 m_raw.group(0),
                 "deny pattern on raw input"
-                + ("; benign context -> HITL" if decision is InboundDecision.HITL else ""),
+                + ("; benign context noted" if _BENIGN_CONTEXT.search(text) else ""),
                 started,
             )
 
@@ -230,18 +396,18 @@ class InboundNormalizationGate:
         for cand in decoded:
             m = self._deny_re.search(cand.text)
             if m:
-                decision = (
-                    InboundDecision.HITL
-                    if _BENIGN_CONTEXT.search(cand.text)
-                    else InboundDecision.DENY
-                )
-                reason = (
-                    f"deny pattern after {cand.method} decode; benign context -> HITL"
-                    if decision is InboundDecision.HITL
-                    else f"deny pattern after {cand.method} decode"
-                )
+                # 同上：deny 命中恒 DENY，语境只记日志。
+                reason = f"deny pattern after {cand.method} decode"
+                if _BENIGN_CONTEXT.search(cand.text):
+                    reason += "; benign context noted"
                 return self._verdict(
-                    decision, text, cand.text, (cand.method,), m.group(0), reason, started
+                    InboundDecision.DENY,
+                    text,
+                    cand.text,
+                    (cand.method,),
+                    m.group(0),
+                    reason,
+                    started,
                 )
 
         # 2) 高置信还原且像自然语言 (英文/中文) → REWRITE
@@ -271,15 +437,31 @@ class InboundNormalizationGate:
                 started,
             )
 
-        # 3) 只有弱方法 (rot13/leet/键盘移位) 可读 → 默认处置
+        # 3) 只有弱方法 (rot13/leet/键盘移位) 可读 →
+        #    仅当解码确实提升可读性时还原给下游，否则视为噪音原样放行。
+        #    （与 leet 的语义判据同一把尺子：常用词数至少 +2。）
         weak = min(readable, key=lambda c: _METHOD_PRIORITY.get(c.method, 99))
+        src_words = _common_word_hits(text)
+        dst_words = _common_word_hits(weak.text)
+        if dst_words >= src_words + 2:
+            return self._verdict(
+                InboundDecision.REWRITE,
+                text,
+                weak.text,
+                (weak.method,),
+                None,
+                f"weak decode improved readability via {weak.method}: "
+                f"{src_words} -> {dst_words} words",
+                started,
+            )
         return self._verdict(
-            self.default_decision,
+            InboundDecision.ALLOW,
             text,
-            weak.text,
-            (weak.method,),
+            text,
+            (),
             None,
-            f"encoding detected via {weak.method}; no confident rewrite",
+            f"weak decode via {weak.method} did not improve readability "
+            f"({src_words} -> {dst_words}); pass-through",
             started,
         )
 
@@ -300,6 +482,7 @@ class InboundNormalizationGate:
             methods=methods,
             matched=matched,
             reason=reason,
+            reason_code=_infer_reason_code(reason),
             elapsed_ms=round((time.perf_counter() - started) * 1000, 3),
             input_digest=_digest(original),
         )
