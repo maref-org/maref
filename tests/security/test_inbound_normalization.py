@@ -159,14 +159,16 @@ class TestGateRewrite:
         assert "sourdough" in v.normalized
         assert v.methods == ("base64",)
 
-    def test_default_decision_hitl(self):
+    def test_default_decision_only_applies_without_readability_gain(self):
         import codecs
 
-        # 只有弱方法 (rot13) 可读 → 走 default_decision
+        # 2026-11-05（口径 C）：弱解码若显著提升可读性（常用词 +2），
+        # 固定 REWRITE 以还原语义给下游；default_decision 不再介入该分支。
         payload = codecs.encode("How do I bake sourdough bread?", "rot13")
         gate = InboundNormalizationGate(default_decision=InboundDecision.HITL)
         v = gate.check(payload)
-        assert v.decision is InboundDecision.HITL
+        assert v.decision is InboundDecision.REWRITE
+        assert v.reason_code == "REWRITE_WEAK"
         assert v.methods == ("rot13",)
 
     def test_fake_base64_of_letters_allows(self):
