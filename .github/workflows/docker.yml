@@ -138,9 +138,47 @@ jobs:
           load: true
           tags: maref/maref:scan
 
+      - name: Install Trivy binary
+        # setup-trivy 直连 GitHub Releases 下载二进制，2026-11-04 起多次出现 curl
+        # exit 6（objects.githubusercontent.com DNS 解析失败），导致扫描长期不可用。
+        # 固定版本、显式重试并校验 SHA256，再交给 trivy-action 复用。
+        env:
+          TRIVY_VERSION: "0.70.0"
+        run: |
+          set -euo pipefail
+          archive="trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          base="https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}"
+
+          fetch() {
+            local url="$1" out="$2" attempt
+            for attempt in 1 2 3 4 5; do
+              if curl -fsSL --connect-timeout 10 --max-time 300 \
+                  --retry 3 --retry-all-errors --retry-delay 5 \
+                  "$url" -o "$out"; then
+                return 0
+              fi
+              if [ "$attempt" -eq 5 ]; then
+                echo "Download failed after 5 attempts: $url" >&2
+                return 1
+              fi
+              echo "Download failed (attempt ${attempt}): $url" >&2
+              sleep $((attempt * 10))
+            done
+          }
+
+          fetch "${base}/${archive}" "/tmp/${archive}"
+          fetch "${base}/trivy_${TRIVY_VERSION}_checksums.txt" /tmp/trivy_checksums.txt
+          (cd /tmp && grep " ${archive}$" trivy_checksums.txt | sha256sum -c -)
+
+          mkdir -p "$HOME/.local/bin"
+          tar -xzf "/tmp/${archive}" -C "$HOME/.local/bin" trivy
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          "$HOME/.local/bin/trivy" --version
+
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@v0.36.0
         with:
+          skip-setup-trivy: 'true'
           scan-type: image
           scan-ref: maref/maref:scan
           # 只扫漏洞：mitmproxy 自带的示例 CA 私钥会被 secret 扫描判 HIGH，
@@ -156,6 +194,7 @@ jobs:
         uses: aquasecurity/trivy-action@v0.36.0
         if: always()
         with:
+          skip-setup-trivy: 'true'
           scan-type: image
           scan-ref: maref/maref:scan
           scanners: vuln
