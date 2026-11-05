@@ -236,7 +236,10 @@ async def telemetry_ingest(request: Request) -> dict[str, Any]:
     # 3. 幂等去重
     dedup_key = payload.get("dedup_key")
     if _check_dedup(dedup_key):
-        logger.warning("Duplicate telemetry rejected: dedup_key=%s", dedup_key)
+        logger.warning(
+            "Duplicate telemetry rejected: dedup_key=%s",
+            str(dedup_key).replace("\n", "").replace("\r", ""),
+        )
         raise HTTPException(status_code=409, detail="Duplicate request (dedup_key)")
 
     source = payload["source"]
@@ -273,8 +276,14 @@ async def telemetry_ingest(request: Request) -> dict[str, Any]:
             })
 
         success, failed = _write_batch(entries)
-        logger.info("ObsEvent batch ingested: source=%s batch_id=%s events=%d success=%d failed=%d",
-                    source, batch_id, len(events), success, failed)
+        logger.info(
+            "ObsEvent batch ingested: source=%s batch_id=%s events=%d success=%d failed=%d",
+            str(source).replace("\n", "").replace("\r", ""),
+            str(batch_id).replace("\n", "").replace("\r", ""),
+            len(events),
+            success,
+            failed,
+        )
         return {"status": "ok", "batch_id": batch_id, "events_received": len(events), "stored": success}
 
     # 5. 普通单条/自定义数据
@@ -289,7 +298,12 @@ async def telemetry_ingest(request: Request) -> dict[str, Any]:
         entry["dedup_key"] = dedup_key
 
     success, failed = _write_batch([entry])
-    logger.info("Telemetry ingested: source=%s type=%s success=%d", source, telemetry_type, success)
+    logger.info(
+        "Telemetry ingested: source=%s type=%s success=%d",
+        str(source).replace("\n", "").replace("\r", ""),
+        str(telemetry_type).replace("\n", "").replace("\r", ""),
+        success,
+    )
     return {"status": "ok", "stored": success}
 
 

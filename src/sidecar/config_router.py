@@ -39,7 +39,7 @@ def set_probe_thresholds(payload: dict[str, Any]) -> dict[str, Any]:
     with open(_THRESHOLDS_FILE, "w") as f:
         json.dump(active_config, f, indent=2, ensure_ascii=False)
 
-    logger.info("probe thresholds updated: %s", config_id)
+    logger.info("probe thresholds updated: %s", str(config_id).replace("\n", "").replace("\r", ""))
     return {"status": "ok", "config_id": config_id, "stored_in": str(_THRESHOLDS_FILE)}
 
 
