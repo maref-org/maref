@@ -520,7 +520,7 @@ class MobileBridge:
             }
         )
 
-    def enable_real_mode(self, host: str = "0.0.0.0", port: int | None = None) -> dict[str, Any]:
+    def enable_real_mode(self, host: str = "127.0.0.1", port: int | None = None) -> dict[str, Any]:
         port = port or self.discovery.port
         self.discovery._local_device.host = host
         self.discovery._local_device.port = port
