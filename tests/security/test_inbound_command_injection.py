@@ -117,9 +117,7 @@ class TestToolCallDispatch:
         "command",
         ["rm -rf /", "DROP TABLE users", "drop table users", ":(){ :|:& };:"],
     )
-    def test_dangerous_command_denied(
-        self, gate: InboundNormalizationGate, command: str
-    ) -> None:
+    def test_dangerous_command_denied(self, gate: InboundNormalizationGate, command: str) -> None:
         assert gate.check(command).decision is InboundDecision.DENY
 
     def test_sensitive_path_in_command_denied(self, gate: InboundNormalizationGate) -> None:
