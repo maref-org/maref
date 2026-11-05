@@ -26,6 +26,9 @@ jobs:
           # rustls 0.23.43 为当前最新稳定版，4 条公告均无已发布修复；
           # zip 4.6.1 为 tauri-plugin-updater 2.x 的 4.x 约束上限，修复仅在 9.x。
           # 上游发布兼容修复后必须移除对应 --ignore。
+          # 2026-11-05 追加 RUSTSEC-2026-0429（zip 4.6.1，2026-10-22 披露，
+          # ZipArchive::extract 符号链接解压中止进程）：约束同上，无 4.x 修复；
+          # 与 2026-11-19 同批复审。
           cargo audit \
             --ignore RUSTSEC-2026-0346 \
             --ignore RUSTSEC-2026-0285 \
@@ -33,7 +36,8 @@ jobs:
             --ignore RUSTSEC-2026-0349 \
             --ignore RUSTSEC-2026-0367 \
             --ignore RUSTSEC-2026-0368 \
-            --ignore RUSTSEC-2026-0369
+            --ignore RUSTSEC-2026-0369 \
+            --ignore RUSTSEC-2026-0429
 
   gate-integration-coverage:
     runs-on: ubuntu-latest
