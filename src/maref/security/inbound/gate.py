@@ -179,6 +179,22 @@ class InputKind(str, Enum):
     TOOL_CALL = "tool_call"
 
 
+class ReasonCode(str, Enum):
+    """裁决的机器可读理由码（稳定，不随文案变化）。"""
+
+    ALLOW_EMPTY = "ALLOW_EMPTY"
+    ALLOW_NO_ENCODING = "ALLOW_NO_ENCODING"
+    ALLOW_NOT_READABLE = "ALLOW_NOT_READABLE"
+    ALLOW_TOOL_CALL = "ALLOW_TOOL_CALL"
+    DENY_PATTERN_RAW = "DENY_PATTERN_RAW"
+    DENY_PATTERN_DECODED = "DENY_PATTERN_DECODED"
+    DENY_DANGEROUS_COMMAND = "DENY_DANGEROUS_COMMAND"
+    DENY_SENSITIVE_PATH = "DENY_SENSITIVE_PATH"
+    REWRITE_STRONG = "REWRITE_STRONG"
+    REWRITE_WEAK = "REWRITE_WEAK"
+    UNKNOWN = "UNKNOWN"
+
+
 class InboundDecision(str, Enum):
     ALLOW = "allow"
     REWRITE = "rewrite"
@@ -196,12 +212,41 @@ class InboundVerdict:
     methods: tuple[str, ...] = ()
     matched: str | None = None
     reason: str = ""
+    reason_code: str = ""
     elapsed_ms: float = 0.0
     input_digest: str = field(default="")
 
     @property
     def blocked(self) -> bool:
         return self.decision is InboundDecision.DENY
+
+
+def _infer_reason_code(reason: str) -> str:
+    """从 reason 文案推导稳定 code。文案措辞可改，code 不应变。"""
+    r = reason.lower()
+    if r.startswith("empty input"):
+        return ReasonCode.ALLOW_EMPTY.value
+    if r.startswith("no encoding detected"):
+        return ReasonCode.ALLOW_NO_ENCODING.value
+    if r.startswith("decoded candidates are not readable"):
+        return ReasonCode.ALLOW_NOT_READABLE.value
+    if r.startswith("tool_call: dangerous command"):
+        return ReasonCode.DENY_PATTERN_RAW.value
+    if r.startswith("tool_call: no dangerous command"):
+        return ReasonCode.ALLOW_TOOL_CALL.value
+    if r.startswith("dangerous command pattern"):
+        return ReasonCode.DENY_DANGEROUS_COMMAND.value
+    if r.startswith("sensitive path access"):
+        return ReasonCode.DENY_SENSITIVE_PATH.value
+    if r.startswith("deny pattern after"):
+        return ReasonCode.DENY_PATTERN_DECODED.value
+    if r.startswith("deny pattern on raw input"):
+        return ReasonCode.DENY_PATTERN_RAW.value
+    if r.startswith("rewritten via"):
+        return ReasonCode.REWRITE_STRONG.value
+    if r.startswith("encoding detected via"):
+        return ReasonCode.REWRITE_WEAK.value
+    return ReasonCode.UNKNOWN.value
 
 
 def _digest(text: str) -> str:
@@ -405,6 +450,7 @@ class InboundNormalizationGate:
             methods=methods,
             matched=matched,
             reason=reason,
+            reason_code=_infer_reason_code(reason),
             elapsed_ms=round((time.perf_counter() - started) * 1000, 3),
             input_digest=_digest(original),
         )
