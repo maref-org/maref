@@ -9,7 +9,7 @@ src/formal/, circuit breaker with HALT absorbing state, per-agent Ed25519
 identity, Merkle-aggregated verifiable audit chain, SM2/SM3/SM4-GCM
 cryptography (GB/T 32918), code-level coverage of all 10 OWASP Agentic
 Top 10 risks with 4 TLA+ specs
-(docs/security/owasp-agentic-top10-mapping.md). 16,500+ collected tests,
+(docs/security/owasp-agentic-top10-mapping.md). 15,387 passing tests (CI, main@0f0c7632),
 Python 3.11+, Apache 2.0.
 Install: pip install maref (full) / pip install maref-lite (zero-config).
 MAREF complements LangGraph/CrewAI/AutoGen as the governance layer below
@@ -63,9 +63,9 @@ Most agent frameworks (LangGraph, CrewAI, AutoGen) help you **build** multi-agen
 
 | Question | Answer |
 |----------|--------|
-| **What is MAREF?** | An open-source agent governance OS with TLA+ formal verification, zero-trust identity per agent, and runtime guardrails with code-level coverage of all 10 OWASP Agentic Top 10 risks (4 with TLA+ specs, 7 with dedicated tests). |
+| **What is MAREF?** | An open-source agent governance OS with TLA+ formal verification, zero-trust identity per agent, and runtime guardrails with code-level coverage of all 10 OWASP Agentic Top 10 risks (13 with TLA+ specs, 7 with dedicated tests). |
 | **How is it different from LangGraph or CrewAI?** | Those frameworks orchestrate agents. MAREF governs them. They are complementary — use LangGraph to build, use MAREF to ensure safety. |
-| **Is it production-ready?** | Experimental. Governance and security modules sit at ~87% test coverage; the core API is stabilizing toward v1.0. Apache 2.0, v0.55.0. |
+| **Is it production-ready?** | Experimental. Governance and security modules sit at ~87% test coverage; the core API is stabilizing toward v1.0. Apache 2.0, v0.55.2. |
 | **Does it work with my stack?** | Python 3.11+, adapters for AutoGen/CrewAI/LangGraph/Dify, A2A + MCP dual protocol, macOS/Linux/Windows. |
 
 ## Who Uses MAREF?
@@ -325,14 +325,14 @@ Independent engineering reviews of MAREF and comparable open-source tooling:
 | Metric | Status |
 |--------|--------|
 | **CI** | [![CI](https://github.com/maref-org/maref/actions/workflows/ci.yml/badge.svg)](https://github.com/maref-org/maref/actions) |
-| **Tests** | 11,416 — [![Tests](https://img.shields.io/badge/tests-11416-brightgreen.svg)]() |
-| **Coverage** | 52.5% — [![Coverage](https://img.shields.io/badge/coverage-52.5%25-brightgreen.svg)]() (CI gate: 50%, measured 2026-08-05, see `STATE.yaml`) |
+| **Tests** | 15,387 — [![Tests](https://img.shields.io/badge/tests-15387-brightgreen.svg)]() (CI, main@0f0c7632) |
+| **Coverage** | 76.6% — [![Coverage](https://img.shields.io/badge/coverage-76.6%25-brightgreen.svg)]() (CI gate: 50%, measured 2026-11-03, see `STATE.yaml`) |
 | **CodeQL** | [![CodeQL](https://github.com/maref-org/maref/actions/workflows/codeql.yml/badge.svg)](https://github.com/maref-org/maref/actions/workflows/codeql.yml) |
 | **Security** | [![Security Scan](https://github.com/maref-org/maref/actions/workflows/security-scan.yml/badge.svg)](https://github.com/maref-org/maref/actions/workflows/security-scan.yml) |
 | **SonarCloud** | [![SonarCloud](https://github.com/maref-org/maref/actions/workflows/sonarcloud.yml/badge.svg)](https://github.com/maref-org/maref/actions/workflows/sonarcloud.yml) |
 | **Python** | ![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg) |
 | **License** | ![Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-green.svg) |
-| **Version** | ![v0.50.0](https://img.shields.io/badge/version-v0.50.0-blue) |
+| **Version** | ![v0.55.2](https://img.shields.io/badge/version-v0.55.2-blue) |
 
 ---
 
@@ -357,7 +357,7 @@ MAREF's headline claims are testable in-repo — run them yourself:
 |-------|--------------|-------------------|
 | OWASP Agentic Top 10 mapping | Read the claim→code mapping | `docs/security/owasp-agentic-top10-mapping.md` |
 | TLA+ specs pass TLC model checking | Run formal tests | `pytest tests/formal/` |
-| 16,500+ collected tests | Run the suite | `pytest tests/` (scoped: `pytest tests/governance/`) |
+| 15,387 passing tests (CI, main@0f0c7632) | Run the suite | `pytest tests/` (scoped: `pytest tests/governance/`) |
 | Governance overhead | Reproduce the benchmark | `python benchmarks/governance_overhead.py` (raw output: `benchmarks/results-2026-07-08.txt`) |
 | Evolution convergence (FNR 0.10→0.04) | Read the 200-round archive | `docs/MAREF_200轮递归收敛总结归档报告_20260517.md` |
 | Standards alignment (NIST / EU AI Act) | Read the technical whitepaper | `docs/MAREF-Technical-Whitepaper-arXiv.md` |

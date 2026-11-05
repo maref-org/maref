@@ -14,6 +14,7 @@ Endpoints:
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
@@ -51,6 +52,7 @@ from maref.gaas.tenant import TenantManager
 from maref.gaas.trust_service import TrustScoreService
 from maref.integration.hitl import HITLRouter, load_reviewer_public_keys_from_env
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/gaas", tags=["gaas"])
 
 # Global service instances (singleton pattern) — lazy init
@@ -340,19 +342,22 @@ async def health(
         _ = audit_service
         checks["audit_service"] = {"status": "ok"}
     except Exception as e:
-        checks["audit_service"] = {"status": "error", "detail": str(e)}
+        logger.warning("health check failed: audit_service (%s)", type(e).__name__)
+        checks["audit_service"] = {"status": "error"}
 
     try:
         _ = governance_router
         checks["governance_router"] = {"status": "ok"}
     except Exception as e:
-        checks["governance_router"] = {"status": "error", "detail": str(e)}
+        logger.warning("health check failed: governance_router (%s)", type(e).__name__)
+        checks["governance_router"] = {"status": "error"}
 
     try:
         cb_pool.cleanup_idle(3600.0)
         checks["circuit_breaker_pool"] = {"status": "ok", "breaker_count": cb_pool.breaker_count}
     except Exception as e:
-        checks["circuit_breaker_pool"] = {"status": "error", "detail": str(e)}
+        logger.warning("health check failed: circuit_breaker_pool (%s)", type(e).__name__)
+        checks["circuit_breaker_pool"] = {"status": "error"}
 
     all_healthy = all(v.get("status") == "ok" for v in checks.values())
     return {

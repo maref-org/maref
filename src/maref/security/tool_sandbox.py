@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import os
 import shlex
 from collections.abc import Mapping
@@ -69,8 +70,30 @@ class ToolSandbox:
     容器级隔离（cgroup/seccomp/网络）由部署层 k8s admission 策略提供。
     """
 
-    def __init__(self, limits: SandboxLimits | None = None) -> None:
+    def __init__(
+        self,
+        limits: SandboxLimits | None = None,
+        *,
+        audit_logger: object | None = None,
+        audit_all: bool = False,
+    ) -> None:
         self.limits = limits if limits is not None else SandboxLimits()
+        self._audit_logger = audit_logger
+        self._audit_all = audit_all
+
+    def _audit(self, decision: str, reason: str, command: str) -> None:
+        """本层裁决留痕。命令只记 digest，不落原文（防 secret/PII 入审计链）。"""
+        logger = self._audit_logger
+        if logger is None:
+            return
+        if decision == "ALLOW" and not self._audit_all:
+            return
+        logger.log_decision(  # type: ignore[attr-defined]
+            actor="tool_sandbox",
+            action=f"SANDBOX_{decision}",
+            reason=reason,
+            command_digest=hashlib.sha256(command.encode("utf-8", "ignore")).hexdigest()[:16],
+        )
 
     def validate(
         self,
@@ -94,6 +117,7 @@ class ToolSandbox:
             if wd != root and not wd.is_relative_to(root):
                 result.blocked = True
                 result.reason = f"Sandbox: workdir {wd} escapes workspace root {root}"
+                self._audit("DENY", result.reason, command)
                 return result
             result.workdir = str(wd)
         else:
@@ -104,6 +128,7 @@ class ToolSandbox:
             result.reason = (
                 f"Sandbox: timeout {timeout}s exceeds limit {self.limits.max_runtime_seconds}s"
             )
+            self._audit("DENY", result.reason, command)
             return result
         result.timeout = timeout
 
@@ -111,14 +136,17 @@ class ToolSandbox:
         if not tokens:
             result.blocked = True
             result.reason = "Sandbox: empty command"
+            self._audit("DENY", result.reason, command)
             return result
         if len(tokens) > self.limits.max_args:
             result.blocked = True
             result.reason = (
                 f"Sandbox: argument count {len(tokens)} exceeds limit {self.limits.max_args}"
             )
+            self._audit("DENY", result.reason, command)
             return result
 
+        self._audit("ALLOW", "", command)
         return result
 
     def clean_env(
