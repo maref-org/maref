@@ -77,10 +77,10 @@ _TOOL_CALL_SYNTAX = re.compile(
 
 # 命令上下文的危险信号（这些在编码层永远不会被识别为"危险"）。
 _TOOL_DANGER = re.compile(
-    r"\|\s*(?:sh|bash|zsh)\b"                       # curl ... | sh
-    r"|\brm\s+-[a-z]*[rf][a-z]*\s+/(?:\s|$|\*)"     # rm -rf /
-    r"|\b(?:drop|truncate)\s+table\b"                # SQL 破坏
-    r"|:\(\)\s*\{.*\};\s*:",                       # fork bomb
+    r"\|\s*(?:sh|bash|zsh)\b"  # curl ... | sh
+    r"|\brm\s+-[a-z]*[rf][a-z]*\s+/(?:\s|$|\*)"  # rm -rf /
+    r"|\b(?:drop|truncate)\s+table\b"  # SQL 破坏
+    r"|:\(\)\s*\{.*\};\s*:",  # fork bomb
     re.I,
 )
 
@@ -243,9 +243,7 @@ class InboundNormalizationGate:
             raise ValueError("default_decision must be REWRITE or HITL")
         self.default_decision = default_decision
 
-    def check(
-        self, text: str, *, kind: InputKind | str | None = None
-    ) -> InboundVerdict:
+    def check(self, text: str, *, kind: InputKind | str | None = None) -> InboundVerdict:
         """对单条输入做裁决 (无副作用)。
 
         kind: 输入类型。None 时按 shell 语法启发式判定（见 _TOOL_CALL_SYNTAX）。
@@ -290,11 +288,7 @@ class InboundNormalizationGate:
             )
 
         if kind is None:
-            kind = (
-                InputKind.TOOL_CALL
-                if _TOOL_CALL_SYNTAX.search(text)
-                else InputKind.CONTENT
-            )
+            kind = InputKind.TOOL_CALL if _TOOL_CALL_SYNTAX.search(text) else InputKind.CONTENT
         else:
             kind = InputKind(kind)
 
