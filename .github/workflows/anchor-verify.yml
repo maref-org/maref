@@ -1,0 +1,71 @@
+name: Audit Anchor Verification
+
+# 离线复核已生成的审计锚点：只验证 manifest/anchors/令牌三者一致性与
+# TSA 签名，不访问 TSA、不读取审计原文。锚点产物由 "Audit Chain Anchor"
+# workflow（self-hosted）生成并上传为 artifact。
+
+on:
+  workflow_dispatch:
+    inputs:
+      anchor_run_id:
+        description: "Audit Chain Anchor run ID (empty = latest successful run)"
+        required: false
+        type: string
+  schedule:
+    - cron: "0 3 * * 1"
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Resolve anchor run
+        id: run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_RUN_ID: ${{ inputs.anchor_run_id }}
+        run: |
+          set -euo pipefail
+          if [ -n "$INPUT_RUN_ID" ]; then
+            run_id="$INPUT_RUN_ID"
+          else
+            run_id=$(gh run list --repo "$GITHUB_REPOSITORY" \
+              --workflow "Audit Chain Anchor" --status success \
+              --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+          fi
+          echo "id=$run_id" >> "$GITHUB_OUTPUT"
+
+      - name: Note when no anchor run exists
+        if: steps.run.outputs.id == ''
+        run: echo "::notice::No successful 'Audit Chain Anchor' run found; nothing to verify."
+
+      - name: Download anchor artifact
+        if: steps.run.outputs.id != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh run download "${{ steps.run.outputs.id }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern "audit-anchors-*" \
+            --dir anchor-assets
+
+      - name: Verify anchors offline
+        if: steps.run.outputs.id != ''
+        run: |
+          set -euo pipefail
+          manifest=$(find anchor-assets -name ANCHOR_MANIFEST.json -print -quit)
+          if [ -z "$manifest" ]; then
+            echo "::error::artifact contains no ANCHOR_MANIFEST.json"
+            exit 1
+          fi
+          python3 scripts/verify_anchor_manifest.py --dir "$(dirname "$manifest")"
