@@ -36,6 +36,9 @@ class DecodedCandidate:
         return f"{self.method}:{self.text[:40]}"
 
 
+# 零宽字符（Cf）：用于切断 deny 关键词，如 i\u200bgnore。剥离后再做语义判定。
+_ZERO_WIDTH = str.maketrans("", "", "\u200b\u200c\u200d\u2060\ufeff\u00ad")
+
 _HOMOGLYPH = {
     "а": "a",
     "е": "e",
@@ -352,6 +355,11 @@ def decode_candidates(
         out.append(DecodedCandidate(method, value))
 
     add("nfkc", unicodedata.normalize("NFKC", text))
+    # 零宽字符剥离：i\u200bgnore -> ignore。剥离后像英文才作为候选，
+    # 否则任意含零宽的文本都会产生无意义候选。
+    zw = text.translate(_ZERO_WIDTH)
+    if zw != text and _looks_english(zw):
+        add("zero_width_stripped", zw)
     zs = _strip_zalgo(text)
     mn = sum(1 for c in unicodedata.normalize("NFD", text) if unicodedata.category(c) == "Mn")
     if mn >= 5 and _looks_english(zs):
@@ -359,11 +367,16 @@ def decode_candidates(
     hg = _homoglyph(text)
     if hg != text and _looks_english(hg):
         add("homoglyph", hg)
-    # leet 只在原文有 >=2 个数字/符号时才有意义 (单个 "3" 会误伤 "section 3")
-    # 且还原结果必须像英文：CLI 命令/代码含大量 $VAR、0x1 等符号，若不过滤会被
-    # 误判为 leet 编码并降级为 REWRITE（2026-11-04 命令注入审计发现）。
+    # leet 只在"还原后确实变得更有英文语义"时才算编码（2026-11-05 命令注入
+    # 审计）：裸计数会把含 agent-demo-01 / $M4_TOKEN / 0x1 的整条 CLI 命令误判
+    # 为 leet 编码并返回 REWRITE（等于放行）。真 leet 文本（1gn0r3 4ll ...）
+    # 解码后常用词显著增加；命令/标识符解码后语义不变，故用差值判据。
     leet_text = text.translate(_LEET)
-    if len(re.findall(r"[0-9@$]", text)) >= 2 and _looks_english(leet_text):
+    if (
+        len(re.findall(r"[0-9@$]", text)) >= 2
+        and _common_word_hits(leet_text) >= _common_word_hits(text) + 2
+        and _looks_english(leet_text)
+    ):
         add("leet", leet_text)
     # rot13 / 键盘左移: 仅当还原结果像英文时采用 (否则任意文本都会产生候选)
     rot = codecs.decode(text, "rot13")
