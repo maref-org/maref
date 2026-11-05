@@ -360,8 +360,11 @@ def decode_candidates(
     if hg != text and _looks_english(hg):
         add("homoglyph", hg)
     # leet 只在原文有 >=2 个数字/符号时才有意义 (单个 "3" 会误伤 "section 3")
-    if len(re.findall(r"[0-9@$]", text)) >= 2:
-        add("leet", text.translate(_LEET))
+    # 且还原结果必须像英文：CLI 命令/代码含大量 $VAR、0x1 等符号，若不过滤会被
+    # 误判为 leet 编码并降级为 REWRITE（2026-11-04 命令注入审计发现）。
+    leet_text = text.translate(_LEET)
+    if len(re.findall(r"[0-9@$]", text)) >= 2 and _looks_english(leet_text):
+        add("leet", leet_text)
     # rot13 / 键盘左移: 仅当还原结果像英文时采用 (否则任意文本都会产生候选)
     rot = codecs.decode(text, "rot13")
     if _looks_english(rot):
