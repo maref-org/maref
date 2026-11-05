@@ -39,13 +39,15 @@ from maref.security.inbound.normalization import (
 )
 
 DEFAULT_DENY_PATTERNS: tuple[str, ...] = (
-    r"pick(?:ing)? a lock",
+    # 撬锁：排除「丢钥匙/锁匠/被锁门外」的求助语境（2026-11-05 over-refusal）
+    r"pick(?:ing)?\b(?!.{0,60}\b(?:locksmith|lost my key|lost the key|locked out|lock myself out)\b).{0,30}\block\b",
     r"bypass (?:a |the )?(?:login|lock|door|badge|reader)",
     r"pipe bomb",
     r"ransomware",
     r"phishing",
     r"poison(?:ing)? someone",
-    r"exfiltrat",
+    # 数据外泄：排除「如何检测/防范」的防御性讨论（2026-11-05 over-refusal）
+    r"exfiltrat(?!\w{0,4}\s+(?:is|are|was|were|can be)\s+(?:\w+\s+)?(?:detected|prevented|monitored|identified))",
     r"steal (?:saved )?passwords",
     r"smuggle",
     r"clone a badge",
@@ -71,6 +73,9 @@ DEFAULT_DENY_PATTERNS: tuple[str, ...] = (
     r"\byou are now\b.{0,24}\bDAN\b",
     r"\bdo anything now\b",
     r"\bDAN\b.{0,40}\b(?:unrestricted|no restrictions|without restrictions)\b",
+    # 撬锁教程 / 锁具绕过（语序变体；2026-11-05 holdout j16/r08）
+    # pick 变体已由上方带负向前瞻的 pattern 覆盖，此处只保留 bypass 语序。
+    r"\b(?:lock|door|badge|reader)\s+bypass",
 )
 
 # shell/CLI 语法特征：用于在未显式声明 kind 时判定为 TOOL_CALL。
