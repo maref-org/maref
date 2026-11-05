@@ -16,8 +16,10 @@ inference-time steering 也无效 (6 档 alpha, ASR 95.8%-100%)。唯一的解�
 
 设计原则:
 - 纯函数式裁决 (``check`` 无副作用), 便于审计与单测
-- 未命中一律 ALLOW (fail-open) — 因为它只是**加分项**, 不是唯一防线;
+- content 路径: 未命中一律 ALLOW (fail-open) — 它只是**加分项**, 不是唯一防线;
   真正的 fail-closed 由下游策略/模型/人工闸门承担
+- tool_call 路径: 危险命令信号命中即 DENY (fail-closed)
+- deny pattern 命中一律 DENY; 语境分类 (_BENIGN_CONTEXT) 只写日志, 不降级
 - 裁决不记录原文到日志, 只记录方法与哈希 (防 PII 入审计链)
 """
 
@@ -311,17 +313,15 @@ class InboundNormalizationGate:
         # 明文也做一次 deny 检查: 门禁不止还原编码, 也拦明显有害的直白输入
         m_raw = self._deny_re.search(text)
         if m_raw:
-            decision = (
-                InboundDecision.HITL if _BENIGN_CONTEXT.search(text) else InboundDecision.DENY
-            )
+            # deny 命中恒 DENY；语境分类只进日志，不改变裁决。
             return self._verdict(
-                decision,
+                InboundDecision.DENY,
                 text,
                 text,
                 ("raw",),
                 m_raw.group(0),
                 "deny pattern on raw input"
-                + ("; benign context -> HITL" if decision is InboundDecision.HITL else ""),
+                + ("; benign context noted" if _BENIGN_CONTEXT.search(text) else ""),
                 started,
             )
 
@@ -335,18 +335,18 @@ class InboundNormalizationGate:
         for cand in decoded:
             m = self._deny_re.search(cand.text)
             if m:
-                decision = (
-                    InboundDecision.HITL
-                    if _BENIGN_CONTEXT.search(cand.text)
-                    else InboundDecision.DENY
-                )
-                reason = (
-                    f"deny pattern after {cand.method} decode; benign context -> HITL"
-                    if decision is InboundDecision.HITL
-                    else f"deny pattern after {cand.method} decode"
-                )
+                # 同上：deny 命中恒 DENY，语境只记日志。
+                reason = f"deny pattern after {cand.method} decode"
+                if _BENIGN_CONTEXT.search(cand.text):
+                    reason += "; benign context noted"
                 return self._verdict(
-                    decision, text, cand.text, (cand.method,), m.group(0), reason, started
+                    InboundDecision.DENY,
+                    text,
+                    cand.text,
+                    (cand.method,),
+                    m.group(0),
+                    reason,
+                    started,
                 )
 
         # 2) 高置信还原且像自然语言 (英文/中文) → REWRITE
