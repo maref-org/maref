@@ -25,6 +25,7 @@ import argparse
 import base64
 import hashlib
 import json
+import shutil
 import sys
 import tempfile
 from datetime import datetime, timezone
@@ -85,8 +86,10 @@ def _stamp_root(root: str, batches_dir: Path, args, ca_path: Path) -> str:
         stamp.create_query(data, tsq_path)
         stamp.request_token(tsq_path, tsr_path, args.tsa_url, args.timeout)
         stamp.verify_token(tsq_path, tsr_path, ca_path)
-        tsq_path.replace(batches_dir / f"{root[:16]}.tsq")
-        tsr_path.replace(batches_dir / f"{root[:16]}.tsr")
+        # 临时目录可能在另一文件系统（如 TMPDIR 在内置盘、锚点目录在外置
+        # 盘），os.replace 会抛 EXDEV；shutil.move 跨设备时退化为复制。
+        shutil.move(str(tsq_path), str(batches_dir / f"{root[:16]}.tsq"))
+        shutil.move(str(tsr_path), str(batches_dir / f"{root[:16]}.tsr"))
         return base64.b64encode((batches_dir / f"{root[:16]}.tsr").read_bytes()).decode("ascii")
 
 
