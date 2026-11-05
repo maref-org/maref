@@ -31,7 +31,12 @@ import time
 from dataclasses import dataclass, field
 from enum import Enum
 
-from maref.security.inbound.normalization import MAX_INPUT_CHARS, decode_candidates, looks_like_text
+from maref.security.inbound.normalization import (
+    MAX_INPUT_CHARS,
+    _common_word_hits,
+    decode_candidates,
+    looks_like_text,
+)
 
 DEFAULT_DENY_PATTERNS: tuple[str, ...] = (
     r"pick(?:ing)? a lock",
@@ -129,6 +134,7 @@ _STRONG_METHODS = frozenset(
         "pinyin_hint",
         "url",
         "acrostic_rebuilt",
+        "zero_width_stripped",
     }
 )
 
@@ -192,6 +198,7 @@ class ReasonCode(str, Enum):
     DENY_SENSITIVE_PATH = "DENY_SENSITIVE_PATH"
     REWRITE_STRONG = "REWRITE_STRONG"
     REWRITE_WEAK = "REWRITE_WEAK"
+    ALLOW_WEAK_DECODE = "ALLOW_WEAK_DECODE"
     UNKNOWN = "UNKNOWN"
 
 
@@ -244,6 +251,10 @@ def _infer_reason_code(reason: str) -> str:
         return ReasonCode.DENY_PATTERN_RAW.value
     if r.startswith("rewritten via"):
         return ReasonCode.REWRITE_STRONG.value
+    if r.startswith("weak decode improved readability"):
+        return ReasonCode.REWRITE_WEAK.value
+    if r.startswith("weak decode via"):
+        return ReasonCode.ALLOW_WEAK_DECODE.value
     if r.startswith("encoding detected via"):
         return ReasonCode.REWRITE_WEAK.value
     return ReasonCode.UNKNOWN.value
@@ -421,15 +432,31 @@ class InboundNormalizationGate:
                 started,
             )
 
-        # 3) 只有弱方法 (rot13/leet/键盘移位) 可读 → 默认处置
+        # 3) 只有弱方法 (rot13/leet/键盘移位) 可读 →
+        #    仅当解码确实提升可读性时还原给下游，否则视为噪音原样放行。
+        #    （与 leet 的语义判据同一把尺子：常用词数至少 +2。）
         weak = min(readable, key=lambda c: _METHOD_PRIORITY.get(c.method, 99))
+        src_words = _common_word_hits(text)
+        dst_words = _common_word_hits(weak.text)
+        if dst_words >= src_words + 2:
+            return self._verdict(
+                InboundDecision.REWRITE,
+                text,
+                weak.text,
+                (weak.method,),
+                None,
+                f"weak decode improved readability via {weak.method}: "
+                f"{src_words} -> {dst_words} words",
+                started,
+            )
         return self._verdict(
-            self.default_decision,
+            InboundDecision.ALLOW,
             text,
-            weak.text,
-            (weak.method,),
+            text,
+            (),
             None,
-            f"encoding detected via {weak.method}; no confident rewrite",
+            f"weak decode via {weak.method} did not improve readability "
+            f"({src_words} -> {dst_words}); pass-through",
             started,
         )
 
