@@ -62,7 +62,11 @@ def proposal_ingest(payload: dict[str, Any]) -> dict[str, Any]:
     with open(detail_file, "w") as f:
         json.dump(entry, f, indent=2, ensure_ascii=False)
 
-    logger.info("proposal ingested: id=%s source=%s", proposal_id, entry["source"])
+    logger.info(
+        "proposal ingested: id=%s source=%s",
+        proposal_id.replace("\n", "").replace("\r", ""),
+        str(entry["source"]).replace("\n", "").replace("\r", ""),
+    )
     return {"status": "ok", "proposal_id": proposal_id, "stored_in": str(detail_file)}
 
 
