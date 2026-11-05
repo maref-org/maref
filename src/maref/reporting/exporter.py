@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from html import escape as _escape_attr
 from pathlib import Path
 from string import Template
 
@@ -72,6 +73,7 @@ class ReportExporter:
         report_dir: str | Path,
         output_path: str | Path,
         signer_fingerprint: str = "",
+        public_key: str = "",
     ) -> Path:
         tmpl = self._load_template("index.html")
         out = Path(output_path)
@@ -115,8 +117,14 @@ class ReportExporter:
             # 索引里链接的 fingerprint.txt 必须与索引同批落盘，否则线上是死链。
             out.parent.joinpath("fingerprint.txt").write_text(signer_fingerprint + "\n", "utf-8")
             verify_block = (
-                '<p class="verify-link">Verify: <a href="fingerprint.txt">fingerprint.txt</a></p>'
+                '<p class="verify-link">Verify: <a href="fingerprint.txt">fingerprint.txt</a>'
             )
+            if public_key:
+                # 只在公钥确实随本次索引落盘时链接，避免又造一个死链。
+                verify_block += (
+                    f' · <a href="{_escape_attr(public_key, quote=True)}">public key</a>'
+                )
+            verify_block += "</p>"
         html = tmpl.safe_substitute(
             fingerprint=fp, report_table=table_html, verify_block=verify_block
         )
