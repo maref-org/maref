@@ -208,6 +208,6 @@ def test_router_is_mounted_in_sidecar(tmp_path: Path, monkeypatch: pytest.Monkey
         CompositeMonitor(),
         allow_unauthenticated=True,
     )
-    paths = {getattr(route, "path", "") for route in app.routes}
+    paths = set(app.openapi()["paths"])
     assert "/api/v1/governance/ops/content/review" in paths
     assert "/api/v1/governance/ops/evidence/bundle" in paths
