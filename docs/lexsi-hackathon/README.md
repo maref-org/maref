@@ -56,25 +56,29 @@ contain harmful subject words.
 
 Everything runs locally on one machine (M4 / 24 GB, MPS). No inference credits.
 
+All evaluation code, data and hash-pinned snapshots live in
+[`hackathon/lexsi-track2a/`](../../hackathon/lexsi-track2a/) — that directory has
+its own README with the full reproduction guide.
+
 ```bash
-# 1. dataset (public)
-#    https://huggingface.co/datasets/maref-org/lexsi-redteam-set
+cd hackathon/lexsi-track2a
 
-# 2. gate + datasets + AuditKIT replay
-cd <this repo>
-make -C ../lexsi-hackathon reproduce      # or: python3 scripts/reproduce.py
+# 1. gate + datasets + AuditKIT replay (hash-asserted, no model call)
+make reproduce
 
-# 3. full pipeline (gate -> model -> score)
-python3 prep/gate_pipeline_eval.py
+# 2. full pipeline (gate -> model -> score, ~5 min on M4)
+PYTHONPATH=../../src python3 prep/gate_pipeline_eval.py
 
-# 4. CuratorKIT curation (3rd Lexsi repo in the chain)
+# 3. CuratorKIT curation (3rd Lexsi repo in the chain)
+#    clone Lexsi-Labs/CuratorKIT first, then run from this directory
 PYTHONPATH=prep curatorkit run prep/curatorkit_pipeline.yaml \
   --output-dir prep/curatorkit_out
 ```
 
-Artifacts live in `prep/runs/` (`gate_pipeline_v1.json`,
-`auditkit_baseline_v1.json`, `alpha_sweep_v2.json`) and
-`prep/curatorkit_out/` (manifest, dataset card, checksums).
+Artifacts live in `hackathon/lexsi-track2a/prep/runs/`
+(`gate_pipeline_v1.json`, `auditkit_baseline_v1.json`, `alpha_sweep_v2.json`)
+and `hackathon/lexsi-track2a/prep/curatorkit_out/` (manifest, dataset card,
+checksums).
 
 ### Reproducibility notes
 
