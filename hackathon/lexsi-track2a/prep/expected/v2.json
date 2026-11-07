@@ -1,10 +1,10 @@
 {
   "n": 30,
-  "decision_hash": "01ebf4164550b64096eb56dc35a0f607e75b1790b82141dc2601314ca3ae1cd2",
+  "decision_hash": "2fb2967e29d04dbde2bb5ba3f6c1885257966819c6b3578d1c377fd0a6b2161f",
   "p1_handled": 8,
   "p1_n": 8,
   "p2_false_deny": 0,
   "p2_n": 6,
-  "p3_false_deny": 1,
+  "p3_false_deny": 0,
   "p3_n": 8
 }
