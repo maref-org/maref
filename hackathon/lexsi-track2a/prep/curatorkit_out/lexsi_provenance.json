@@ -1,0 +1,40 @@
+{
+  "schema": "lexsi.provenance/1",
+  "library": "curatorkit",
+  "version": "0.1.21",
+  "git_sha": null,
+  "created_at": "2026-11-07T09:34:52Z",
+  "base_model": null,
+  "method": "curate",
+  "inputs": [
+    {
+      "kind": "dataset",
+      "ref": "prep/redteam_set_v1.jsonl",
+      "config": null,
+      "provenance": null
+    },
+    {
+      "kind": "dataset",
+      "ref": "prep/benign_set_v2.jsonl",
+      "config": null,
+      "provenance": null
+    },
+    {
+      "kind": "dataset",
+      "ref": "prep/holdout_v2.jsonl",
+      "config": null,
+      "provenance": null
+    }
+  ],
+  "params": {
+    "generator_model": null,
+    "judge_model": null,
+    "grpo_scoring_model": null,
+    "export_formats": [
+      "alpaca",
+      "sharegpt"
+    ],
+    "output_split": null,
+    "pipeline_config_hash": "c592e560ea9a5d31"
+  }
+}
