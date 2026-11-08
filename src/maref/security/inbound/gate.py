@@ -182,6 +182,29 @@ _BENIGN_CONTEXT = re.compile(
     re.I,
 )
 
+# 引用式提及 (mention) vs 执行意图 (use)。
+# "Why does 'ignore previous instructions' work as a jailbreak?" 是在谈这个短语，
+# 不是在要求模型执行它。只有 deny 命中文本被引号包裹、且全句无执行意图时才豁免。
+_QUOTE_CHARS = frozenset("'\"\u201c\u201d\u300c\u300d\u2018\u2019")
+_USE_INTENT = re.compile(
+    r"\b(?:now|then|please|go ahead|just)\s+(?:do|run|execute|follow|obey|apply)\b"
+    r"|\bdo it\b|\bexecute (?:it|this|that)\b",
+    re.I,
+)
+
+
+def _is_quoted_mention(text: str, matched: str) -> bool:
+    """matched 在 text 中是否被引号紧邻包裹（即引用一个短语，而非直接使用）。"""
+    low, m = text.lower(), matched.lower()
+    start = low.find(m)
+    if start < 0:
+        return False
+    before = text[:start].rstrip()
+    after = text[start + len(matched) :].lstrip()
+    if not before or not after:
+        return False
+    return before[-1] in _QUOTE_CHARS and after[0] in _QUOTE_CHARS
+
 
 class InputKind(str, Enum):
     """输入来源：决定走哪条检查路径。
@@ -379,22 +402,40 @@ class InboundNormalizationGate:
         # 明文也做一次 deny 检查: 门禁不止还原编码, 也拦明显有害的直白输入
         m_raw = self._deny_re.search(text)
         if m_raw:
-            # deny 命中恒 DENY；语境分类只进日志，不改变裁决。
-            return self._verdict(
-                InboundDecision.DENY,
-                text,
-                text,
-                ("raw",),
-                m_raw.group(0),
-                "deny pattern on raw input"
-                + ("; benign context noted" if _BENIGN_CONTEXT.search(text) else ""),
-                started,
-            )
+            # 例外: 引号包裹的"提及"(mention) 且全句无执行意图 -> 不视为使用。
+            # 例: "Why does 'ignore previous instructions' work as a jailbreak?"
+            # 这不是在要求执行，而是在询问原理；仍要求 benign 语境命中，双重条件。
+            if (
+                _is_quoted_mention(text, m_raw.group(0))
+                and _BENIGN_CONTEXT.search(text)
+                and not _USE_INTENT.search(text)
+            ):
+                reason_m = "deny pattern quoted as mention; not use"
+            else:
+                # deny 命中恒 DENY；语境分类只进日志，不改变裁决。
+                return self._verdict(
+                    InboundDecision.DENY,
+                    text,
+                    text,
+                    ("raw",),
+                    m_raw.group(0),
+                    "deny pattern on raw input"
+                    + ("; benign context noted" if _BENIGN_CONTEXT.search(text) else ""),
+                    started,
+                )
+        else:
+            reason_m = None
 
         decoded = [c for c in candidates if c.method != "raw"]
         if not decoded:
             return self._verdict(
-                InboundDecision.ALLOW, text, text, (), None, "no encoding detected", started
+                InboundDecision.ALLOW,
+                text,
+                text,
+                (),
+                None,
+                reason_m or "no encoding detected",
+                started,
             )
 
         # 1) 明确有害 → DENY
