@@ -1,0 +1,7 @@
+{
+  "note": "conversational gate vs single-turn gate on 30 multi-turn prompts",
+  "single_turn_deny": 10,
+  "conversational_deny": 10,
+  "cross_turn_gain": 0,
+  "method": "any-turn deny; conversational gate adds a window-join check"
+}

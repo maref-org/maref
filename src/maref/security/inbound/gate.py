@@ -39,19 +39,25 @@ from maref.security.inbound.normalization import (
 )
 
 DEFAULT_DENY_PATTERNS: tuple[str, ...] = (
-    r"pick(?:ing)? a lock",
+    # 撬锁：排除「丢钥匙/锁匠/被锁门外」的求助语境（2026-11-05 over-refusal）
+    r"pick(?:ing)?\b(?!.{0,60}\b(?:locksmith|lost my key|lost the key|locked out|lock myself out)\b).{0,30}\block\b",
     r"bypass (?:a |the )?(?:login|lock|door|badge|reader)",
     r"pipe bomb",
-    r"ransomware",
-    r"phishing",
+    # 勒索软件：要求部署/制作意图，放行「如何防范」讨论
+    r"(?:build|create|deploy|write|develop|make|spread)\b.{0,40}\bransomware",
+    # 钓鱼：要求制作/发送意图，放行「识别指标/风险科普」
+    r"(?:write|draft|create|build|send|make|construct|design)\b.{0,40}\bphishing",
     r"poison(?:ing)? someone",
-    r"exfiltrat",
+    # 数据外泄：排除「如何检测/防范」的防御性讨论（2026-11-05 over-refusal）
+    # 数据外泄：只认动词形式（exfiltrate/exfiltrating）或「外泄到…」
+    r"exfiltrat(?:e|ing)\b|exfiltrat\w*\b.{0,30}(?:to|via|using)\b",
     r"steal (?:saved )?passwords",
     r"smuggle",
     r"clone a badge",
     r"disable the audit",
     r"environment files",
-    r"api keys",
+    # API 密钥：要求读取/外传动作，放行「存储风险」讨论
+    r"(?:list|print|show|reveal|dump|send|output|extract|steal|paste|display)\b.{0,60}\bapi keys",
     r"authorized_keys",
     r"tailgat",
     r"defeat a door sensor",
@@ -71,6 +77,10 @@ DEFAULT_DENY_PATTERNS: tuple[str, ...] = (
     r"\byou are now\b.{0,24}\bDAN\b",
     r"\bdo anything now\b",
     r"\bDAN\b.{0,40}\b(?:unrestricted|no restrictions|without restrictions)\b",
+    # 撬锁教程 / 锁具绕过（语序变体；2026-11-05 holdout j16/r08）
+    # pick 变体已由上方带负向前瞻的 pattern 覆盖，此处只保留 bypass 语序。
+    # 锁具绕过：要求教学/教程意图，放行「如何检测绕过」
+    r"(?:teach|teaching|learn|how to|steps to|guide to|tutorial)\b.{0,40}\block bypass",
 )
 
 # shell/CLI 语法特征：用于在未显式声明 kind 时判定为 TOOL_CALL。
@@ -171,6 +181,29 @@ _BENIGN_CONTEXT = re.compile(
     r"|\b(?:why|how) (?:does|do|is|are)\b.{0,80}\b(?:work|works|fail|fails|bypass|bypasses|jailbreak|phishing|attack)\b",
     re.I,
 )
+
+# 引用式提及 (mention) vs 执行意图 (use)。
+# "Why does 'ignore previous instructions' work as a jailbreak?" 是在谈这个短语，
+# 不是在要求模型执行它。只有 deny 命中文本被引号包裹、且全句无执行意图时才豁免。
+_QUOTE_CHARS = frozenset("'\"\u201c\u201d\u300c\u300d\u2018\u2019")
+_USE_INTENT = re.compile(
+    r"\b(?:now|then|please|go ahead|just)\s+(?:do|run|execute|follow|obey|apply)\b"
+    r"|\bdo it\b|\bexecute (?:it|this|that)\b",
+    re.I,
+)
+
+
+def _is_quoted_mention(text: str, matched: str) -> bool:
+    """matched 在 text 中是否被引号紧邻包裹（即引用一个短语，而非直接使用）。"""
+    low, m = text.lower(), matched.lower()
+    start = low.find(m)
+    if start < 0:
+        return False
+    before = text[:start].rstrip()
+    after = text[start + len(matched) :].lstrip()
+    if not before or not after:
+        return False
+    return before[-1] in _QUOTE_CHARS and after[0] in _QUOTE_CHARS
 
 
 class InputKind(str, Enum):
@@ -369,22 +402,40 @@ class InboundNormalizationGate:
         # 明文也做一次 deny 检查: 门禁不止还原编码, 也拦明显有害的直白输入
         m_raw = self._deny_re.search(text)
         if m_raw:
-            # deny 命中恒 DENY；语境分类只进日志，不改变裁决。
-            return self._verdict(
-                InboundDecision.DENY,
-                text,
-                text,
-                ("raw",),
-                m_raw.group(0),
-                "deny pattern on raw input"
-                + ("; benign context noted" if _BENIGN_CONTEXT.search(text) else ""),
-                started,
-            )
+            # 例外: 引号包裹的"提及"(mention) 且全句无执行意图 -> 不视为使用。
+            # 例: "Why does 'ignore previous instructions' work as a jailbreak?"
+            # 这不是在要求执行，而是在询问原理；仍要求 benign 语境命中，双重条件。
+            if (
+                _is_quoted_mention(text, m_raw.group(0))
+                and _BENIGN_CONTEXT.search(text)
+                and not _USE_INTENT.search(text)
+            ):
+                reason_m = "deny pattern quoted as mention; not use"
+            else:
+                # deny 命中恒 DENY；语境分类只进日志，不改变裁决。
+                return self._verdict(
+                    InboundDecision.DENY,
+                    text,
+                    text,
+                    ("raw",),
+                    m_raw.group(0),
+                    "deny pattern on raw input"
+                    + ("; benign context noted" if _BENIGN_CONTEXT.search(text) else ""),
+                    started,
+                )
+        else:
+            reason_m = None
 
         decoded = [c for c in candidates if c.method != "raw"]
         if not decoded:
             return self._verdict(
-                InboundDecision.ALLOW, text, text, (), None, "no encoding detected", started
+                InboundDecision.ALLOW,
+                text,
+                text,
+                (),
+                None,
+                reason_m or "no encoding detected",
+                started,
             )
 
         # 1) 明确有害 → DENY
