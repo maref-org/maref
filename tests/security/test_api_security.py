@@ -11,7 +11,7 @@ import os
 from unittest.mock import patch
 
 import pytest
-from fastapi import FastAPI
+from fastapi import APIRouter, FastAPI
 from fastapi.testclient import TestClient
 
 from sidecar.api_auth import (
@@ -497,3 +497,17 @@ class TestAuthMiddlewareEdgeCases:
         for path in ["/api/auth/log", "/api/v1/auth/audit", "/api/internal/auth-audit"]:
             resp = client.get(path, headers=auth)
             assert resp.status_code == 404, f"{path} should not expose audit log"
+
+
+def test_scopes_from_included_router_are_registered() -> None:
+    router = APIRouter(prefix="/api/v1/included")
+
+    @router.get("/thing")
+    @require_auth(scope="included:read")
+    def thing() -> dict[str, str]:
+        return {}
+
+    a = FastAPI()
+    a.include_router(router, prefix="/outer")
+    _register_route_scope(a)
+    assert _SCOPE_MAP.get("/outer/api/v1/included/thing") == "included:read"
