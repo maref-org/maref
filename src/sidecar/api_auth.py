@@ -24,7 +24,7 @@ import hmac
 import logging
 import os
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Iterable, Iterator
 from functools import wraps
 from typing import Any, TypeVar
 
@@ -244,17 +244,31 @@ def require_auth(
     return decorator
 
 
+def _iter_routes(routes: Iterable[Any], prefix: str = "") -> Iterator[tuple[str, Any]]:
+    # fastapi>=0.162 keeps include_router routes inside an opaque wrapper
+    # (_IncludedRouter) instead of flattening them into app.routes.
+    for route in routes:
+        included = getattr(route, "original_router", None)
+        if included is not None:
+            context = getattr(route, "include_context", None)
+            yield from _iter_routes(included.routes, prefix + (getattr(context, "prefix", "") or ""))
+            continue
+        nested = getattr(route, "routes", None)
+        if nested is not None:
+            yield from _iter_routes(nested, prefix + (getattr(route, "path", "") or ""))
+            continue
+        yield prefix + getattr(route, "path", ""), route
+
+
 def _register_route_scope(app: FastAPI) -> None:
     """Register scope requirements from route decorators.
 
     Call this after all routes are added to the app.
     """
-    for route in app.routes:
+    for path, route in _iter_routes(app.routes):
         endpoint = getattr(route, "endpoint", None)
-        if endpoint and hasattr(endpoint, "_maref_required_scope"):
-            path = getattr(route, "path", getattr(route, "path_format", ""))
-            if path:
-                _SCOPE_MAP[path] = endpoint._maref_required_scope
+        if endpoint and hasattr(endpoint, "_maref_required_scope") and path:
+            _SCOPE_MAP[path] = endpoint._maref_required_scope
 
 
 def is_auth_enabled() -> bool:
