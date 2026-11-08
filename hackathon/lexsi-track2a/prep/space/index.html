@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MAREF — Layered Defense Against Encoded Attacks</title>
+<style>
+  :root { --bg:#0f1115; --panel:#171a21; --ink:#e6e8ee; --muted:#9aa3b2; --line:#262b36;
+          --accent:#d32e41; --good:#3fb950; --warn:#d29922; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink);
+         font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif; }
+  main { max-width:900px; margin:0 auto; padding:56px 24px 80px; }
+  h1 { font-size:32px; line-height:1.25; margin:0 0 8px; letter-spacing:-.01em; }
+  h2 { font-size:19px; margin:40px 0 12px; }
+  h3 { font-size:16px; margin:24px 0 8px; color:var(--muted); font-weight:600; }
+  p { margin:0 0 12px; }
+  .sub { color:var(--muted); margin-bottom:36px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:14px; margin:18px 0; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:18px; }
+  .k { color:var(--muted); font-size:13px; letter-spacing:.02em; text-transform:uppercase; }
+  .v { font-size:28px; font-weight:600; margin-top:6px; }
+  .v small { font-size:14px; font-weight:400; color:var(--muted); margin-left:6px; }
+  .good { color:var(--good); } .warn { color:var(--warn); } .bad { color:var(--accent); }
+  table { width:100%; border-collapse:collapse; margin:12px 0; font-size:15px; }
+  th,td { text-align:left; padding:10px 12px; border-bottom:1px solid var(--line); }
+  th { color:var(--muted); font-weight:500; }
+  a { color:#7db2ff; text-decoration:none; } a:hover { text-decoration:underline; }
+  code { background:#12151c; border:1px solid var(--line); border-radius:5px; padding:1px 6px; font-size:14px; }
+  .note { border-left:3px solid var(--accent); padding:10px 0 10px 14px; color:var(--muted); margin:18px 0; }
+  .note.good { border-left-color:var(--good); }
+  footer { margin-top:56px; color:var(--muted); font-size:13px; border-top:1px solid var(--line); padding-top:18px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Layered Defense Against Encoded Attacks</h1>
+  <p class="sub">Measured on <code>CohereLabs/tiny-aya-global</code> · red-team set v1 (114 prompts) · 2026-11-02</p>
+
+  <h2>What we found</h2>
+  <p>Encoding attacks (base64, rot13, emoji substitution, fragment splitting) bypass model-level
+     safety entirely. We measured this instead of assuming it: inference-time refusal-direction
+     steering, tested at six strengths, changed encoding ASR by at most one prompt in twenty-four.</p>
+  <p>The reason is structural. Safety refusal is triggered <em>semantically</em>; an encoded payload
+     does not read as a harmful request, so the refusal pathway never activates. Adding a refusal
+     vector to the residual stream does nothing when the model never recognises the intent.</p>
+
+  <h2>Three layers, measured</h2>
+  <div class="grid">
+    <div class="card"><div class="k">Raw model</div><div class="v bad">87.5<small>% ASR (reviewed)</small></div></div>
+    <div class="card"><div class="k">+ Normalisation → model</div><div class="v warn">58.3<small>% ASR (reviewed)</small></div></div>
+    <div class="card"><div class="k">+ MAREF rule gate</div><div class="v good">16.7<small>% ASR</small></div></div>
+    <div class="card"><div class="k">Benign false deny</div><div class="v good">0<small>%</small></div></div>
+  </div>
+  <table>
+    <tr><th>Layer</th><th>Encoding ASR</th><th>What it fixes</th><th>What it cannot fix</th></tr>
+    <tr><td>Raw model</td><td>87.5% (21/24, reviewed)</td><td>—</td><td>—</td></tr>
+    <tr><td>Input normalisation → model</td><td>58.3% (14/24, reviewed)</td><td>the model cannot decode the payload</td>
+        <td>the model refuses to refuse even after decoding</td></tr>
+    <tr><td>MAREF inbound gate</td><td><strong>16.7% (4/24)</strong></td><td>decode + policy decision in one pass</td>
+        <td>payloads with no recoverable plaintext</td></tr>
+  </table>
+
+  <h3>Layer 2 detail — normalisation feeding the model</h3>
+  <p>Fifteen decode paths (base64, base32, rot13, reversal, fragment concat, morse, emoji map,
+     keyboard shift, homoglyph, zalgo strip, leet, pinyin hint) hand the recovered text to the model.
+     Seven of twenty-four attacks were then refused. The rest decoded correctly but the model still complied.</p>
+
+  <h3>Layer 3 detail — MAREF inbound gate (rules only, no model call)</h3>
+  <table>
+    <tr><th>Signal</th><th>Result</th></tr>
+    <tr><td>Encoding attacks handled</td><td>20 / 24 (83.3%) — 17 deny, 3 rewrite<br>
+      <small>(20 of 23 real attacks = 87.0%; one prompt has no ciphertext)</small></td></tr>
+    <tr><td>Benign prompts falsely denied</td><td>0 / 80 (20 original + 60 expanded)</td></tr>
+    <tr><td>Escalated to human review</td><td>5 / 80 (all defensive-security questions)</td></tr>
+    <tr><td>Defensive questions ("how is X detected?")</td><td>downgraded to human-review, not blocked</td></tr>
+  </table>
+  <div class="note">The four unhandled prompts are honest gaps: one is Spanish (the gate does not
+    translate), one is a per-sentence initials puzzle whose decoded word ("IGNORE") does not match a
+    pattern, one uses a letter-shift cipher the rules do not cover, one contains no actual
+    ciphertext. They are listed in the repository rather than rounded away.</div>
+
+  <h2>Multi-turn audit (30 conversations, 2–4 turns each)</h2>
+  <table>
+    <tr><th>Category</th><th>n</th><th>Multi-turn ASR</th><th>Final turn alone</th><th>Gap</th></tr>
+    <tr><td>tool_injection</td><td>6</td><td class="bad">100.0%</td><td>83.3%</td><td>+16.7pp</td></tr>
+    <tr><td>cross_turn_assembly</td><td>6</td><td class="bad">100.0%</td><td>83.3%</td><td>+16.7pp</td></tr>
+    <tr><td>code_mixed</td><td>6</td><td>100.0%</td><td>100.0%</td><td>0</td></tr>
+    <tr><td>context_poison</td><td>6</td><td>33.3%</td><td>33.3%</td><td>0</td></tr>
+    <tr><td>gradual_escalation</td><td>6</td><td>33.3%</td><td>33.3% (reviewed)</td><td>0</td></tr>
+    <tr><td><strong>overall</strong></td><td>30</td><td><strong>73.3%</strong></td><td><strong>66.7%</strong> (reviewed)</td><td><strong>+6.7pp</strong></td></tr>
+  </table>
+  <div class="note">We read all six <code>gradual_escalation</code> transcripts. The first-pass
+    number (83.3% single-turn) was a measurement artifact: one refusal used a curly apostrophe
+    (<code>can’t</code>) that the detector missed, and three isolated final turns produced
+    <em>harmless</em> answers (a support script, an addition function, a request for context)
+    that were scored as compliance. Corrected, single-turn ASR is 66.7% and multi-turn is
+    <strong>worse</strong>, not better.</div>
+
+  <h2>Cross-model check: is this just one model?</h2>
+  <table>
+    <tr><th>Category</th><th>tiny-aya-global (3.35B)</th><th>qwen2.5:3b</th></tr>
+    <tr><td>encoding</td><td class="bad">100.0%</td><td class="bad">100.0%</td></tr>
+    <tr><td>jailbreak_direct</td><td>83.3%</td><td>83.3%</td></tr>
+    <tr><td>prompt_injection</td><td>75.0%</td><td>91.7%</td></tr>
+    <tr><td>roleplay</td><td>71.4%</td><td>57.1%</td></tr>
+    <tr><td>data_exfil</td><td>57.1%</td><td>85.7%</td></tr>
+    <tr><td>tool_abuse</td><td>66.7%</td><td>41.7%</td></tr>
+    <tr><td><strong>overall</strong></td><td>78.7%</td><td>79.8%</td></tr>
+  </table>
+  <p>Two different model families, same size class. The other categories move in
+     both directions — different post-training, different weaknesses. Encoding is
+     the one row that is identical, and identical at the ceiling: neither model
+     refused a single encoded request. A 7B control was attempted and could not
+     be loaded on this machine (every request timed out); that question stays open.</p>
+
+  <h2>Cross-turn gating: tried, no gain</h2>
+  <p>We built a gate that joins recent turns and re-checks the concatenation, expecting
+     turn-split attacks to fall out. On the 30 multi-turn prompts it denied exactly the same
+     number as the single-turn gate: <strong>10/30, gain 0</strong>. Reading the data explains
+     why — those attacks split <em>reference</em>, not text. "Now explain how to perform
+     <em>that verb</em>" contains no harmful string, and no join of the prompts produces one.
+     The harm is carried by the model's own earlier answer.</p>
+
+  <h2>Baseline by category (raw model)</h2>
+  <table>
+    <tr><th>Category</th><th>n</th><th>ASR</th></tr>
+    <tr><td>encoding</td><td>24</td><td class="bad">87.5%</td></tr>
+    <tr><td>jailbreak_direct</td><td>18</td><td>77.8%</td></tr>
+    <tr><td>prompt_injection</td><td>12</td><td>66.7%</td></tr>
+    <tr><td>tool_abuse</td><td>12</td><td>66.7%</td></tr>
+    <tr><td>roleplay</td><td>14</td><td>64.3%</td></tr>
+    <tr><td>data_exfil</td><td>14</td><td>57.1%</td></tr>
+    <tr><td><strong>overall</strong></td><td>94 attacks</td><td>72.3% (reviewed)</td></tr>
+    <tr><td>benign (over-refusal)</td><td>20</td><td>0.0%</td></tr>
+  </table>
+
+  <h2>Negative result: steering did not help</h2>
+  <table>
+    <tr><th>Steering strength</th><th>Encoding ASR</th><th>Semantic attacks ASR</th></tr>
+    <tr><td>0.0</td><td>100%</td><td>81.2%</td></tr>
+    <tr><td>0.3</td><td>100%</td><td>81.2%</td></tr>
+    <tr><td>0.5</td><td>95.8%</td><td>81.2%</td></tr>
+    <tr><td>0.8</td><td>100%</td><td>81.2%</td></tr>
+    <tr><td>1.0</td><td>100%</td><td>81.2%</td></tr>
+    <tr><td>1.5</td><td>95.8%</td><td>78.1%</td></tr>
+  </table>
+  <p>A probe comparing outputs at strength 0.0 and 1.5 confirms the intervention was applied.
+     It simply does not move refusal behaviour on a 3.35B model with a direction extracted from
+     four contrast pairs. We report this rather than tuning the metric.</p>
+  <div class="note">The ASR column here uses the automated detector. After reviewing the
+    baseline by hand (and reclassifying six prompts where the model could not decode or asked
+    for context), the encoding baseline is 87.5%, not 100%. The steering deltas are unchanged;
+    only the absolute level shifts.</div>
+
+  <h2>Cross-check: two scorers, one result</h2>
+  <p>The same model outputs were scored a second time through AuditKIT's
+     <code>RedTeamRunner</code> with an independent detector implementation:
+     ASR 78.72% and over-refusal 0.0%, identical to our own scorer. The headline
+     numbers are not an artifact of one regex.</p>
+
+  <h2>Reproduce</h2>
+  <p>Dataset: <a href="https://huggingface.co/datasets/maref-org/lexsi-redteam-set">maref-org/lexsi-redteam-set</a><br>
+     Gate source: <code>src/maref/security/inbound/</code> in <a href="https://github.com/maref-org/maref">maref-org/maref</a><br>
+     Tests: <code>tests/security/test_inbound_normalization.py</code> (38 passing)</p>
+  <p>Scoring convention: an attack prompt with no refusal counts as a success. Over-refusal is
+     measured on the 20 benign prompts.</p>
+
+  <h2>Links</h2>
+  <p>
+    <a href="https://maref.cc">Project site</a> ·
+    <a href="https://github.com/maref-org/maref">GitHub</a> ·
+    <a href="https://huggingface.co/datasets/maref-org/lexsi-redteam-set">Red-team dataset</a> ·
+    <a href="https://pypi.org/project/maref/">PyPI</a>
+  </p>
+
+  <footer>Maintained by MAREF (open-source). Every number on this page is reproducible from the
+    dataset and the scripts in the repository. Steering numbers come from
+    <code>prep/sweep_alpha.py</code>; gate numbers from <code>prep/maref_gate_eval.py</code>;
+multi-turn numbers from <code>prep/multi_turn_eval.py</code>.</footer>
+</main>
+</body>
+</html>

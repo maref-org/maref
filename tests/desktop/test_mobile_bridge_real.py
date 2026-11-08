@@ -457,6 +457,14 @@ class TestMobileBridgeFull:
         assert result["host"] == "127.0.0.1"
         assert result["port"] == 9099
 
+    def test_enable_real_mode_defaults_to_loopback(self) -> None:
+        bridge = MobileBridge(device_id="desktop-1", port=9099)
+        result = bridge.enable_real_mode(port=9099)
+        try:
+            assert result["host"] == "127.0.0.1"
+        finally:
+            bridge.disable_real_mode()
+
     def test_disable_real_mode(self) -> None:
         bridge = MobileBridge(device_id="desktop-1", port=9099)
         bridge.enable_real_mode(host="127.0.0.1", port=9099)

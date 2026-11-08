@@ -1,0 +1,53 @@
+# CuratorKIT pipeline for the MAREF red-team + benign sets.
+#
+# Purpose: run the existing evaluation data through CuratorKIT's
+# reader -> gates -> normalizers -> exporters chain so the dataset has a
+# provenance manifest, a dataset card and an explicit rejected.jsonl with
+# structured reasons. Prompts are mapped from {prompt, expect} to the
+# Alpaca shape by prep/curatorkit_adapter.py.
+#
+# Run from repos/CuratorKIT:
+#   curatorkit run ../../prep/curatorkit_pipeline.yaml --output-dir ../../prep/curatorkit_out
+
+name: maref_redteam_curation
+version: "1.0.0"
+
+readers:
+  - type: jsonl
+    path: prep/redteam_set_v1.jsonl
+    format: auto
+    source_uri: maref/redteam_set_v1
+    preprocessing_fn: curatorkit_adapter.to_alpaca
+  - type: jsonl
+    path: prep/benign_set_v2.jsonl
+    format: auto
+    source_uri: maref/benign_set_v2
+    preprocessing_fn: curatorkit_adapter.to_alpaca
+  - type: jsonl
+    path: prep/holdout_v2.jsonl
+    format: auto
+    source_uri: maref/holdout_v2
+    preprocessing_fn: curatorkit_adapter.to_alpaca
+
+gates:
+  - type: schema
+    required_fields:
+      - instruction
+      - output
+    min_tokens: 4
+    max_tokens: 2048
+    use_tiktoken: false
+
+normalizers:
+  - type: exact_dedup
+  - type: text_cleaner
+    transforms:
+      strip_html: true
+      normalise_unicode: true
+      fix_encoding_artifacts: true
+      collapse_whitespace: true
+      remove_control_chars: true
+
+exporters:
+  - type: alpaca
+  - type: sharegpt
