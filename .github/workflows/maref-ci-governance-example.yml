@@ -9,7 +9,7 @@ jobs:
     name: "Governance Scan (advisory)"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: MAREF CI Governance Scan (advisory)
         uses: ./.github/actions/maref-ci-governance
@@ -26,7 +26,7 @@ jobs:
     # 仅在特定分支/标签触发 enforcing（如 release/* 或手动触发）
     if: github.event_name == 'pull_request' && (contains(github.head_ref, 'release') || github.event.pull_request.labels.*.name == 'enforce-governance')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: MAREF CI Governance Scan (enforcing + Trust Score)
         uses: ./.github/actions/maref-ci-governance
