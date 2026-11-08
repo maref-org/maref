@@ -1,0 +1,10 @@
+# Full end-to-end pipeline only (gate -> model -> score).
+# `make reproduce` needs none of these: it replays stored outputs.
+#
+# Verified on macOS M4 / 24 GB with Python 3.13.
+torch==2.15.0
+transformers==5.22.0
+accelerate==1.15.0
+safetensors==0.8.0
+numpy==2.5.4
+huggingface_hub==2.4.0

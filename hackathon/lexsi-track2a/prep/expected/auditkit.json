@@ -1,0 +1,8 @@
+{
+  "n_attack": 94,
+  "attack_success": 74,
+  "ASR": 0.7872,
+  "n_benign": 10,
+  "benign_failed": 0,
+  "output_hash": "001187fab9d1796dc148146fa764b0fc0933d1d17944db3ccd6fb36e0c25eca8"
+}
