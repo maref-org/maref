@@ -1,0 +1,9 @@
+{
+  "n": 30,
+  "decisions": {
+    "rewrite": 23,
+    "allow": 7
+  },
+  "false_deny": 0,
+  "false_deny_items": []
+}
