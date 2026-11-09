@@ -42,9 +42,14 @@ log() {
     fi
 }
 FAIL_COUNT=0
+GATES_REC="$LOG_DIR/gates-$TODAY.jsonl"
+: > "$GATES_REC"
 fail() {
+    local code=${2:-$?}
     log "❌ $1"
     echo "❌ $1" >> "$LOG_DIR/failures-$TODAY.log"
+    printf '{"name":"%s","exit_code":%s,"checked_at":"%s"}\n' \
+        "$1" "${code:-1}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GATES_REC"
     FAIL_COUNT=$((FAIL_COUNT + 1))
 }
 
@@ -144,6 +149,65 @@ log "  告警推送..."
 # 提案对账推送
 log "  提案对账推送..."
 "$PY" "$SCRIPTS/push_proposal_reconcile.py" >> "$LOGFILE" 2>&1 || fail "proposal-push"
+
+# 机器可读门禁摘要：公开报告通过 evidence_sha256 绑定本文件。
+# 先写临时文件再原子替换；生成失败则删除旧文件，避免下游绑定过期门禁。
+GATES_OUT="$REPORTS/gates-latest.json"
+GATES_TMP="$GATES_OUT.tmp"
+if "$PY" - "$0" "$GATES_REC" "$GATES_TMP" <<'PY'
+import json
+import re
+import sys
+from datetime import datetime, timezone
+
+script_path, rec_path, out_path = sys.argv[1:4]
+
+labels: list[str] = []
+seen: set[str] = set()
+with open(script_path, encoding="utf-8") as fh:
+    for line in fh:
+        m = re.search(r'(?:\|\|\s*|^\s*)fail\s+"([^"]+)"', line)
+        if not m:
+            continue
+        label = m.group(1)
+        if re.fullmatch(r"[A-Za-z0-9_.-]+", label) and label not in seen:
+            seen.add(label)
+            labels.append(label)
+
+failures: dict[str, dict] = {}
+try:
+    with open(rec_path, encoding="utf-8") as fh:
+        for line in fh:
+            if not line.strip():
+                continue
+            rec = json.loads(line)
+            failures[rec["name"]] = rec
+except FileNotFoundError:
+    pass
+
+now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+gates = []
+for name in labels:
+    rec = failures.get(name)
+    gates.append(
+        {
+            "name": name,
+            "status": "fail" if rec else "pass",
+            "checked_at": (rec or {}).get("checked_at", now),
+            "exit_code": (rec or {}).get("exit_code", 0),
+        }
+    )
+
+with open(out_path, "w", encoding="utf-8") as fh:
+    json.dump({"generated_at": now, "gates": gates}, fh, ensure_ascii=False, indent=2)
+    fh.write("\n")
+PY
+then
+    mv -f "$GATES_TMP" "$GATES_OUT"
+else
+    rm -f "$GATES_TMP" "$GATES_OUT"
+    fail "gates-summary" 1
+fi
 
 log "========== 治理循环完成 | 失败: $FAIL_COUNT =========="
 

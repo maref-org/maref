@@ -28,6 +28,10 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Install verification dependencies
+        # verify_public_report.py 依赖 maref.reporting（pydantic）与 Ed25519 验签链
+        run: python3 -m pip install -e ".[identity]"
+
       - name: Resolve anchor run
         id: run
         env:
@@ -69,3 +73,54 @@ jobs:
             exit 1
           fi
           python3 scripts/verify_anchor_manifest.py --dir "$(dirname "$manifest")"
+
+      - name: Download published report bundle
+        id: published
+        run: |
+          set -o pipefail
+          found=false
+          mkdir -p published
+          if git fetch --depth=1 origin gh-pages:refs/remotes/origin/gh-pages \
+             && git archive origin/gh-pages verify | tar -x -C published; then
+            [ -f published/verify/latest.json ] && found=true
+          fi
+          echo "found=$found" >> "$GITHUB_OUTPUT"
+          if [ "$found" != true ]; then
+            echo "::notice::gh-pages has no verify/latest.json; report chain check skipped"
+          fi
+
+      - name: Select previous report for chain check
+        id: chain
+        if: steps.published.outputs.found == 'true'
+        run: |
+          python3 - >> "$GITHUB_OUTPUT" <<'PY'
+          import glob
+          import json
+
+          latest = json.load(open("published/verify/latest.json", encoding="utf-8"))
+          candidates = []
+          for path in glob.glob("published/verify/report-*.json"):
+              try:
+                  report = json.load(open(path, encoding="utf-8"))
+              except Exception:
+                  continue
+              if report.get("report_id") != latest.get("report_id"):
+                  candidates.append((report.get("created_at", ""), path, report))
+          if candidates:
+              _, path, report = max(candidates, key=lambda item: item[0])
+              print(f"previous_path={path}")
+              print(f"previous_id={report['report_id']}")
+          PY
+
+      - name: Verify published report against anchor and gates
+        if: steps.published.outputs.found == 'true'
+        run: |
+          set -euo pipefail
+          ARGS=(--report published/verify/latest.json
+                --pubkey published/verify/maref-report-signing.pub
+                --anchor-root published/verify/anchors
+                --gates-dir published/verify/gates)
+          if [ -n "${{ steps.chain.outputs.previous_path }}" ]; then
+            ARGS+=(--previous-report "${{ steps.chain.outputs.previous_path }}")
+          fi
+          python3 scripts/verify_public_report.py "${ARGS[@]}"

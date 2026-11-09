@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from maref.eivl.merkle_auditor import AuditChainIntegrator
 from maref.governance.audit import AuditLogger
 from maref.reporting.models import (
@@ -25,6 +27,7 @@ class ReportGenerator:
         since_timestamp: float | None = None,
         previous_report_id: str = "",
         system_state_override: SystemStateSnapshot | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> GovernanceReport:
         logger = audit_logger or self._audit_logger
         if logger is None:
@@ -73,6 +76,7 @@ class ReportGenerator:
             audit_summary=audit_summary,
             system_state=system_state,
             previous_report_id=previous_report_id,
+            metadata=metadata or {},
         )
 
         sig = self._signing_key.sign_report(report.payload_bytes())
