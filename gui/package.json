@@ -98,9 +98,7 @@
       "entitlements": "electron/entitlements.mac.plist",
       "entitlementsInherit": "electron/entitlements.mac.plist",
       "hardenedRuntime": true,
-      "notarize": {
-        "teamId": "${APPLE_TEAM_ID}"
-      },
+      "notarize": true,
       "artifactName": "${productName}-${version}-mac-${arch}.${ext}"
     },
     "win": {
