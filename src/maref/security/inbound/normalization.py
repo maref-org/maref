@@ -296,9 +296,18 @@ def _split_concat(s: str) -> list[str]:
 
 
 def _segments(s: str) -> list[str]:
-    """按标点/引号切段，用于对"说明 + 密文"混合输入逐段解码。"""
+    """按标点/引号切段，用于对"说明 + 密文"混合输入逐段解码。
+
+    中文信息密度高：6 个汉字（"吗过保能不能"）已经是一句完整的话，
+    所以中文段只要 >=4 个汉字就保留，英文仍要求 >=8 字符。
+    """
     parts = re.split(r"[:;\n\"'\u2018\u2019\u201c\u201d]", s)
-    return [p.strip() for p in parts if len(p.strip()) >= 8]
+    out = []
+    for part in parts:
+        part = part.strip()
+        if len(part) >= 8 or sum(1 for c in part if "\u4e00" <= c <= "\u9fff") >= 4:
+            out.append(part)
+    return out
 
 
 def _first_letters(s: str) -> str | None:
@@ -333,6 +342,142 @@ def _pinyin_hint(s: str) -> str | None:
     return " ".join(hits) if hits else None
 
 
+# --- 单值候选生成器（表驱动，保持原有顺序；返回 (method, value) 或 None） ---
+
+
+def _cand_nfkc(text: str):
+    return "nfkc", unicodedata.normalize("NFKC", text)
+
+
+def _cand_zero_width(text: str):
+    # 2026-11-08: 中文同样会被零宽字符拆开，不能再只认英文。
+    zw = text.translate(_ZERO_WIDTH)
+    if zw != text and looks_like_text(zw):
+        return "zero_width_stripped", zw
+    return None
+
+
+def _cand_zalgo(text: str):
+    marks = sum(1 for c in unicodedata.normalize("NFD", text) if unicodedata.category(c) == "Mn")
+    if marks < 5:
+        return None
+    zs = _strip_zalgo(text)
+    return ("zalgo_stripped", zs) if looks_like_text(zs) else None
+
+
+def _cand_homoglyph(text: str):
+    hg = _homoglyph(text)
+    return ("homoglyph", hg) if hg != text and looks_like_text(hg) else None
+
+
+def _cand_leet(text: str):
+    # leet 只在"还原后确实变得更有英文语义"时才算编码（2026-11-05 命令注入
+    # 审计）：裸计数会把含 agent-demo-01 / $M4_TOKEN / 0x1 的整条 CLI 命令误判
+    # 为 leet 编码并返回 REWRITE（等于放行）。真 leet 文本（1gn0r3 4ll ...）
+    # 解码后常用词显著增加；命令/标识符解码后语义不变，故用差值判据。
+    if len(re.findall(r"[0-9@$]", text)) < 2:
+        return None
+    leet = text.translate(_LEET)
+    if _common_word_hits(leet) >= _common_word_hits(text) + 2 and _looks_english(leet):
+        return "leet", leet
+    return None
+
+
+def _cand_rot13(text: str):
+    # rot13 仅当还原结果像英文时采用（否则任意文本都会产生候选）
+    rot = codecs.decode(text, "rot13")
+    return ("rot13", rot) if _looks_english(rot) else None
+
+
+def _cand_reversed(text: str):
+    """只认英文：中文任何句子反转后都仍是"可读中文"，没有区分度，
+    会产生大量假阳性（普通问句 -> REWRITE）。中文攻击靠 deny pattern
+    直接匹配原文，不需要反转候选。"""
+    for seg in _segments(text):
+        rev = seg[::-1]
+        if looks_like_text(rev) and _common_word_hits(rev) >= max(2, _common_word_hits(seg) + 2):
+            return "reversed", rev
+    return None
+
+
+def _cand_filler(text: str):
+    fill = _strip_filler(text)
+    if len(text) - len(fill) >= max(3, int(len(text) * 0.15)) and looks_like_text(fill):
+        return "filler_stripped", fill
+    return None
+
+
+def _cand_keyboard_left(text: str):
+    kb = _keyboard_left(text)
+    return ("keyboard_left", kb) if _looks_english(kb) else None
+
+
+def _cand_emoji(text: str):
+    return "emoji_mapped", _emoji_map(text)
+
+
+def _cand_url(text: str):
+    from urllib.parse import unquote
+
+    return "url", unquote(text)
+
+
+def _cand_morse(text: str):
+    return "morse", _try_morse(text)
+
+
+def _cand_first_letters(text: str):
+    fl = _first_letters(text)
+    return ("first_letters", fl) if fl and _looks_english(fl) else None
+
+
+def _cand_acrostic(text: str):
+    acr = _acrostic_rebuild(text)
+    return ("acrostic_rebuilt", acr) if acr and acr != text else None
+
+
+def _cand_pinyin(text: str):
+    return "pinyin_hint", _pinyin_hint(text)
+
+
+# base64/base32 之前执行的候选（顺序与历史实现保持一致，影响去重与截断）
+_DECODERS_PRE_B64 = (
+    _cand_nfkc,
+    _cand_zero_width,
+    _cand_zalgo,
+    _cand_homoglyph,
+    _cand_leet,
+    _cand_rot13,
+    _cand_reversed,
+    _cand_filler,
+    _cand_keyboard_left,
+    _cand_emoji,
+    _cand_url,
+)
+
+# base64/base32 之后执行的候选
+_DECODERS_POST_B64 = (
+    _cand_morse,
+    _cand_first_letters,
+    _cand_acrostic,
+)
+
+
+def _iter_tail_candidates(text: str):
+    """morse/acrostic 之后的多值候选：分段 rot13/base64、隔字符、分片拼接。"""
+    for seg in _segments(text):
+        rot = codecs.decode(seg, "rot13")
+        if _looks_english(rot):
+            yield "seg_rot13", rot
+        yield "seg_base64", _try_b64(seg)
+        yield "seg_base32", _try_b32(seg)
+    for idx, cand in enumerate(_every_other(text)):
+        if _looks_english(cand):
+            yield f"every_other_{idx}", cand
+    for cand in _split_concat(text):
+        yield "split_concat", cand
+
+
 def decode_candidates(
     text: str, *, max_candidates: int = MAX_CANDIDATES
 ) -> tuple[DecodedCandidate, ...]:
@@ -348,87 +493,35 @@ def decode_candidates(
     out: list[DecodedCandidate] = [DecodedCandidate("raw", text)]
     seen = {text}
 
-    def add(method: str, value: str | None) -> None:
-        if not value or value in seen or len(value.strip()) < 3:
-            return
-        seen.add(value)
-        out.append(DecodedCandidate(method, value))
+    def add(method: str, value: str | None) -> bool:
+        """追加候选；返回 True 表示已达到 max_candidates，调用方应停止。"""
+        if value and value not in seen and len(value.strip()) >= 3:
+            seen.add(value)
+            out.append(DecodedCandidate(method, value))
+        return len(out) >= max_candidates
 
-    add("nfkc", unicodedata.normalize("NFKC", text))
-    # 零宽字符剥离：i\u200bgnore -> ignore。剥离后像英文才作为候选，
-    # 否则任意含零宽的文本都会产生无意义候选。
-    zw = text.translate(_ZERO_WIDTH)
-    if zw != text and _looks_english(zw):
-        add("zero_width_stripped", zw)
-    zs = _strip_zalgo(text)
-    mn = sum(1 for c in unicodedata.normalize("NFD", text) if unicodedata.category(c) == "Mn")
-    if mn >= 5 and _looks_english(zs):
-        add("zalgo_stripped", zs)
-    hg = _homoglyph(text)
-    if hg != text and _looks_english(hg):
-        add("homoglyph", hg)
-    # leet 只在"还原后确实变得更有英文语义"时才算编码（2026-11-05 命令注入
-    # 审计）：裸计数会把含 agent-demo-01 / $M4_TOKEN / 0x1 的整条 CLI 命令误判
-    # 为 leet 编码并返回 REWRITE（等于放行）。真 leet 文本（1gn0r3 4ll ...）
-    # 解码后常用词显著增加；命令/标识符解码后语义不变，故用差值判据。
-    leet_text = text.translate(_LEET)
-    if (
-        len(re.findall(r"[0-9@$]", text)) >= 2
-        and _common_word_hits(leet_text) >= _common_word_hits(text) + 2
-        and _looks_english(leet_text)
-    ):
-        add("leet", leet_text)
-    # rot13 / 键盘左移: 仅当还原结果像英文时采用 (否则任意文本都会产生候选)
-    rot = codecs.decode(text, "rot13")
-    if _looks_english(rot):
-        add("rot13", rot)
-    for seg in _segments(text):
-        rev = seg[::-1]
-        if _common_word_hits(rev) >= max(2, _common_word_hits(seg) + 2) and _looks_english(rev):
-            add("reversed", rev)
-            break
-    fill = _strip_filler(text)
-    if len(text) - len(fill) >= max(3, int(len(text) * 0.15)) and _looks_english(fill):
-        add("filler_stripped", fill)
-    kb = _keyboard_left(text)
-    if _looks_english(kb):
-        add("keyboard_left", kb)
-    add("emoji_mapped", _emoji_map(text))
-
-    try:
-        from urllib.parse import unquote
-
-        add("url", unquote(text))
-    except Exception:  # pragma: no cover - 极端输入
-        pass
+    for decoder in _DECODERS_PRE_B64:
+        pair = decoder(text)
+        if pair and add(*pair):
+            return tuple(out)
 
     for tok in re.findall(r"[A-Za-z0-9+/=_-]{12,}", text):
-        if len(tok) <= 4096:
-            add("base64", _try_b64(tok))
-            add("base32", _try_b32(tok))
-        if len(out) >= max_candidates:
-            break
+        if len(tok) > 4096:
+            continue
+        if add("base64", _try_b64(tok)) or add("base32", _try_b32(tok)):
+            return tuple(out)
 
-    add("morse", _try_morse(text))
-    fl = _first_letters(text)
-    if fl and _looks_english(fl):
-        add("first_letters", fl)
-    acr = _acrostic_rebuild(text)
-    if acr and acr != text:
-        add("acrostic_rebuilt", acr)
-    for seg in _segments(text):
-        add(
-            "seg_rot13",
-            codecs.decode(seg, "rot13") if _looks_english(codecs.decode(seg, "rot13")) else None,
-        )
-        add("seg_base64", _try_b64(seg))
-        add("seg_base32", _try_b32(seg))
-    for idx, cand in enumerate(_every_other(text)):
-        if _looks_english(cand):
-            add(f"every_other_{idx}", cand)
-    for cand in _split_concat(text):
-        add("split_concat", cand)
-    add("pinyin_hint", _pinyin_hint(text))
+    for decoder in _DECODERS_POST_B64:
+        pair = decoder(text)
+        if pair and add(*pair):
+            return tuple(out)
+
+    for pair in _iter_tail_candidates(text):
+        if add(*pair):
+            return tuple(out)
+
+    if add(*_cand_pinyin(text)):
+        return tuple(out)
 
     return tuple(out[:max_candidates])
 
