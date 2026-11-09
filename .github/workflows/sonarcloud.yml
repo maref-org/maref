@@ -13,7 +13,7 @@ jobs:
     # "Not authorized" 失败并阻塞其合并；主分支与人工 PR 照常分析。
     if: github.actor != 'dependabot[bot]'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - uses: actions/setup-python@v7
