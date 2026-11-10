@@ -1,33 +1,33 @@
 {
-  "report_id": "c891ac33-6adb-4485-bee0-dc55d700557c",
+  "report_id": "694933a5-153d-4077-97fd-c2c3dbc678b0",
   "report_version": "1.0",
-  "created_at": "2026-11-10T00:00:57.175262+00:00",
+  "created_at": "2026-11-10T04:13:24.611203+00:00",
   "generated_by": "maref v0.55.2",
   "signer_fingerprint": "cbac8750e6b1db3a",
-  "merkle_root": "0658c4ae19265b9f6da3c363ab432b67786687287e1f1b05c98e21218176d602",
+  "merkle_root": "3257adcf7a14828c9df29b0b6085cacebec57662344c949fb85dbb1879fa1680",
   "audit_summary": {
-    "total_events": 6512,
+    "total_events": 6562,
     "time_range_start": 1792381511.869832,
-    "time_range_end": 1794268701.344206,
+    "time_range_end": 1794283706.565873,
     "event_types": {
       "chain_rebaseline": 1,
-      "meta_monitor_heartbeat": 6441,
+      "meta_monitor_heartbeat": 6491,
       "state_transition": 69,
       "audit_chain_quarantine": 1
     },
     "actor_counts": {
       "operator": 2,
-      "automation": 6441,
+      "automation": 6491,
       "state_machine": 69
     }
   },
   "system_state": {
     "governance_state": "DEGRADED",
     "active_agents_count": 0,
-    "merkle_tree_size": 6512,
+    "merkle_tree_size": 6562,
     "version": "0.55.2"
   },
-  "previous_report_id": "25ca2464-a1d3-4f5e-b046-c5bdd12ad18e",
+  "previous_report_id": "",
   "metadata": {
     "scope": {
       "status": "degraded",
@@ -301,5 +301,5 @@
       ]
     }
   },
-  "signature": "xay+xSEQYuUncr+qcrbZdJWXxsbWLLp3GeE8iBXn3/jq9JYviE/LLBvzrBaXro4PPLvmyBLBPx5R02YacRN1AA=="
+  "signature": "RKuPf9D7K0wF9YUWKDz1e6dp5uNYI28KZPXPPH/ruCJXBQCuME7W1DPlUsTKM8DEzdvpt3tkrxLvCj3voE8JCA=="
 }
