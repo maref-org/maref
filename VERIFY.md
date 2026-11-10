@@ -9,7 +9,7 @@ MAREF 提供**可验证的审计链**（Verifiable Audit Chain），基于 Ed255
 | 验证层级 | 验证内容 | 所需材料 |
 |---|---|---|
 | 审计条目签名验证 | 单条审计日志是否由 Ed25519 密钥签名 | 日志条目 + 签名者公钥 PEM |
-| Merkle 根哈希验证 | 审计日志 Merkle 树根哈希是否被篡改 | 审计 JSON 包（含 Merkle proof） |
+| Merkle 根哈希验证 | 审计日志 Merkle 树根哈希是否被篡改 | 审计 JSON 包（含 entries + 签名） |
 | 联邦组织包含证明 | 某组织的审计根哈希是否包含在联邦根中 | 联邦证明 JSON + 联邦根哈希 |
 | 离线证明验证 | 联邦包含证明无需联系服务器即可验证 | 联邦证明 JSON |
 
@@ -17,14 +17,29 @@ MAREF 提供**可验证的审计链**（Verifiable Audit Chain），基于 Ed255
 
 ### 验证审计日志签名 + Merkle 根
 
+默认日志路径（v0.54+）：`.governance/governance_audit.jsonl`。
+
 ```bash
-maref verify -f .maref/audit-store/default.audit -p .maref/signing-key.pem
+maref audit verify -f .governance/governance_audit.jsonl -k signer.pub.pem
 ```
+
+`-k` 是签名者公钥 PEM，不是私钥。
 
 ### 导出自包含审计包（供第三方验证）
 
 ```bash
-maref audit export -f .maref/audit-store/default.audit -p .maref/signing-key.pem -o audit-package.json
+maref audit export -f .governance/governance_audit.jsonl -o audit-package.json
+maref audit verify -f audit-package.json -k signer.pub.pem
+```
+
+### 可复现演示（签名 → 验真 → 篡改 → 验伪）
+
+```bash
+python examples/audit_tamper_demo.py
+
+# 按脚本输出的路径执行：
+# maref audit verify -f <intact.jsonl> -k <signer.pub.pem>     # VERIFIED: 3/3
+# maref audit verify -f <tampered.jsonl> -k <signer.pub.pem>   # FAILED: 1/3
 ```
 
 ### 联邦证明验证

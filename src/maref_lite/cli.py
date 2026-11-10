@@ -26,6 +26,7 @@ import json
 import os
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 from typing import Annotated, Any
@@ -814,6 +815,42 @@ def audit_show(
         console.print("[dim]No matching audit entries.[/dim]")
 
 
+def _load_audit_package_entries(path: Path) -> list[dict[str, Any]] | None:
+    """Return entries from an exported audit package, or None for JSONL logs."""
+    text = path.read_text(encoding="utf-8")
+    if not text.lstrip().startswith("{"):
+        return None
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError:
+        return None
+    entries = data.get("entries")
+    if not isinstance(entries, list):
+        return None
+    return [entry for entry in entries if isinstance(entry, dict)]
+
+
+def _verify_audit_package(
+    package_entries: list[dict[str, Any]],
+    ed25519_pubkey_pem: str | None,
+) -> dict[str, Any]:
+    with tempfile.NamedTemporaryFile(
+        "w",
+        suffix=".jsonl",
+        prefix="maref-audit-package-",
+        delete=False,
+        encoding="utf-8",
+    ) as handle:
+        for entry in package_entries:
+            handle.write(json.dumps(entry, ensure_ascii=False, default=str) + "\n")
+        verify_path = Path(handle.name)
+    try:
+        logger = AuditLogger(log_path=verify_path, hmac_key="")
+        return logger.verify_integrity(ed25519_public_key_pem=ed25519_pubkey_pem)
+    finally:
+        verify_path.unlink(missing_ok=True)
+
+
 @audit_app.command("verify")
 def audit_verify(
     file: str = typer.Option("", "--file", "-f", help="Audit log file path"),
@@ -843,13 +880,21 @@ def audit_verify(
             raise typer.Exit(1)
         ed25519_pubkey_pem = key_path.read_text()
 
-    logger = AuditLogger(log_path=path, hmac_key="")
-    result = logger.verify_integrity(ed25519_public_key_pem=ed25519_pubkey_pem)
+    package_entries = _load_audit_package_entries(path)
+    if package_entries is not None:
+        result = _verify_audit_package(package_entries, ed25519_pubkey_pem)
+    else:
+        logger = AuditLogger(log_path=path, hmac_key="")
+        result = logger.verify_integrity(ed25519_public_key_pem=ed25519_pubkey_pem)
 
     total = result["total_entries"]
     valid = result["valid_signatures"]
     tampered = result["tampered_entries"]
     intact = result["integrity_intact"]
+
+    if intact and total > 0 and valid == 0:
+        console.print("[red]FAILED: no signatures could be verified; pass -k <pubkey.pem>[/red]")
+        intact = False
 
     if intact:
         console.print(f"[green]VERIFIED: {valid}/{total} entries valid[/green]")

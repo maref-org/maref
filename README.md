@@ -356,8 +356,10 @@ MAREF's headline claims are testable in-repo — run them yourself:
 | Claim | How to Verify | Command / Evidence |
 |-------|--------------|-------------------|
 | OWASP Agentic Top 10 mapping | Read the claim→code mapping | `docs/security/owasp-agentic-top10-mapping.md` |
-| TLA+ specs pass TLC model checking | Run formal tests | `pytest tests/formal/` |
-| 15,387 passing tests (CI, main@0f0c7632) | Run the suite | `pytest tests/` (scoped: `pytest tests/governance/`) |
+| TLA+ specs pass TLC model checking | Run TLC on the two shipped models | `./gray-code-fsm/verify.sh` (requires Java; auto-downloads `tla2tools.jar`) |
+| TLA+ spec consistency | Parse and replay the specs | `pytest tests/formal -q -o addopts=""` |
+| Test suite (run it yourself) | Run the suite | `pytest tests/ -o addopts=""` (scoped: `pytest tests/governance/ -o addopts=""`) |
+| Audit log tamper detection | Run the demo and verify both logs | `python examples/audit_tamper_demo.py` |
 | Governance overhead | Reproduce the benchmark | `python benchmarks/governance_overhead.py` (raw output: `benchmarks/results-2026-07-08.txt`) |
 | Evolution convergence (FNR 0.10→0.04) | Read the 200-round archive | `docs/MAREF_200轮递归收敛总结归档报告_20260517.md` |
 | Standards alignment (NIST / EU AI Act) | Read the technical whitepaper | `docs/MAREF-Technical-Whitepaper-arXiv.md` |
