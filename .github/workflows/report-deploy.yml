@@ -68,7 +68,9 @@ jobs:
           mkdir -p /tmp/gh-pages-history
           # 必须显式写 refspec：`git fetch origin gh-pages` 只更新 FETCH_HEAD，
           # 不会创建 origin/gh-pages，后面的 git archive 会直接失败。
-          if git fetch --depth=1 origin gh-pages:refs/remotes/origin/gh-pages \
+          # 浅克隆 + 工作区残留旧引用时无法判定快进，会被判 non-fast-forward 而
+          # 静默跳过恢复（报告链断裂），因此用 + 强制更新。
+          if git fetch --depth=1 origin +gh-pages:refs/remotes/origin/gh-pages \
              && git archive origin/gh-pages verify | tar -x -C /tmp/gh-pages-history; then
             cp -n /tmp/gh-pages-history/verify/*.json docs/verify/ 2>/dev/null || true
             cp -n /tmp/gh-pages-history/verify/*.html docs/verify/ 2>/dev/null || true
