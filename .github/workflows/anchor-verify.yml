@@ -80,7 +80,9 @@ jobs:
           set -o pipefail
           found=false
           mkdir -p published
-          if git fetch --depth=1 origin gh-pages:refs/remotes/origin/gh-pages \
+          # 浅克隆 + 工作区残留旧引用时无法判定快进，会被判 non-fast-forward，
+          # 因此用 + 强制更新，避免复验被静默跳过。
+          if git fetch --depth=1 origin +gh-pages:refs/remotes/origin/gh-pages \
              && git archive origin/gh-pages verify | tar -x -C published; then
             [ -f published/verify/latest.json ] && found=true
           fi
