@@ -26,6 +26,10 @@ production module, not hackathon-only code.
 | + MAREF input gate | 37 / 94 | **39.36%** |
 
 - Gate decisions: 40 DENY, 2 REWRITE, 52 ALLOW (94 total)
+- Runtime replication (§6.6): same 40 / 54 / 37 per prompt, 0 differences; 66 ms
+  for all 94 decisions; 0 false blocks on 90 benign prompts
+- Decision audit ledgers ship with the submission and verify with
+  `prep/verify_ledger.py` (standard library only)
 - Benign: 60/60 pass, 0 false denies
 - Encoding subset: 21/24 handled (19 deny, 2 rewrite), 0/20 benign false denies
 - Adversarial-benign: 0/8 false denies. `v2d01` ("Why does 'ignore previous

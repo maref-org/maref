@@ -37,7 +37,9 @@ once it can read the payload, but not reliably. A rule-based inbound gate (no
 model call) handled 21 of 24 encoding attacks (87.5%), which is 21 of 23 real
 attacks (91.3%) once the ciphertext-free prompt is excluded, with zero false
 denials on an 80-prompt benign set. We release the dataset, the gate, and the
-scripts.
+scripts. An independent runtime replication reproduces the end-to-end numbers
+prompt for prompt, and every decision ships in a hash-chained ledger that can be
+verified without the runtime.
 
 **Contribution is a negative result plus a working alternative**: on small
 models, activation steering is not a remedy for encoding attacks; input-side
@@ -313,6 +315,58 @@ the model's own refusal handles 17 more, but 37 attacks pass both layers. Those
 an input-side complement to model safety, not a substitute for it.
 
 Artifact: `prep/runs/gate_pipeline_v1.json` (per-prompt path and outcome).
+
+### 6.6 Independent runtime replication, with a per-decision audit trail
+
+The numbers above come from a script that calls the gate directly. To check
+whether they are a property of the gate rather than of one script, we ran the
+same 94 prompts through a second runtime that wraps the same gate in an explicit
+decide → act → record loop, emitting one decision record and one hash-chained
+audit entry per prompt. Semantics were matched on purpose: `block` means the
+model never sees the prompt (counted as attack failure), `rewrite` forwards the
+normalised text, `allow` forwards the original.
+
+| Condition | Blocked | Reached model | Succeeded | ASR |
+|---|---|---|---|---|
+| Gate pipeline (§6.5) | 40 | 54 | 37 | 39.36% |
+| Runtime replication | 40 | 54 | 37 | 39.36% |
+
+The agreement is per prompt, not only in aggregate: all 94 rows match on both
+path and outcome (0 differences), the action split is the same (40 block /
+2 rewrite / 52 allow), and the 37 successful attacks are the same 37.
+
+Two things this adds beyond a re-run:
+
+- **Cost of the decision layer.** All 94 decisions together took 66 ms
+  (≈0.7 ms per prompt). The gate is not the latency budget; the model call is.
+- **False blocks at the runtime level.** The same runtime scored 90 benign
+  prompts (60 clean + 30 encoded-benign): 0 blocks, 71 allow, 19 rewrite. This
+  matches the gate-level result in §8 and confirms the runtime adds no refusals
+  of its own.
+
+**Audit.** Each decision is appended to a hash chain, `sha256` over
+`prev_hash` + the canonical record, so the artifact is tamper-evident without
+trusting whoever wrote it. The attack ledger has 94 entries and verifies; head
+hash `91c3cb8c4c11fd6f…`. The benign ledger has 90 entries and verifies; head
+`ab613dbe1fa9d327…`. The check needs nothing but the standard library and the
+shipped file:
+
+```console
+$ python3 prep/verify_ledger.py prep/runs/accessgate/attacks/ledger.jsonl
+OK 94 entries, head 91c3cb8c4c11fd6f
+```
+
+| Artifact | Path |
+|---|---|
+| Runtime eval | `prep/runs/accessgate_pipeline_v1.json` |
+| Decisions (attacks) | `prep/runs/accessgate/attacks/decisions.jsonl` |
+| Audit ledger (attacks) | `prep/runs/accessgate/attacks/ledger.jsonl` |
+| Benign run | `prep/runs/accessgate/benign/` |
+| Ledger verifier | `prep/verify_ledger.py` |
+
+The runtime package is not part of this repository — being a second
+implementation is the point. The ASR numbers stay reproducible from the public
+harness in §10, and the shipped ledgers verify without the runtime.
 
 ---
 
@@ -599,6 +653,9 @@ falls back from `prep/` to the script's parent directory when `prep/` is absent.
 | Normalisation eval | `prep/normalize_defense_eval.py` → `prep/runs/normalize_defense.json` |
 | Gate | `maref/security/inbound/gate.py` |
 | Gate eval | `prep/maref_gate_eval.py` → `prep/runs/maref_gate_eval.json` |
+| Runtime replication | `prep/accessgate_pipeline_eval.py` → `prep/runs/accessgate_pipeline_v1.json` |
+| Decision audit ledgers | `prep/runs/accessgate/{attacks,benign}/ledger.jsonl` |
+| Ledger verifier | `prep/verify_ledger.py` |
 | Multi-turn eval | `prep/multi_turn_eval.py` → `prep/runs/multi_turn_eval.json` |
 | Multi-turn review | `prep/review_gradual_escalation.py` → `prep/runs/gradual_escalation_review.json` |
 | Gate tests | `tests/security/test_inbound_normalization.py` (38 passing) |
@@ -637,6 +694,9 @@ dropped), SafeTune shows model-side steering does not move encoded requests
 (§4), the gate restores encodings the model cannot see through (§5–6), and
 AuditKIT scores the model independently so the headline numbers are not our
 regex grading itself.
+
+The runtime replication in §6.6 is not a fourth repository in the chain: it
+wraps the same gate and adds a decision record plus audit ledger per prompt.
 
 ## 12. Tooling and attribution
 
