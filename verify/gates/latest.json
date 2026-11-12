@@ -1,166 +1,166 @@
 {
-  "generated_at": "2026-11-10T22:00:08Z",
+  "generated_at": "2026-11-11T22:00:09Z",
   "gates": [
     {
       "name": "P0-B-probe-sampler",
       "status": "pass",
-      "checked_at": "2026-11-10T22:00:08Z",
+      "checked_at": "2026-11-11T22:00:09Z",
       "exit_code": 0
     },
     {
       "name": "P-02",
       "status": "pass",
-      "checked_at": "2026-11-10T22:00:08Z",
+      "checked_at": "2026-11-11T22:00:09Z",
       "exit_code": 0
     },
     {
       "name": "P-01",
       "status": "pass",
-      "checked_at": "2026-11-10T22:00:08Z",
+      "checked_at": "2026-11-11T22:00:09Z",
       "exit_code": 0
     },
     {
       "name": "P-06",
       "status": "pass",
-      "checked_at": "2026-11-10T22:00:08Z",
+      "checked_at": "2026-11-11T22:00:09Z",
       "exit_code": 0
     },
     {
       "name": "P-09",
       "status": "pass",
-      "checked_at": "2026-11-10T22:00:08Z",
+      "checked_at": "2026-11-11T22:00:09Z",
       "exit_code": 0
     },
     {
       "name": "P-03",
       "status": "pass",
-      "checked_at": "2026-11-10T22:00:08Z",
+      "checked_at": "2026-11-11T22:00:09Z",
       "exit_code": 0
     },
     {
       "name": "P-05",
       "status": "pass",
-      "checked_at": "2026-11-10T22:00:08Z",
+      "checked_at": "2026-11-11T22:00:09Z",
       "exit_code": 0
     },
     {
       "name": "coding-agent-status",
       "status": "pass",
-      "checked_at": "2026-11-10T22:00:08Z",
+      "checked_at": "2026-11-11T22:00:09Z",
       "exit_code": 0
     },
     {
       "name": "P-07-extract",
       "status": "pass",
-      "checked_at": "2026-11-10T22:00:08Z",
+      "checked_at": "2026-11-11T22:00:09Z",
       "exit_code": 0
     },
     {
       "name": "P-07-compile",
       "status": "pass",
-      "checked_at": "2026-11-10T22:00:08Z",
+      "checked_at": "2026-11-11T22:00:09Z",
       "exit_code": 0
     },
     {
       "name": "P-04",
       "status": "pass",
-      "checked_at": "2026-11-10T22:00:08Z",
+      "checked_at": "2026-11-11T22:00:09Z",
       "exit_code": 0
     },
     {
       "name": "P-08",
       "status": "pass",
-      "checked_at": "2026-11-10T22:00:08Z",
+      "checked_at": "2026-11-11T22:00:09Z",
       "exit_code": 0
     },
     {
       "name": "recursive-overlay-tick",
       "status": "pass",
-      "checked_at": "2026-11-10T22:00:08Z",
+      "checked_at": "2026-11-11T22:00:09Z",
       "exit_code": 0
     },
     {
       "name": "audit-heartbeat",
       "status": "pass",
-      "checked_at": "2026-11-10T22:00:08Z",
+      "checked_at": "2026-11-11T22:00:09Z",
       "exit_code": 0
     },
     {
       "name": "probe-calibrate",
       "status": "pass",
-      "checked_at": "2026-11-10T22:00:08Z",
+      "checked_at": "2026-11-11T22:00:09Z",
       "exit_code": 0
     },
     {
       "name": "threshold-verify",
       "status": "fail",
-      "checked_at": "2026-11-10T22:00:04Z",
+      "checked_at": "2026-11-11T22:00:06Z",
       "exit_code": 1
     },
     {
       "name": "calibration-status",
       "status": "pass",
-      "checked_at": "2026-11-10T22:00:08Z",
+      "checked_at": "2026-11-11T22:00:09Z",
       "exit_code": 0
     },
     {
       "name": "calibration-review",
       "status": "pass",
-      "checked_at": "2026-11-10T22:00:08Z",
+      "checked_at": "2026-11-11T22:00:09Z",
       "exit_code": 0
     },
     {
       "name": "audit-health",
       "status": "pass",
-      "checked_at": "2026-11-10T22:00:08Z",
+      "checked_at": "2026-11-11T22:00:09Z",
       "exit_code": 0
     },
     {
       "name": "evolution-status",
       "status": "pass",
-      "checked_at": "2026-11-10T22:00:08Z",
+      "checked_at": "2026-11-11T22:00:09Z",
       "exit_code": 0
     },
     {
       "name": "morning-report",
       "status": "pass",
-      "checked_at": "2026-11-10T22:00:08Z",
+      "checked_at": "2026-11-11T22:00:09Z",
       "exit_code": 0
     },
     {
       "name": "agent-coverage",
       "status": "pass",
-      "checked_at": "2026-11-10T22:00:08Z",
+      "checked_at": "2026-11-11T22:00:09Z",
       "exit_code": 0
     },
     {
       "name": "evidence-gate",
       "status": "pass",
-      "checked_at": "2026-11-10T22:00:08Z",
+      "checked_at": "2026-11-11T22:00:09Z",
       "exit_code": 0
     },
     {
       "name": "threshold-push",
       "status": "pass",
-      "checked_at": "2026-11-10T22:00:08Z",
+      "checked_at": "2026-11-11T22:00:09Z",
       "exit_code": 0
     },
     {
       "name": "alert-push",
       "status": "pass",
-      "checked_at": "2026-11-10T22:00:08Z",
+      "checked_at": "2026-11-11T22:00:09Z",
       "exit_code": 0
     },
     {
       "name": "proposal-push",
       "status": "pass",
-      "checked_at": "2026-11-10T22:00:08Z",
+      "checked_at": "2026-11-11T22:00:09Z",
       "exit_code": 0
     },
     {
       "name": "gates-summary",
       "status": "pass",
-      "checked_at": "2026-11-10T22:00:08Z",
+      "checked_at": "2026-11-11T22:00:09Z",
       "exit_code": 0
     }
   ]
