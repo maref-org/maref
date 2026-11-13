@@ -39,7 +39,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@lhci/cli": "^0.14.0",
+    "@lhci/cli": "^0.16.0",
     "@tailwindcss/vite": "^4.3.0",
     "@tauri-apps/api": "^2.12.4",
     "@testing-library/jest-dom": "^7.0.1",
