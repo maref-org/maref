@@ -527,7 +527,7 @@ class AuditLogger:
                 round=data.get("round", 0),
                 primary_subject=data.get("primary_subject", ""),
                 immediate_actor=data.get("immediate_actor", ""),
-                actor_chain=tuple(data.get("actor_chain", ())),
+                actor_chain=tuple(data.get("actor_chain") or ()),
             )
         except (KeyError, TypeError, ValueError):
             return None
@@ -719,7 +719,7 @@ class AuditLogger:
                                 round=data.get("round", 0),
                                 primary_subject=data.get("primary_subject", ""),
                                 immediate_actor=data.get("immediate_actor", ""),
-                                actor_chain=tuple(data.get("actor_chain", ())),
+                                actor_chain=tuple(data.get("actor_chain") or ()),
                             )
                         )
                     except (json.JSONDecodeError, KeyError):
@@ -775,7 +775,7 @@ class AuditLogger:
                     round=data.get("round", 0),
                     primary_subject=data.get("primary_subject", ""),
                     immediate_actor=data.get("immediate_actor", ""),
-                    actor_chain=tuple(data.get("actor_chain", ())),
+                    actor_chain=tuple(data.get("actor_chain") or ()),
                 )
         return None
 
@@ -878,7 +878,7 @@ class AuditLogger:
                             round=data.get("round", 0),
                             primary_subject=data.get("primary_subject", ""),
                             immediate_actor=data.get("immediate_actor", ""),
-                            actor_chain=tuple(data.get("actor_chain", ())),
+                            actor_chain=tuple(data.get("actor_chain") or ()),
                         )
                     )
                     if max_entries and len(filtered) >= max_entries:

@@ -126,3 +126,20 @@ class TestLoggerIntegration:
         assert entries[0].actor_chain == ("human:alice", "agent:A")
         assert entries[1].primary_subject == ""
         assert entries[1].actor_chain == ()
+
+
+class TestNullRobustness:
+    def test_null_actor_chain_does_not_break_parsing(self):
+        entry = AuditLogger._entry_from_dict(
+            {
+                "id": "e1",
+                "timestamp": 1.0,
+                "event_type": "governance_decision",
+                "actor": "agent:A",
+                "action": "approve",
+                "details": "ok",
+                "actor_chain": None,
+            }
+        )
+        assert entry is not None
+        assert entry.actor_chain == ()
