@@ -61,6 +61,11 @@ class AuditEntry:
     tenant_id: str = ""
     layer: str = "governance"
     round: int = 0
+    # GB/Z 185.8（智能体审计）授权裁决类事件的可选承载字段。
+    # 默认空值，旧记录反序列化与验签不受影响；非空时参与签名载荷。
+    primary_subject: str = ""
+    immediate_actor: str = ""
+    actor_chain: tuple[str, ...] = ()
 
     @property
     def signature_type(self) -> str:
@@ -99,6 +104,12 @@ class AuditEntry:
             result["layer"] = self.layer
         if self.round:
             result["round"] = self.round
+        if self.primary_subject:
+            result["primary_subject"] = self.primary_subject
+        if self.immediate_actor:
+            result["immediate_actor"] = self.immediate_actor
+        if self.actor_chain:
+            result["actor_chain"] = list(self.actor_chain)
         return result
 
     def _payload_for_signing(self) -> str:
@@ -120,6 +131,13 @@ class AuditEntry:
             payload["layer"] = self.layer
         if self.round:
             payload["round"] = self.round
+        # 仅非空时进入载荷：旧记录（字段为空）载荷不变，验签向后兼容。
+        if self.primary_subject:
+            payload["primary_subject"] = self.primary_subject
+        if self.immediate_actor:
+            payload["immediate_actor"] = self.immediate_actor
+        if self.actor_chain:
+            payload["actor_chain"] = list(self.actor_chain)
         return json.dumps(payload, sort_keys=True, ensure_ascii=False, default=str)
 
     def to_unified(
@@ -259,6 +277,9 @@ class AuditLogger:
                 tenant_id=entry.tenant_id,
                 layer=entry.layer,
                 round=entry.round,
+                primary_subject=entry.primary_subject,
+                immediate_actor=entry.immediate_actor,
+                actor_chain=entry.actor_chain,
             )
         return AuditEntry(
             id=entry.id,
@@ -275,6 +296,9 @@ class AuditLogger:
             tenant_id=entry.tenant_id,
             layer=entry.layer,
             round=entry.round,
+            primary_subject=entry.primary_subject,
+            immediate_actor=entry.immediate_actor,
+            actor_chain=entry.actor_chain,
         )
 
     def _compute_chain_hash(self, entry: AuditEntry) -> str:
@@ -501,6 +525,9 @@ class AuditLogger:
                 tenant_id=data.get("tenant_id", ""),
                 layer=data.get("layer", "governance"),
                 round=data.get("round", 0),
+                primary_subject=data.get("primary_subject", ""),
+                immediate_actor=data.get("immediate_actor", ""),
+                actor_chain=tuple(data.get("actor_chain", ())),
             )
         except (KeyError, TypeError, ValueError):
             return None
@@ -516,6 +543,9 @@ class AuditLogger:
         tenant_id: str = "",
         layer: str = "governance",
         round: int = 0,
+        primary_subject: str = "",
+        immediate_actor: str = "",
+        actor_chain: tuple[str, ...] = (),
     ) -> AuditEntry:
         import uuid
 
@@ -536,6 +566,9 @@ class AuditLogger:
             tenant_id=tenant_id,
             layer=layer,
             round=round,
+            primary_subject=primary_subject,
+            immediate_actor=immediate_actor,
+            actor_chain=tuple(actor_chain),
         )
         signed_entry = self._write(entry)
         return signed_entry
@@ -684,6 +717,9 @@ class AuditLogger:
                                 tenant_id=data.get("tenant_id", ""),
                                 layer=data.get("layer", "governance"),
                                 round=data.get("round", 0),
+                                primary_subject=data.get("primary_subject", ""),
+                                immediate_actor=data.get("immediate_actor", ""),
+                                actor_chain=tuple(data.get("actor_chain", ())),
                             )
                         )
                     except (json.JSONDecodeError, KeyError):
@@ -737,6 +773,9 @@ class AuditLogger:
                     tenant_id=data.get("tenant_id", ""),
                     layer=data.get("layer", "governance"),
                     round=data.get("round", 0),
+                    primary_subject=data.get("primary_subject", ""),
+                    immediate_actor=data.get("immediate_actor", ""),
+                    actor_chain=tuple(data.get("actor_chain", ())),
                 )
         return None
 
@@ -837,6 +876,9 @@ class AuditLogger:
                             tenant_id=data.get("tenant_id", ""),
                             layer=data.get("layer", "governance"),
                             round=data.get("round", 0),
+                            primary_subject=data.get("primary_subject", ""),
+                            immediate_actor=data.get("immediate_actor", ""),
+                            actor_chain=tuple(data.get("actor_chain", ())),
                         )
                     )
                     if max_entries and len(filtered) >= max_entries:
