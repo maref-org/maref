@@ -1,33 +1,33 @@
 {
-  "report_id": "7a00d47a-c65c-483b-859d-ff22aae81d18",
+  "report_id": "b4f65a66-6554-4bea-b1de-beaf8d546923",
   "report_version": "1.0",
-  "created_at": "2026-11-12T03:13:40.096783+00:00",
+  "created_at": "2026-11-13T03:04:00.083390+00:00",
   "generated_by": "maref v0.55.2",
   "signer_fingerprint": "cbac8750e6b1db3a",
-  "merkle_root": "48debf0858e05a2cd0928ce9efe37d07755c190f218eaf5108125d790e6cee70",
+  "merkle_root": "34d70c9d0a5134fdfd64c6abc117571d8689d188d0fd80fc74ea84fe63bd8a49",
   "audit_summary": {
-    "total_events": 16732,
+    "total_events": 17018,
     "time_range_start": 1792381511.869832,
-    "time_range_end": 1794452957.7587671,
+    "time_range_end": 1794538787.538673,
     "event_types": {
       "chain_rebaseline": 1,
-      "meta_monitor_heartbeat": 7055,
+      "meta_monitor_heartbeat": 7341,
       "state_transition": 9675,
       "audit_chain_quarantine": 1
     },
     "actor_counts": {
       "operator": 2,
-      "automation": 7055,
+      "automation": 7341,
       "state_machine": 9675
     }
   },
   "system_state": {
     "governance_state": "DEGRADED",
     "active_agents_count": 0,
-    "merkle_tree_size": 16732,
+    "merkle_tree_size": 17018,
     "version": "0.55.2"
   },
-  "previous_report_id": "cb048bb0-cc8f-4f0b-a240-c07d306745b8",
+  "previous_report_id": "7a00d47a-c65c-483b-859d-ff22aae81d18",
   "metadata": {
     "scope": {
       "status": "degraded",
@@ -47,11 +47,11 @@
     },
     "anchor": {
       "run_id": "",
-      "generated_at": "2026-11-11T08:32:36.629075+00:00",
-      "manifest_sha256": "16d15160f321b2eda7a11daf6908fbe9fe04ac4144e0b93475c0a744e13cd9d8",
-      "audit_sha256": "b5c921389a8d000f2bedbb380fc76bfa0d6a4413d820260b7b988d4f1f57c467",
-      "total_events": 16508,
-      "anchored_events": 16508,
+      "generated_at": "2026-11-12T08:55:53.962716+00:00",
+      "manifest_sha256": "3b1a37c1da481b871e83220306262865822bbee73f5cde0edd285b1176ef4a2e",
+      "audit_sha256": "06596b905ba250f41181c74955382f6f4a20b2d1ce29464f3fd2c33142769d19",
+      "total_events": 16801,
+      "anchored_events": 16801,
       "uncovered_events": 0,
       "tsa_url": "https://freetsa.org/tsr",
       "tsa_ca_sha256": "2151b61137ffa86bf664691ba67e7da0b19f98c758e3d228d5d8ebf27e044438",
@@ -154,9 +154,9 @@
         },
         {
           "batch_start_id": "audit_81480358",
-          "batch_end_id": "8eb42fdf77de4668b3dca24515d60ba5",
-          "merkle_root": "9bfa0f2f45861793ae5df2238705bd9fa132927b3fc76f24d1bae9b751ba188c",
-          "event_count": 508
+          "batch_end_id": "11f9494f12a84f6695b3affa837b3bd8",
+          "merkle_root": "34c94e934775f5abffc8decfad41e2d7c75ed5e8c268bf9e5b7a155bdf0a50ba",
+          "event_count": 801
         }
       ]
     },
@@ -164,191 +164,191 @@
       {
         "name": "P0-B-probe-sampler",
         "status": "pass",
-        "checked_at": "2026-11-11T22:00:09Z",
+        "checked_at": "2026-11-12T22:00:10Z",
         "exit_code": 0,
-        "evidence_sha256": "9e837610b54fa5a875c159a16bf11f63ef0792be45a359698c5fcefb284766b6"
+        "evidence_sha256": "cf4e71d4b719ec2e2328a6b88c3a544721bc4495169b53f7081ca9c52de7cbe3"
       },
       {
         "name": "P-02",
         "status": "pass",
-        "checked_at": "2026-11-11T22:00:09Z",
+        "checked_at": "2026-11-12T22:00:10Z",
         "exit_code": 0,
-        "evidence_sha256": "9e837610b54fa5a875c159a16bf11f63ef0792be45a359698c5fcefb284766b6"
+        "evidence_sha256": "cf4e71d4b719ec2e2328a6b88c3a544721bc4495169b53f7081ca9c52de7cbe3"
       },
       {
         "name": "P-01",
         "status": "pass",
-        "checked_at": "2026-11-11T22:00:09Z",
+        "checked_at": "2026-11-12T22:00:10Z",
         "exit_code": 0,
-        "evidence_sha256": "9e837610b54fa5a875c159a16bf11f63ef0792be45a359698c5fcefb284766b6"
+        "evidence_sha256": "cf4e71d4b719ec2e2328a6b88c3a544721bc4495169b53f7081ca9c52de7cbe3"
       },
       {
         "name": "P-06",
-        "status": "pass",
-        "checked_at": "2026-11-11T22:00:09Z",
-        "exit_code": 0,
-        "evidence_sha256": "9e837610b54fa5a875c159a16bf11f63ef0792be45a359698c5fcefb284766b6"
+        "status": "fail",
+        "checked_at": "2026-11-12T22:00:01Z",
+        "exit_code": 1,
+        "evidence_sha256": "cf4e71d4b719ec2e2328a6b88c3a544721bc4495169b53f7081ca9c52de7cbe3"
       },
       {
         "name": "P-09",
         "status": "pass",
-        "checked_at": "2026-11-11T22:00:09Z",
+        "checked_at": "2026-11-12T22:00:10Z",
         "exit_code": 0,
-        "evidence_sha256": "9e837610b54fa5a875c159a16bf11f63ef0792be45a359698c5fcefb284766b6"
+        "evidence_sha256": "cf4e71d4b719ec2e2328a6b88c3a544721bc4495169b53f7081ca9c52de7cbe3"
       },
       {
         "name": "P-03",
         "status": "pass",
-        "checked_at": "2026-11-11T22:00:09Z",
+        "checked_at": "2026-11-12T22:00:10Z",
         "exit_code": 0,
-        "evidence_sha256": "9e837610b54fa5a875c159a16bf11f63ef0792be45a359698c5fcefb284766b6"
+        "evidence_sha256": "cf4e71d4b719ec2e2328a6b88c3a544721bc4495169b53f7081ca9c52de7cbe3"
       },
       {
         "name": "P-05",
         "status": "pass",
-        "checked_at": "2026-11-11T22:00:09Z",
+        "checked_at": "2026-11-12T22:00:10Z",
         "exit_code": 0,
-        "evidence_sha256": "9e837610b54fa5a875c159a16bf11f63ef0792be45a359698c5fcefb284766b6"
+        "evidence_sha256": "cf4e71d4b719ec2e2328a6b88c3a544721bc4495169b53f7081ca9c52de7cbe3"
       },
       {
         "name": "coding-agent-status",
         "status": "pass",
-        "checked_at": "2026-11-11T22:00:09Z",
+        "checked_at": "2026-11-12T22:00:10Z",
         "exit_code": 0,
-        "evidence_sha256": "9e837610b54fa5a875c159a16bf11f63ef0792be45a359698c5fcefb284766b6"
+        "evidence_sha256": "cf4e71d4b719ec2e2328a6b88c3a544721bc4495169b53f7081ca9c52de7cbe3"
       },
       {
         "name": "P-07-extract",
         "status": "pass",
-        "checked_at": "2026-11-11T22:00:09Z",
+        "checked_at": "2026-11-12T22:00:10Z",
         "exit_code": 0,
-        "evidence_sha256": "9e837610b54fa5a875c159a16bf11f63ef0792be45a359698c5fcefb284766b6"
+        "evidence_sha256": "cf4e71d4b719ec2e2328a6b88c3a544721bc4495169b53f7081ca9c52de7cbe3"
       },
       {
         "name": "P-07-compile",
         "status": "pass",
-        "checked_at": "2026-11-11T22:00:09Z",
+        "checked_at": "2026-11-12T22:00:10Z",
         "exit_code": 0,
-        "evidence_sha256": "9e837610b54fa5a875c159a16bf11f63ef0792be45a359698c5fcefb284766b6"
+        "evidence_sha256": "cf4e71d4b719ec2e2328a6b88c3a544721bc4495169b53f7081ca9c52de7cbe3"
       },
       {
         "name": "P-04",
-        "status": "pass",
-        "checked_at": "2026-11-11T22:00:09Z",
-        "exit_code": 0,
-        "evidence_sha256": "9e837610b54fa5a875c159a16bf11f63ef0792be45a359698c5fcefb284766b6"
+        "status": "fail",
+        "checked_at": "2026-11-12T22:00:03Z",
+        "exit_code": 1,
+        "evidence_sha256": "cf4e71d4b719ec2e2328a6b88c3a544721bc4495169b53f7081ca9c52de7cbe3"
       },
       {
         "name": "P-08",
         "status": "pass",
-        "checked_at": "2026-11-11T22:00:09Z",
+        "checked_at": "2026-11-12T22:00:10Z",
         "exit_code": 0,
-        "evidence_sha256": "9e837610b54fa5a875c159a16bf11f63ef0792be45a359698c5fcefb284766b6"
+        "evidence_sha256": "cf4e71d4b719ec2e2328a6b88c3a544721bc4495169b53f7081ca9c52de7cbe3"
       },
       {
         "name": "recursive-overlay-tick",
         "status": "pass",
-        "checked_at": "2026-11-11T22:00:09Z",
+        "checked_at": "2026-11-12T22:00:10Z",
         "exit_code": 0,
-        "evidence_sha256": "9e837610b54fa5a875c159a16bf11f63ef0792be45a359698c5fcefb284766b6"
+        "evidence_sha256": "cf4e71d4b719ec2e2328a6b88c3a544721bc4495169b53f7081ca9c52de7cbe3"
       },
       {
         "name": "audit-heartbeat",
         "status": "pass",
-        "checked_at": "2026-11-11T22:00:09Z",
+        "checked_at": "2026-11-12T22:00:10Z",
         "exit_code": 0,
-        "evidence_sha256": "9e837610b54fa5a875c159a16bf11f63ef0792be45a359698c5fcefb284766b6"
+        "evidence_sha256": "cf4e71d4b719ec2e2328a6b88c3a544721bc4495169b53f7081ca9c52de7cbe3"
       },
       {
         "name": "probe-calibrate",
         "status": "pass",
-        "checked_at": "2026-11-11T22:00:09Z",
+        "checked_at": "2026-11-12T22:00:10Z",
         "exit_code": 0,
-        "evidence_sha256": "9e837610b54fa5a875c159a16bf11f63ef0792be45a359698c5fcefb284766b6"
+        "evidence_sha256": "cf4e71d4b719ec2e2328a6b88c3a544721bc4495169b53f7081ca9c52de7cbe3"
       },
       {
         "name": "threshold-verify",
         "status": "fail",
-        "checked_at": "2026-11-11T22:00:06Z",
+        "checked_at": "2026-11-12T22:00:06Z",
         "exit_code": 1,
-        "evidence_sha256": "9e837610b54fa5a875c159a16bf11f63ef0792be45a359698c5fcefb284766b6"
+        "evidence_sha256": "cf4e71d4b719ec2e2328a6b88c3a544721bc4495169b53f7081ca9c52de7cbe3"
       },
       {
         "name": "calibration-status",
         "status": "pass",
-        "checked_at": "2026-11-11T22:00:09Z",
+        "checked_at": "2026-11-12T22:00:10Z",
         "exit_code": 0,
-        "evidence_sha256": "9e837610b54fa5a875c159a16bf11f63ef0792be45a359698c5fcefb284766b6"
+        "evidence_sha256": "cf4e71d4b719ec2e2328a6b88c3a544721bc4495169b53f7081ca9c52de7cbe3"
       },
       {
         "name": "calibration-review",
         "status": "pass",
-        "checked_at": "2026-11-11T22:00:09Z",
+        "checked_at": "2026-11-12T22:00:10Z",
         "exit_code": 0,
-        "evidence_sha256": "9e837610b54fa5a875c159a16bf11f63ef0792be45a359698c5fcefb284766b6"
+        "evidence_sha256": "cf4e71d4b719ec2e2328a6b88c3a544721bc4495169b53f7081ca9c52de7cbe3"
       },
       {
         "name": "audit-health",
         "status": "pass",
-        "checked_at": "2026-11-11T22:00:09Z",
+        "checked_at": "2026-11-12T22:00:10Z",
         "exit_code": 0,
-        "evidence_sha256": "9e837610b54fa5a875c159a16bf11f63ef0792be45a359698c5fcefb284766b6"
+        "evidence_sha256": "cf4e71d4b719ec2e2328a6b88c3a544721bc4495169b53f7081ca9c52de7cbe3"
       },
       {
         "name": "evolution-status",
         "status": "pass",
-        "checked_at": "2026-11-11T22:00:09Z",
+        "checked_at": "2026-11-12T22:00:10Z",
         "exit_code": 0,
-        "evidence_sha256": "9e837610b54fa5a875c159a16bf11f63ef0792be45a359698c5fcefb284766b6"
+        "evidence_sha256": "cf4e71d4b719ec2e2328a6b88c3a544721bc4495169b53f7081ca9c52de7cbe3"
       },
       {
         "name": "morning-report",
         "status": "pass",
-        "checked_at": "2026-11-11T22:00:09Z",
+        "checked_at": "2026-11-12T22:00:10Z",
         "exit_code": 0,
-        "evidence_sha256": "9e837610b54fa5a875c159a16bf11f63ef0792be45a359698c5fcefb284766b6"
+        "evidence_sha256": "cf4e71d4b719ec2e2328a6b88c3a544721bc4495169b53f7081ca9c52de7cbe3"
       },
       {
         "name": "agent-coverage",
         "status": "pass",
-        "checked_at": "2026-11-11T22:00:09Z",
+        "checked_at": "2026-11-12T22:00:10Z",
         "exit_code": 0,
-        "evidence_sha256": "9e837610b54fa5a875c159a16bf11f63ef0792be45a359698c5fcefb284766b6"
+        "evidence_sha256": "cf4e71d4b719ec2e2328a6b88c3a544721bc4495169b53f7081ca9c52de7cbe3"
       },
       {
         "name": "evidence-gate",
-        "status": "pass",
-        "checked_at": "2026-11-11T22:00:09Z",
-        "exit_code": 0,
-        "evidence_sha256": "9e837610b54fa5a875c159a16bf11f63ef0792be45a359698c5fcefb284766b6"
+        "status": "fail",
+        "checked_at": "2026-11-12T22:00:09Z",
+        "exit_code": 1,
+        "evidence_sha256": "cf4e71d4b719ec2e2328a6b88c3a544721bc4495169b53f7081ca9c52de7cbe3"
       },
       {
         "name": "threshold-push",
         "status": "pass",
-        "checked_at": "2026-11-11T22:00:09Z",
+        "checked_at": "2026-11-12T22:00:10Z",
         "exit_code": 0,
-        "evidence_sha256": "9e837610b54fa5a875c159a16bf11f63ef0792be45a359698c5fcefb284766b6"
+        "evidence_sha256": "cf4e71d4b719ec2e2328a6b88c3a544721bc4495169b53f7081ca9c52de7cbe3"
       },
       {
         "name": "alert-push",
         "status": "pass",
-        "checked_at": "2026-11-11T22:00:09Z",
+        "checked_at": "2026-11-12T22:00:10Z",
         "exit_code": 0,
-        "evidence_sha256": "9e837610b54fa5a875c159a16bf11f63ef0792be45a359698c5fcefb284766b6"
+        "evidence_sha256": "cf4e71d4b719ec2e2328a6b88c3a544721bc4495169b53f7081ca9c52de7cbe3"
       },
       {
         "name": "proposal-push",
         "status": "pass",
-        "checked_at": "2026-11-11T22:00:09Z",
+        "checked_at": "2026-11-12T22:00:10Z",
         "exit_code": 0,
-        "evidence_sha256": "9e837610b54fa5a875c159a16bf11f63ef0792be45a359698c5fcefb284766b6"
+        "evidence_sha256": "cf4e71d4b719ec2e2328a6b88c3a544721bc4495169b53f7081ca9c52de7cbe3"
       },
       {
         "name": "gates-summary",
         "status": "pass",
-        "checked_at": "2026-11-11T22:00:09Z",
+        "checked_at": "2026-11-12T22:00:10Z",
         "exit_code": 0,
-        "evidence_sha256": "9e837610b54fa5a875c159a16bf11f63ef0792be45a359698c5fcefb284766b6"
+        "evidence_sha256": "cf4e71d4b719ec2e2328a6b88c3a544721bc4495169b53f7081ca9c52de7cbe3"
       }
     ],
     "privacy": {
@@ -361,5 +361,5 @@
       ]
     }
   },
-  "signature": "HCH5OBNBZD1zozAjeo/gJsXCxYT3KZYZQhkirVC0egxO7Fe17kuJfpNdpWBmcZDVtv9AJkwR4TaSUmeG3kRHCg=="
+  "signature": "Wyazbs5iF+h4q2iVOWFsdVQ9qKBAlZ5GI+3buM8fHIz4poCdvAGj4bytnmJ0Dbxf7O67E5inb5ZeR86Ye/2HDQ=="
 }
