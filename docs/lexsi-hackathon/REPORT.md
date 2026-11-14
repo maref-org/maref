@@ -4,6 +4,10 @@
 
 Model: `CohereLabs/tiny-aya-global` (3.35B) · Evaluation date: 2026-11-01/02 · All numbers measured, none estimated.
 
+**Artifacts.** Write-up (this file) · code [`hackathon/lexsi-track2a/`](https://github.com/maref-org/maref/tree/main/hackathon/lexsi-track2a) ·
+dataset [`maref-org/lexsi-redteam-set`](https://huggingface.co/datasets/maref-org/lexsi-redteam-set) ([collection](https://huggingface.co/collections/maref-org/maref-lexsi-track-2a-red-team-dataset-traces-6aede19d9606318fb0da635c)) ·
+steering direction [`maref-org/tiny-aya-refusal-direction`](https://huggingface.co/maref-org/tiny-aya-refusal-direction) ([collection](https://huggingface.co/collections/maref-org/maref-lexsi-track-2a-tiny-aya-refusal-direction-6af56da9e74357660567f4d3)).
+
 ---
 
 ## Abstract

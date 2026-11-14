@@ -100,7 +100,10 @@ flat, check that first.
 
 - Dataset: [`maref-org/lexsi-redteam-set`](https://huggingface.co/datasets/maref-org/lexsi-redteam-set)
 - Steering direction: [`maref-org/tiny-aya-refusal-direction`](https://huggingface.co/maref-org/tiny-aya-refusal-direction)
-- Collections: dataset + model (public, un-gated)
+- Collections (public, un-gated):
+  - dataset + traces → [collection](https://huggingface.co/collections/maref-org/maref-lexsi-track-2a-red-team-dataset-traces-6aede19d9606318fb0da635c)
+  - steering direction → [collection](https://huggingface.co/collections/maref-org/maref-lexsi-track-2a-tiny-aya-refusal-direction-6af56da9e74357660567f4d3)
+  - negative result → [collection](https://huggingface.co/collections/maref-org/maref-tiny-aya-refusal-direction-negative-result-6aede19c6961494aa4eb618c)
 
 ## License / openness
 
