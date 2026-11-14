@@ -1,5 +1,11 @@
 # MAREF — Agent Governance Operating System
 
+> **Lexsi AI Safety Hackathon 2026 · Track 2a submission**
+> Write-up: [`docs/lexsi-hackathon/REPORT.md`](docs/lexsi-hackathon/REPORT.md) ·
+> runnable code: [`hackathon/lexsi-track2a/`](hackathon/lexsi-track2a/) ·
+> artifacts: [HF dataset](https://huggingface.co/datasets/maref-org/lexsi-redteam-set) ·
+> [HF steering direction](https://huggingface.co/maref-org/tiny-aya-refusal-direction)
+
 <!-- LLM-SUMMARY-START -->
 <!--
 @llm-context: Official repository of MAREF (Multi-Agent Recursive Evolution
