@@ -62,7 +62,7 @@ steering tested as a negative result.
 - **Out of scope.** Weight-space attacks (abliteration, fine-tuning the guard
   away), prompt injection delivered through tool output or retrieved documents,
   and any attack that needs the gate's source code to craft a bypass. Multilingual
-  transfer is measured but not claimed (§7).
+  coverage stops at 10 benign prompts in §6; we make no multilingual attack claim.
 
 ### Pre-registered hypotheses
 
@@ -85,11 +85,11 @@ out, 0 reject   result        + rule gate            same outputs
 
 - **CuratorKIT** — the published attack, benign and holdout sets run through a
   real reader → gates → normalisers → exporters chain: 204 samples in, 204 out,
-  0 rejected, with provenance manifest, dataset card and checksums (§2, §11).
+  0 rejected, with provenance manifest, dataset card and checksums (§11, §12).
 - **SafeTune** — `RefusalDirectionModel` steering sweep, alpha 0.0–1.5, six
   strengths; produced the negative result (§4) and the released direction vector.
 - **AuditKIT** — `RedTeamRunner` scoring of the same model outputs, so the
-  headline number is not our own regex grading itself (§3, §6.6).
+  headline number is not our own regex grading itself (§2 cross-check, §6.5).
 - **AlignTune, AgentTune, CircuitKIT** — not used.
 - **MAREF gate** — the repository this write-up ships in; it is the input-side
   layer under test, not a Lexsi kit.
@@ -119,7 +119,7 @@ construction and the holdout hashes were frozen before any read. We did **not**
 run an embedding-level or MinHash dedup between dev and holdout — with 84 and 30
 hand-authored prompts we judged an exact-match check sufficient, and we flag the
 absence rather than claim a check we did not run. The CuratorKIT run reports
-**0 exact duplicates** across the 204 curated samples (§11).
+**0 exact duplicates** across the 204 curated samples (§12).
 
 ### Metrics, and why these
 
