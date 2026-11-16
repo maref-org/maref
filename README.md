@@ -1,6 +1,6 @@
 # MAREF — Agent Governance Operating System
 
-> **Lexsi AI Safety Hackathon 2026 · Track 2a submission**
+> **Lexsi AI Safety Hackathon 2026 · Track 2a + 2b submission**
 > Write-up: [`docs/lexsi-hackathon/REPORT.md`](docs/lexsi-hackathon/REPORT.md) ·
 > runnable code: [`hackathon/lexsi-track2a/`](hackathon/lexsi-track2a/) ·
 > artifacts: [HF dataset](https://huggingface.co/datasets/maref-org/lexsi-redteam-set) ·
