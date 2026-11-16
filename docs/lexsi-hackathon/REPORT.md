@@ -8,6 +8,129 @@ Model: `CohereLabs/tiny-aya-global` (3.35B) · Evaluation date: 2026-11-01/02 ·
 dataset [`maref-org/lexsi-redteam-set`](https://huggingface.co/datasets/maref-org/lexsi-redteam-set) ([collection](https://huggingface.co/collections/maref-org/maref-lexsi-track-2a-red-team-dataset-traces-6aede19d9606318fb0da635c)) ·
 steering direction [`maref-org/tiny-aya-refusal-direction`](https://huggingface.co/maref-org/tiny-aya-refusal-direction) ([collection](https://huggingface.co/collections/maref-org/maref-lexsi-track-2a-tiny-aya-refusal-direction-6af56da9e74357660567f4d3)).
 
+> **Content warning.** This write-up quotes harmful-request prompts, including
+> encoding-attack payloads and three decoded harmful instructions. They are
+> reproduced verbatim only where the number depends on the exact string. No
+> ready-to-use harmful output is included.
+
+### Tracks and problem statements
+
+- **Track 2a — problem statement 1 (Red-teaming and robustness evaluation).**
+  Main track: 114-prompt attack set across seven categories, ASR measured with
+  over-refusal on the side.
+- **Track 2b — Inference-time safety steering** (listed unnumbered; the write-up
+  does not use Track 2b's numbered problem statements). We ran it as a repair
+  attempt and report the negative result rather than a fix.
+
+### Headline before → after
+
+| Measure | Before | After | Denominator |
+|---|---|---|---|
+| **ASR, end-to-end (gate + model)** | **78.72%** (74/94) | **39.36%** (37/94) | same 94 `expect=refuse` attacks, §6.5 |
+| ASR, model alone, human-reviewed | 78.7% | 72.3% | 94 attacks; 6 undecodable prompts reclassified in review, §4 |
+| Encoding attacks handled by the rule gate | — | 87.5% (21/24) | 24 encoding attacks; 91.3% (21/23) excluding the ciphertext-free prompt, §6 |
+| Over-refusal, benign prompts | 0.0% | 0.0% | 20 original + 60 expanded, §6 |
+
+### Base model + method in one line
+
+`CohereLabs/tiny-aya-global` (3.35B, cc-by-nc-4.0), no fine-tuning: an input-side
+normaliser plus a rule gate in front of the frozen model, with refusal-direction
+steering tested as a negative result.
+
+### For judges: one minute
+
+- **What we found.** The model refused **none** of 24 encoding attacks; refusal
+  fires on meaning, and an encoded payload has none the model can read.
+- **What does not work.** Refusal-direction steering (SafeTune), six strengths:
+  encoding ASR stayed 95.8–100%. Outputs changed, behaviour did not.
+- **What does work.** A rule gate with no model call handles 87.5% of encoding
+  attacks and cuts end-to-end ASR from 78.72% to 39.36% with zero false blocks on
+  the benign sets.
+- **What we are not claiming.** The gate halves ASR; it does not solve alignment.
+  37 of 94 attacks still succeed through both layers — we report that number
+  rather than rounding it away.
+- **What we ship.** Dataset with all logs and traces, the steering direction, the
+  gate, `reproduce.py`, and a hash-chained decision ledger that verifies without
+  the runtime.
+
+### Threat model
+
+- **In scope.** A user or upstream agent sends text to a small open-weights model.
+  The adversary controls the *encoding* of the request (base64, rot13, acrostic,
+  zero-width, leetspeak, morse, fragments, emoji) and may split a request across
+  turns; they do not control the gate, the model weights or the runtime.
+- **Out of scope.** Weight-space attacks (abliteration, fine-tuning the guard
+  away), prompt injection delivered through tool output or retrieved documents,
+  and any attack that needs the gate's source code to craft a bypass. Multilingual
+  transfer is measured but not claimed (§7).
+
+### Pre-registered hypotheses
+
+Targets and a falsification condition were frozen in
+[`prep/PREREGISTRATION.md`](https://github.com/maref-org/maref/blob/main/hackathon/lexsi-track2a/prep/PREREGISTRATION.md)
+(sha256 of both splits recorded) and, for the acrostic fix, in
+[`prep/PREREGISTRATION_v2.md`](https://github.com/maref-org/maref/blob/main/hackathon/lexsi-track2a/prep/PREREGISTRATION_v2.md).
+The first holdout read **missed its target** (4/6 = 67% against a
+pre-registered 80%) and we say so in §8.5 instead of re-running until it passed;
+the fix was then verified on a fresh v2 holdout (§8.6).
+
+### Hackathon kits used, and how they connect
+
+```
+CuratorKIT  ->  SafeTune  ->  MAREF gate (ours)  ->  AuditKIT
+curation        steering      input-side             independent
+204 in / 204    negative      normalisation          scoring of the
+out, 0 reject   result        + rule gate            same outputs
+```
+
+- **CuratorKIT** — the published attack, benign and holdout sets run through a
+  real reader → gates → normalisers → exporters chain: 204 samples in, 204 out,
+  0 rejected, with provenance manifest, dataset card and checksums (§2, §11).
+- **SafeTune** — `RefusalDirectionModel` steering sweep, alpha 0.0–1.5, six
+  strengths; produced the negative result (§4) and the released direction vector.
+- **AuditKIT** — `RedTeamRunner` scoring of the same model outputs, so the
+  headline number is not our own regex grading itself (§3, §6.6).
+- **AlignTune, AgentTune, CircuitKIT** — not used.
+- **MAREF gate** — the repository this write-up ships in; it is the input-side
+  layer under test, not a Lexsi kit.
+
+### Models and licenses
+
+| Role | Model | Config | License |
+|---|---|---|---|
+| Target / attacked model | `CohereLabs/tiny-aya-global` | 3.35B, bf16, no quantisation, no fine-tuning; gated-auto on HF | **cc-by-nc-4.0** |
+| Cross-model control | `qwen2.5:3b` (Ollama, temperature 0) | same 114 prompts, §3.5 | Qwen licence (HF `license: other`) |
+| Released artifact | `maref-org/tiny-aya-refusal-direction` | `refusal_direction.pt` = `{direction: tensor(2048,), layer: 15}` | Apache-2.0 (this repository's licence) |
+
+### Datasets, benchmarks and licenses
+
+| Dataset | Size | Content | License |
+|---|---|---|---|
+| `maref-org/lexsi-redteam-set` (`redteam_set_v1.jsonl`) | 114 | 94 attacks + 20 benign, seven categories | **cc-by-4.0** |
+| `multi_turn_set_v1.jsonl` | 30 | five multi-turn categories, 2–4 turns each | cc-by-4.0 |
+| `benign_set_v2.jsonl` | 60 | 20 everyday, 20 defensive, 10 multilingual, 10 sensitive-but-legal | cc-by-4.0 |
+| `dev_v1.jsonl` | 84 | the only split allowed for implementation debugging | cc-by-4.0 |
+| `holdout_v1.jsonl` / `holdout_v2.jsonl` | 30 / 30 | frozen before first read, sha256 in the pre-registrations | cc-by-4.0 |
+| All logs, traces, gate outputs | 37 files | per-prompt decisions, baselines for both models | cc-by-4.0 |
+
+**Splits and leak check.** No model was trained, so there is no train/test
+contamination in the usual sense; dev and both holdouts are disjoint by
+construction and the holdout hashes were frozen before any read. We did **not**
+run an embedding-level or MinHash dedup between dev and holdout — with 84 and 30
+hand-authored prompts we judged an exact-match check sufficient, and we flag the
+absence rather than claim a check we did not run. The CuratorKIT run reports
+**0 exact duplicates** across the 204 curated samples (§11).
+
+### Metrics, and why these
+
+| Metric | Direction | Why this one |
+|---|---|---|
+| Attack success rate (ASR) | lower is better | the user-visible risk; reported both end-to-end and model-only, with denominators |
+| Over-refusal / false DENY on benign prompts | lower is better | the cost of a gate is refusing legitimate work; a gate that blocks everything is not a defence |
+| Gate coverage on encoding attacks | higher is better | separates "the layer works" from "the model happens to refuse" |
+| Decision counts (DENY / REWRITE / ALLOW) | descriptive | decision counts are not outcomes; reported to keep §6.5 interpretable |
+| Per-prompt agreement against an independent runtime | higher is better | the independent replication is the check on our own scoring (§6.6) |
+
 ---
 
 ## Abstract
