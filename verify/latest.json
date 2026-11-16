@@ -1,33 +1,33 @@
 {
-  "report_id": "f5b0a179-5c7a-4042-b02f-873321fad587",
+  "report_id": "59d5a37b-9957-4c93-bdca-2dca49c52ed8",
   "report_version": "1.0",
-  "created_at": "2026-11-15T02:02:59.234613+00:00",
+  "created_at": "2026-11-16T05:17:18.700504+00:00",
   "generated_by": "maref v0.55.2",
   "signer_fingerprint": "cbac8750e6b1db3a",
-  "merkle_root": "973c82741dfca33dd12de7d6f8be7a1d9dc836dd3cf4c1c16b6299f706ef7c75",
+  "merkle_root": "9779851aa066fb0d981336dae7be6dab196e0dc0c3e940288c4d41be318bda4c",
   "audit_summary": {
-    "total_events": 17582,
+    "total_events": 17628,
     "time_range_start": 1792381511.869832,
-    "time_range_end": 1794708048.4888651,
+    "time_range_end": 1794806131.525398,
     "event_types": {
       "chain_rebaseline": 1,
-      "meta_monitor_heartbeat": 7905,
+      "meta_monitor_heartbeat": 7951,
       "state_transition": 9675,
       "audit_chain_quarantine": 1
     },
     "actor_counts": {
       "operator": 2,
-      "automation": 7905,
+      "automation": 7951,
       "state_machine": 9675
     }
   },
   "system_state": {
     "governance_state": "DEGRADED",
     "active_agents_count": 0,
-    "merkle_tree_size": 17582,
+    "merkle_tree_size": 17628,
     "version": "0.55.2"
   },
-  "previous_report_id": "9bcdabeb-df46-4da5-929e-461f540665c3",
+  "previous_report_id": "f5b0a179-5c7a-4042-b02f-873321fad587",
   "metadata": {
     "scope": {
       "status": "degraded",
@@ -47,11 +47,11 @@
     },
     "anchor": {
       "run_id": "",
-      "generated_at": "2026-11-14T08:14:12.657307+00:00",
-      "manifest_sha256": "609a4ce06206077cc1a506d5f345a7c75afa617ceab834a578c5e3f10065c162",
-      "audit_sha256": "4061d235cc23d52919e42aab81eb3415c9e7b4e2e965a8060d453a6b3d786bb6",
-      "total_events": 17368,
-      "anchored_events": 17368,
+      "generated_at": "2026-11-15T08:33:30.798294+00:00",
+      "manifest_sha256": "006e32d5f53bd18b5b8fd3640b16e198572d1d131f641e932e04cc0d1cd1d1b9",
+      "audit_sha256": "6cd197fcc279731135828ebb66c1a6b990aa258a3762694db2056a27fe38e187",
+      "total_events": 17651,
+      "anchored_events": 17651,
       "uncovered_events": 0,
       "tsa_url": "https://freetsa.org/tsr",
       "tsa_ca_sha256": "2151b61137ffa86bf664691ba67e7da0b19f98c758e3d228d5d8ebf27e044438",
@@ -160,9 +160,9 @@
         },
         {
           "batch_start_id": "e29118e1eaf14140a842d6cf99c148e6",
-          "batch_end_id": "8fae864576aa457d986977b15cf4e8b5",
-          "merkle_root": "19fe17525bef64ef8de75ca552fa8093e3d1720485bd146e4732631f19efe5cf",
-          "event_count": 368
+          "batch_end_id": "544234754b594bbca86d20b26b8f6686",
+          "merkle_root": "efba0da4458f58bb24353df8351bc930862460ecd0ff994c295626986cab0db3",
+          "event_count": 651
         }
       ]
     },
@@ -367,5 +367,5 @@
       ]
     }
   },
-  "signature": "3irH5t2aQo4b506vSJNTsyUEAU+gIn5S90GmVgtrVbB796a7di5ahd575+YPwAxrisK37eAdojN35r6jrfFlDg=="
+  "signature": "Rnc0x1M2jQvSBpIzHOipI17e6pDeHabMbAwSqNRSzVngvlrCo1DqyDVbbUq4SYgeFUr1Ruxt2VcJDP8t0tOdBQ=="
 }
