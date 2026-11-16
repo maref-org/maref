@@ -40,7 +40,7 @@ outputs (100% → 70.8% on the automated detector) — the model sometimes refus
 once it can read the payload, but not reliably. A rule-based inbound gate (no
 model call) handled 21 of 24 encoding attacks (87.5%), which is 21 of 23 real
 attacks (91.3%) once the ciphertext-free prompt is excluded, with zero false
-denials on an 80-prompt benign set. We release the dataset, the gate, and the
+denials on an 80-prompt benign set (the 20 original plus 60 expanded, §6). We release the dataset, the gate, and the
 scripts. An independent runtime replication reproduces the end-to-end numbers
 prompt for prompt, and every decision ships in a hash-chained ledger that can be
 verified without the runtime.
