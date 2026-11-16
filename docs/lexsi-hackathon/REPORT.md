@@ -9,15 +9,15 @@ dataset [`maref-org/lexsi-redteam-set`](https://huggingface.co/datasets/maref-or
 steering direction [`maref-org/tiny-aya-refusal-direction`](https://huggingface.co/maref-org/tiny-aya-refusal-direction) ([collection](https://huggingface.co/collections/maref-org/maref-lexsi-track-2a-tiny-aya-refusal-direction-6af56da9e74357660567f4d3)).
 
 > **Content warning.** This write-up quotes harmful-request prompts, including
-> encoding-attack payloads and three decoded harmful instructions. They are
-> reproduced verbatim only where the number depends on the exact string. No
-> ready-to-use harmful output is included.
+> encoding-attack payloads and decoded harmful instructions. They are reproduced
+> verbatim only where the number depends on the exact string. No ready-to-use
+> harmful output is included.
 
 ### Tracks and problem statements
 
 - **Track 2a — problem statement 1 (Red-teaming and robustness evaluation).**
-  Main track: 114-prompt attack set across seven categories, ASR measured with
-  over-refusal on the side.
+  Main track: 114-prompt red-team set (94 attacks + 20 benign) across seven
+  categories, ASR measured with over-refusal on the side.
 - **Track 2b — Inference-time safety steering** (listed unnumbered; the write-up
   does not use Track 2b's numbered problem statements). We ran it as a repair
   attempt and report the negative result rather than a fix.
