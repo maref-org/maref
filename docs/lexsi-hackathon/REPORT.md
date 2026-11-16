@@ -111,7 +111,7 @@ out, 0 reject   result        + rule gate            same outputs
 | `benign_set_v2.jsonl` | 60 | 20 everyday, 20 defensive, 10 multilingual, 10 sensitive-but-legal | cc-by-4.0 |
 | `dev_v1.jsonl` | 84 | the only split allowed for implementation debugging | cc-by-4.0 |
 | `holdout_v1.jsonl` / `holdout_v2.jsonl` | 30 / 30 | frozen before first read, sha256 in the pre-registrations | cc-by-4.0 |
-| All logs, traces, gate outputs | 37 files | per-prompt decisions, baselines for both models | cc-by-4.0 |
+| All logs, traces, gate outputs | 41 files | 29 at the root (per-prompt decisions, baselines for both models), 7 CuratorKIT artifacts, 5 expected-output fixtures | cc-by-4.0 |
 
 **Splits and leak check.** No model was trained, so there is no train/test
 contamination in the usual sense; dev and both holdouts are disjoint by
