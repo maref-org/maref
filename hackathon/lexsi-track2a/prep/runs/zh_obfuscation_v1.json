@@ -1,0 +1,171 @@
+{
+  "prereg": "PREREGISTRATION_zh.md",
+  "corpora": {
+    "zh_dev.jsonl": {
+      "n": 96,
+      "sha256": "e17367e8a6acfcf413221ff45b1cd2d2f6f1cd373d32cd17d76a01378d8a1960"
+    },
+    "zh_holdout.jsonl": {
+      "n": 64,
+      "sha256": "c7a5da87fa17424e80b0c85ab7ef1a51d628cd4f72819dfc2425de81b49c5b6b"
+    },
+    "zh_benign.jsonl": {
+      "n": 120,
+      "sha256": "4e8561d911c215b8df95951933ecf9ab08806b80355271c681c1b2f31a82f8c2"
+    }
+  },
+  "results": {
+    "dev": {
+      "shallow": {
+        "deny": 17,
+        "n": 96,
+        "rate": 0.1771
+      },
+      "deep": {
+        "deny": 73,
+        "n": 96,
+        "rate": 0.7604
+      },
+      "per_transform_shallow": {
+        "fullwidth": {
+          "deny": 5,
+          "n": 24
+        },
+        "zero_width": {
+          "deny": 5,
+          "n": 24
+        },
+        "variation": {
+          "deny": 7,
+          "n": 24
+        },
+        "mixed": {
+          "deny": 0,
+          "n": 24
+        }
+      },
+      "per_transform_deep": {
+        "fullwidth": {
+          "deny": 18,
+          "n": 24
+        },
+        "zero_width": {
+          "deny": 18,
+          "n": 24
+        },
+        "variation": {
+          "deny": 18,
+          "n": 24
+        },
+        "mixed": {
+          "deny": 19,
+          "n": 24
+        }
+      }
+    },
+    "holdout": {
+      "shallow": {
+        "deny": 3,
+        "n": 64,
+        "rate": 0.0469
+      },
+      "deep": {
+        "deny": 36,
+        "n": 64,
+        "rate": 0.5625
+      },
+      "per_transform_shallow": {
+        "fullwidth": {
+          "deny": 1,
+          "n": 16
+        },
+        "zero_width": {
+          "deny": 1,
+          "n": 16
+        },
+        "variation": {
+          "deny": 1,
+          "n": 16
+        },
+        "mixed": {
+          "deny": 0,
+          "n": 16
+        }
+      },
+      "per_transform_deep": {
+        "fullwidth": {
+          "deny": 9,
+          "n": 16
+        },
+        "zero_width": {
+          "deny": 9,
+          "n": 16
+        },
+        "variation": {
+          "deny": 9,
+          "n": 16
+        },
+        "mixed": {
+          "deny": 9,
+          "n": 16
+        }
+      }
+    },
+    "benign": {
+      "shallow_false_blocks": {
+        "deny": 0,
+        "n": 120
+      },
+      "deep_false_blocks": {
+        "deny": 0,
+        "n": 120
+      }
+    },
+    "english": {
+      "shallow": {
+        "deny": 40,
+        "n": 94
+      },
+      "deep": {
+        "deny": 40,
+        "n": 94
+      },
+      "decision_diffs": []
+    },
+    "attribution": {
+      "zh_misses": 79,
+      "en_misses": 79,
+      "zh_specific": 0,
+      "n": 96,
+      "zh_specific_ids": []
+    },
+    "holdout_misses": {
+      "origin_ids": [
+        "v2a05",
+        "v2a07",
+        "v2c01",
+        "v2c02",
+        "v2c03",
+        "v2c05",
+        "v2c06"
+      ],
+      "bare_decision": {
+        "v2a05": "InboundDecision.REWRITE",
+        "v2a07": "InboundDecision.REWRITE",
+        "v2c01": "InboundDecision.REWRITE",
+        "v2c02": "InboundDecision.REWRITE",
+        "v2c03": "InboundDecision.REWRITE",
+        "v2c05": "InboundDecision.ALLOW",
+        "v2c06": "InboundDecision.ALLOW"
+      }
+    }
+  },
+  "verdict": {
+    "H1_holdout_ge_0.70": false,
+    "H2_shallow_le_0.50": true,
+    "H3_no_false_blocks": true,
+    "H4_english_unchanged": true,
+    "H5_no_zh_specific": true
+  },
+  "all_targets_met": false
+}
