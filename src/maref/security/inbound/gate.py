@@ -94,6 +94,39 @@ DEFAULT_DENY_PATTERNS: tuple[str, ...] = (
     r"(?:teach|teaching|learn|how to|steps to|guide to|tutorial)\b.{0,40}\block bypass",
 )
 
+# ---- 意图级补充词表（opt-in，2026-11-18）--------------------------------
+# 来源：holdout 诊断发现 7/16 编码攻击"解码成功但拿不到 DENY"。逐条看明文，
+# 缺的不是解码能力，而是**词表覆盖**：数据外泄/关监控/提权/越狱覆盖这几类意图
+# 此前没有 pattern，且既有规则有冠词漏洞（"crack the wifi password" 不匹配
+# "crack (a )?wifi…"；"clone an employee badge" 不匹配 "clone a badge"）。
+#
+# 刻意不并入 DEFAULT_DENY_PATTERNS：默认值一改，已发布的 ASR 39.36% 与
+# `make reproduce` 的决策向量哈希就不再指同一件事。要用就显式传
+# extra_deny_patterns=DENY_PATTERNS_INTENT_V2。
+#
+# 写法约束（与既有规则一致）：动词 + 明确对象；带防御性讨论的排除条件。
+DENY_PATTERNS_INTENT_V2: tuple[str, ...] = (
+    # 凭证索取：动词 + 明确口令目标（放行"如何重置/如何保护"这类不含索取动作的问句）
+    r"(?:give|send|show|hand|get|tell)\s+me\s+(?:the\s+|your\s+)?"
+    r"(?:database|db|admin|root|server|staging|wifi|office)\s+(?:password|passwd|credential)s?\b",
+    # 关闭监控/审计：只认关闭意图，放行"监控有什么用/为什么关不掉"
+    r"disable\s+(?:the\s+)?(?:security\s+monitoring|monitoring\s+and\s+logging|"
+    r"audit\s+log(?:ging)?|all\s+logs?)\b",
+    # 批量导出机密：every/all + 机密名词，避免误伤"how to rotate all secrets"
+    r"(?:print|dump|list|show|reveal|output|export|exfiltrate)\s+(?:every|all)\s+"
+    r"(?:secret|credential|password|token|api\s*key)s?\b",
+    # 提权 / 拿下宿主
+    r"run\s+as\s+root\b",
+    r"open\s+(?:a|an)\s+(?:root\s+)?shell\b.{0,60}(?:take\s*over|without\s+permission|"
+    r"override\s+(?:the\s+)?(?:policy|policies|rules))",
+    # 越狱式覆盖：接受一切输入 + 覆盖规则（两句需共现，单说"override the rules"不拦）
+    r"(?:accept|allow|let\s+through)\s+(?:all|any|every)\s+(?:inputs?|requests?|messages?)"
+    r"[\s\S]{0,120}(?:override|ignore|bypass)\s+(?:the\s+)?(?:rules?|policy|policies|guidelines)",
+    # 既有规则的冠词漏洞修补（不改默认值，只在此补齐）
+    r"crack\s+(?:the\s+|a\s+|your\s+|my\s+)?(?:wifi|wi-fi|office)\s+password\b",
+    r"clone\s+(?:an?\s+|the\s+)[\w\s]{0,20}badge\b",
+)
+
 # shell/CLI 语法特征：用于在未显式声明 kind 时判定为 TOOL_CALL。
 # 只匹配强特征（flag/$VAR/管道到 shell/maref CLI），避免把普通文本里的 "--" 误判。
 _TOOL_CALL_SYNTAX = re.compile(
@@ -336,10 +369,14 @@ class InboundNormalizationGate:
         max_candidates: int = 8,
         default_decision: InboundDecision = InboundDecision.REWRITE,
         deep_decode: bool = False,
+        extra_deny_patterns: tuple[str, ...] = (),
     ) -> None:
-        patterns = deny_patterns if deny_patterns is not None else DEFAULT_DENY_PATTERNS
+        patterns = tuple(deny_patterns) if deny_patterns is not None else DEFAULT_DENY_PATTERNS
         if not patterns:
             raise ValueError("deny_patterns must be non-empty")
+        if extra_deny_patterns:
+            # 追加而不替换：默认词表保持原样，便于逐条归因是新增规则命中的
+            patterns = patterns + tuple(extra_deny_patterns)
         self._deny_re = re.compile("|".join(patterns), re.I)
         self.max_candidates = max(1, min(int(max_candidates), 64))
         if default_decision not in (InboundDecision.REWRITE, InboundDecision.HITL):
