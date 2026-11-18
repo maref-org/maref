@@ -35,6 +35,7 @@ from maref.security.inbound.normalization import (
     MAX_INPUT_CHARS,
     _common_word_hits,
     decode_candidates,
+    decode_candidates_deep,
     looks_like_text,
 )
 
@@ -334,6 +335,7 @@ class InboundNormalizationGate:
         *,
         max_candidates: int = 8,
         default_decision: InboundDecision = InboundDecision.REWRITE,
+        deep_decode: bool = False,
     ) -> None:
         patterns = deny_patterns if deny_patterns is not None else DEFAULT_DENY_PATTERNS
         if not patterns:
@@ -343,6 +345,10 @@ class InboundNormalizationGate:
         if default_decision not in (InboundDecision.REWRITE, InboundDecision.HITL):
             raise ValueError("default_decision must be REWRITE or HITL")
         self.default_decision = default_decision
+        # opt-in：在归一化结果上再叠一层解码。
+        # 默认 False，保证已发布数字（REPORT §6.5 39.36% 等）与
+        # `make reproduce` 的决策向量哈希不受影响；开启后行为变化单独计量。
+        self.deep_decode = bool(deep_decode)
 
     def check(self, text: str, *, kind: InputKind | str | None = None) -> InboundVerdict:
         """对单条输入做裁决 (无副作用)。
@@ -408,7 +414,15 @@ class InboundNormalizationGate:
                 started,
             )
 
-        candidates = decode_candidates(text, max_candidates=self.max_candidates)
+        if self.deep_decode:
+            # depth=3 是实测最优点：全角与零宽可以叠加（先全角化再插零宽），
+            # 需要"归一化 → 解码 → 再归一化 → 再解码"两层才能剥净；
+            # 3 层与 4 层结果相同（2026-11-18 实测，8 条中文变体），故取 3。
+            candidates = decode_candidates_deep(
+                text, max_candidates=self.max_candidates, depth=3
+            )
+        else:
+            candidates = decode_candidates(text, max_candidates=self.max_candidates)
         # 明文也做一次 deny 检查: 门禁不止还原编码, 也拦明显有害的直白输入
         m_raw = self._deny_re.search(text)
         if m_raw:

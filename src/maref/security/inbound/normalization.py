@@ -526,9 +526,81 @@ def decode_candidates(
     return tuple(out[:max_candidates])
 
 
+# 归一化类方法：它们产出的是"清理后的同一条消息"，而不是"另一个编码层"。
+# 这类结果需要再走一遍解码，否则清理完就停下，里面的结构性编码整体逃逸。
+_NORMALISER_METHODS = frozenset(
+    {"nfkc", "zero_width_stripped", "zalgo_stripped", "homoglyph", "filler_stripped"}
+)
+
+
+def _canonicalise(text: str) -> str:
+    """无条件的"干净形态"：NFKC + 剥零宽 + 剥变体选择符。
+
+    与 ``_cand_zero_width`` / ``_cand_zalgo`` 的区别：那两个只在"看起来像文本"
+    时才产出候选（防止把随机串当编码）。但组合变换（全角 + 零宽）剥完一层后
+    剩下的就是裸 base64——它不像自然语言，于是被那道闸挡掉，解码链再次短路。
+    这里不做可读性判断，只作为**探查用探针**：它产出的结果仍要过 deny 正则，
+    不可能单独造成 DENY。
+    """
+    out = unicodedata.normalize("NFKC", text)
+    out = out.translate(_ZERO_WIDTH)
+    out = "".join(c for c in out if not (0xFE00 <= ord(c) <= 0xFE0F))
+    return out
+
+
+def decode_candidates_deep(
+    text: str, *, max_candidates: int = MAX_CANDIDATES, depth: int = 2
+) -> tuple[DecodedCandidate, ...]:
+    """在归一化结果上再叠一层解码（opt-in，默认门禁不用）。
+
+    动机（2026-11-18 实测，G2 中文混淆轴）：
+    ``decode_candidates`` 的 token 扫描永远针对**原文**。而全角字符、零宽字符、
+    变体选择符会把 ``SGdub3Jl...`` 这类 base64 token 从中间切开，正则
+    ``[A-Za-z0-9+/=_-]{12,}`` 于是匹配不到；归一化候选虽然产出了"清理后的整条
+    文本"，却没有人对它再跑一次解码。结果就是：
+        英文原文 → DENY，同一载荷加全角/零宽 → ALLOW。
+    这与语言无关（中英文脚手架漏检数一致），属于解码链的短路，不是中文特有问题。
+
+    ``depth`` 为最大层数（1 等价于单层）。新层的结果以 ``方法@层号`` 命名，
+    便于取证时区分"第几层还原出来的"。
+    """
+    if not isinstance(text, str):
+        raise TypeError("text must be str")
+    if len(text) > MAX_INPUT_CHARS:
+        raise ValueError(f"input too long: {len(text)} > {MAX_INPUT_CHARS}")
+
+    base = decode_candidates(text, max_candidates=max_candidates)
+    out: list[DecodedCandidate] = list(base)
+    seen = {c.text for c in out}
+    frontier = [c.text for c in base if c.method in _NORMALISER_METHODS]
+    canon = _canonicalise(text)
+    if canon != text and canon not in seen:
+        seen.add(canon)
+        out.append(DecodedCandidate("canonical", canon))
+        frontier.insert(0, canon)
+    layers = max(1, min(int(depth), 4))
+
+    for layer in range(2, layers + 1):
+        nxt: list[str] = []
+        for probe in frontier[:4]:  # 分支上限：防止组合爆炸
+            for cand in decode_candidates(probe, max_candidates=max_candidates):
+                if cand.method == "raw" or cand.text in seen:
+                    continue
+                seen.add(cand.text)
+                out.append(DecodedCandidate(f"{cand.method}@{layer}", cand.text))
+                if cand.method in _NORMALISER_METHODS:
+                    nxt.append(cand.text)
+        frontier = nxt
+        if not frontier:
+            break
+
+    return tuple(out)
+
+
 __all__ = [
     "DecodedCandidate",
     "decode_candidates",
+    "decode_candidates_deep",
     "looks_like_text",
     "MAX_INPUT_CHARS",
     "MAX_CANDIDATES",
