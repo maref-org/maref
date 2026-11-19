@@ -1,0 +1,19 @@
+{
+  "built_at": "2026-11-18T15:44:10",
+  "builder": "prep/build_hf_dataset.py",
+  "counts": {
+    "dev": 174,
+    "control": 30,
+    "holdout_v2": 30,
+    "multi_turn": 30
+  },
+  "sources": {
+    "redteam_set_v1.jsonl": "969c573adb450814913e8e58be612dc28ba91f60cf34ff3d159533dd594a8d10",
+    "benign_set_v2.jsonl": "cfb2a738a7744422374272ed204a84f1efc99a99d4462c443c9b2ce35653fc2b",
+    "benign_encoded.jsonl": "710a41cdd0b04fc06dd76cdca0197de491e7ac7edd194391aec275b346ff7782",
+    "holdout_v2.jsonl": "fb3a2e08aba5a0c0d21024c47502b7506fbfe9012275a3bbd158027353878a0a",
+    "holdout_v1.jsonl": "fa102a9050a2f985fd47d4833c117379635ba4596336d4d3cb30be364a99cad6",
+    "multi_turn_set_v1.jsonl": "3e1cdd1980ca65aa246af1365adc0d795be1e9dd59d5533e447378076403dc6a"
+  },
+  "leak_check": "pass"
+}
