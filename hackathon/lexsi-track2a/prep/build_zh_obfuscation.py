@@ -120,10 +120,7 @@ def load_payloads(source: str) -> list[dict]:
     rows = [json.loads(l) for l in src.read_text(encoding="utf-8").splitlines() if l.strip()]
     out = []
     for r in rows:
-        if source == "benign_encoded.jsonl":
-            keep = True
-        else:
-            keep = r.get("category") == "encoding"
+        keep = source == "benign_encoded.jsonl" or r.get("category") == "encoding"
         if keep:
             out.append({"id": r["id"], "payload": payload_of(r), "original": r["prompt"]})
     return out
