@@ -892,7 +892,15 @@ def audit_verify(
     tampered = result["tampered_entries"]
     intact = result["integrity_intact"]
 
-    if intact and total > 0 and valid == 0:
+    if intact and total == 0:
+        # Fail-closed: 无法解析出任何条目时绝不允许报 "intact"。
+        # 回归（2026-11-21）：空文件 / 非 JSON 文件 / 路径解析失败都会走到这里，
+        # 旧逻辑 `total > 0 and valid == 0` 放过了 total == 0，输出 "Integrity intact ✅ Yes"。
+        console.print(
+            "[red]FAILED: no parseable audit entries — refusing to report integrity[/red]"
+        )
+        intact = False
+    elif intact and valid == 0:
         console.print("[red]FAILED: no signatures could be verified; pass -k <pubkey.pem>[/red]")
         intact = False
 
