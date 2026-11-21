@@ -7,6 +7,8 @@
 | 文件 | 作用 |
 |---|---|
 | [`SCRIPT.md`](./SCRIPT.md) | 30–40 分钟访谈脚本：五个必问、五条禁令、判定口径 |
+| [`OUTREACH.md`](./OUTREACH.md) | 触达话术库：10 个可直接复制的模板、触达节奏、回复分类、禁忌清单 |
+| [`CANDIDATES.md`](./CANDIDATES.md) | 15 席候选清单（5 席 × 3）、公开来源、排除项、替换规则 |
 | [`TARGETS.md`](./TARGETS.md) | 五席目标结构（3 集成商 + 1 测评机构 + 1 受监管企业）、准入判据、漏斗与停止条件 |
 | [`EVIDENCE.md`](./EVIDENCE.md) | 证据四级（L0–L3）、脱敏清单、命名规范、什么不能当证据 |
 | [`ledger.yaml`](./ledger.yaml) | 结构化访谈账本（唯一事实源） |
