@@ -116,6 +116,14 @@ maref = "maref_lite.cli:main"
 [tool.hatch.build.targets.wheel]
 packages = ["src/maref", "src/maref_lite", "src/sidecar", "src/drift_guard", "src/formal"]
 
+[tool.hatch.build.targets.sdist]
+# 2026-11-21 复盘：sdist 36.9 MB，其中 28.2 MB 是网站宣传 mp4、7.8 MB 是 SBOM。
+# sdist 是源码包，不应携带网站资产；排除后由 scripts/verify_artifacts.py 在 CI 守门。
+exclude = [
+  "/website/public/videos",
+  "/sbom.spdx.json",
+]
+
 [tool.ruff]
 target-version = "py310"
 line-length = 100
