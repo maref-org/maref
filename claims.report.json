@@ -1,8 +1,8 @@
 {
   "spec_version": 1,
-  "generated_at": "2026-11-21T05:15:35+00:00",
+  "generated_at": "2026-11-21T12:58:10+00:00",
   "summary": {
-    "PASS": 10,
+    "PASS": 13,
     "FAIL": 0,
     "ERROR": 0
   },
@@ -42,7 +42,7 @@
     {
       "id": "tests.functions",
       "statement": "tests/ 下 test_* 函数数量（下限口径，非 pytest collect 数）",
-      "value": "16330",
+      "value": "16377",
       "expectation": ">= 16000",
       "status": "PASS",
       "detail": ""
@@ -52,6 +52,30 @@
       "statement": "pytest-cov 强制覆盖率门槛（公开仓 50；开发仓旧值 15）",
       "value": "50",
       "expectation": "equals 50",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "tests.readme_floor",
+      "statement": "README 对外测试数量下限（必须等于 claims 里的地板，禁止写成某个旧 commit 的精确数）",
+      "value": "16000",
+      "expectation": "equals 16000",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "coverage.state",
+      "statement": "STATE.yaml 记录的最近一次实测综合覆盖率",
+      "value": "76.50",
+      "expectation": "equals 76.50",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "coverage.readme_badge",
+      "statement": "README 覆盖率徽章（必须等于 STATE.yaml 实测值；拒绝无来源聚合数）",
+      "value": "76.50",
+      "expectation": "same_as coverage.state",
       "status": "PASS",
       "detail": ""
     },

@@ -22,6 +22,8 @@ on:
       - "src/maref/__init__.py"
       - "scripts/claims.py"
       - "scripts/claims_probe.py"
+      - "docs/claims.md"
+      - "STATE.yaml"
       - "tests/scripts/test_claims.py"
       - "scripts/interview_ledger.py"
       - "tests/scripts/test_interview_ledger.py"
@@ -35,6 +37,8 @@ on:
       - "src/maref/__init__.py"
       - "scripts/claims.py"
       - "scripts/claims_probe.py"
+      - "docs/claims.md"
+      - "STATE.yaml"
       - "scripts/interview_ledger.py"
       - "tests/scripts/test_interview_ledger.py"
       - "docs/research/interviews/ledger.yaml"
@@ -60,6 +64,11 @@ jobs:
 
       - name: Verify public claims
         run: python scripts/claims.py --check
+
+      - name: Verify docs/claims.md is in sync
+        # docs/claims.md 是"公开声称"的对外页面，必须与 claims.yaml 的实测值一致；
+        # 生成器刻意不写时间戳，因此这里可以直接做字节级比较。
+        run: python scripts/claims.py --check-docs
 
       - name: Verify version sites are consistent
         # 版本位点由 scripts/sync_version.py 统一管理（otel / mcp_bridge / gui / uv.lock / STATE）。
