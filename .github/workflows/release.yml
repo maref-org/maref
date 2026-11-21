@@ -92,11 +92,21 @@ jobs:
       # 因为"何时存在"无法由仓库自身证明，只能由外部 TSA 证明。
       - name: Timestamp artifacts (RFC 3161)
         run: python scripts/rfc3161_stamp.py --files dist/* --out-dir dist
+      - name: Stage PyPI distributions
+        # 只把 wheel/sdist 交给 PyPI。dist/ 里还有 RFC3161 时间戳产物
+        # （SHA256SUMS / .tsq / .tsr / freetsa-cacert.pem），twine 遇到
+        # "SHA256SUMS" 会抛 InvalidDistribution 并中断发布（2026-11-21 实测）。
+        run: |
+          set -euo pipefail
+          mkdir -p dist/pypi
+          cp dist/*.whl dist/*.tar.gz dist/pypi/
+          ls -l dist/pypi
       - name: Publish to PyPI
         if: github.event_name == 'push' || github.event.inputs.dry_run != 'true'
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           password: ${{ secrets.PYPI_TOKEN }}
+          packages-dir: dist/pypi
       - name: Compose release body
         run: |
           set -euo pipefail
@@ -136,7 +146,14 @@ jobs:
         if: github.event_name == 'push' || github.event.inputs.dry_run != 'true'
         uses: softprops/action-gh-release@v3
         with:
-          files: dist/*
+          # 显式列出：dist/ 下多了 pypi/ 暂存目录，不能再用 dist/* 兜底
+          files: |
+            dist/*.whl
+            dist/*.tar.gz
+            dist/SHA256SUMS
+            dist/SHA256SUMS.tsq
+            dist/SHA256SUMS.tsr
+            dist/freetsa-cacert.pem
           body_path: release-body.md
           generate_release_notes: false
 
