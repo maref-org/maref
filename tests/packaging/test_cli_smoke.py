@@ -70,8 +70,13 @@ def test_runtime_crypto_dependencies_are_in_base() -> None:
     )
 
 
-def test_all_extra_is_the_union_of_extras() -> None:
-    """`[all]` 必须覆盖所有 extra（曾漏掉 identity，导致 `[all]` 仍缺 gmssl）。"""
+def test_all_extra_declares_every_extra() -> None:
+    """源码树口径：`[all]` 的声明必须覆盖所有 extra。
+
+    注意：这只证明 pyproject 的**意图**。构建后端是否真的把自引用展开进
+    wheel 元数据，由 `scripts/verify_artifacts.py` 在 CI 构建产物后检查——
+    源码树测试无法发现"声明了但产物里是空 extra"这类回归。
+    """
     extras = _pyproject()["project"]["optional-dependencies"]
     match = re.search(r"maref\[([^\]]+)\]", " ".join(extras["all"]))
     assert match, "'all' extra 未声明任何引用"
@@ -81,8 +86,12 @@ def test_all_extra_is_the_union_of_extras() -> None:
     assert missing == [], f"'all' 不是并集，缺少: {missing}"
 
 
-def test_conformance_suite_is_actually_published() -> None:
-    """尺子必须真的在仓库里，而不是一个空的 namespace package。"""
+def test_conformance_suite_files_exist_in_repo() -> None:
+    """仓库口径：conformance 不是空 namespace，且在 repo 内可跑。
+
+    "已发布"由 `scripts/verify_artifacts.py` 对 wheel 断言
+    （`maref/conformance/cli.py` 必须在 wheel 内）；本测试只守仓库内容。
+    """
     import maref.conformance
 
     assert maref.conformance.__file__ is not None, "conformance 是空的 namespace package"

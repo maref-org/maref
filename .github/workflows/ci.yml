@@ -57,6 +57,13 @@ jobs:
           python-version: "3.11"
       - name: Install dependencies
         run: pip install -e ".[dev,sidecar,otel,a2a,orchestration,identity]"
+      - name: Build and verify distribution artifacts
+        # 审产物，不审源码树：`[all]` 是否被构建后端展开、conformance CLI 是否在
+        # wheel、sdist 是否还带着宣传 mp4。源码树测试无法发现这几类回归。
+        run: |
+          pip install build
+          python -m build --wheel --sdist --outdir dist
+          python scripts/verify_artifacts.py --wheel dist/*.whl --sdist dist/*.tar.gz
       - name: Prepare report directory
         run: mkdir -p reports
       - name: Run unit tests
