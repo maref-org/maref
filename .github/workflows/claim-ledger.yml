@@ -50,7 +50,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install minimal dependencies
-        run: pip install pyyaml pytest
+        run: pip install pyyaml pytest pytest-cov  # pyproject addopts 含 --cov=src，缺插件会 exit 4
 
       - name: Verify public claims
         run: python scripts/claims.py --check

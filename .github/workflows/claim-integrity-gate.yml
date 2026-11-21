@@ -38,6 +38,7 @@ on:
 permissions:
   contents: read
   issues: write
+  actions: read  # C6 需要读 workflow run 证据（缺 token 会把 4 个指针误判为不可解析）
 
 jobs:
   claim-gate:
@@ -58,6 +59,10 @@ jobs:
 
       - name: Run claim integrity gate
         id: gate
+        env:
+          # 缺 GH_TOKEN 时 `gh api` 会失败，C6 把 4 个证据指针全判为"不可解析"
+          # （issue #507 的真实根因是工作流没给 token，而不是 STATE 有问题）。
+          GH_TOKEN: ${{ github.token }}
         run: |
           set +e
           # 定时/PR 默认影子模式；workflow_dispatch 可显式 blocking

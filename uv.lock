@@ -2020,11 +2020,13 @@ wheels = [
 
 [[package]]
 name = "maref"
-version = "0.55.2"
+version = "0.55.3"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
+    { name = "cryptography" },
     { name = "defusedxml" },
+    { name = "gmssl" },
     { name = "httpx" },
     { name = "psutil" },
     { name = "pydantic" },
@@ -2039,14 +2041,23 @@ a2a = [
     { name = "a2a-sdk" },
 ]
 all = [
+    { name = "a2a-sdk" },
     { name = "accelerate" },
     { name = "datasets" },
     { name = "fastapi" },
+    { name = "jwcrypto" },
     { name = "mitmproxy", marker = "python_full_version >= '3.12'" },
     { name = "mypy" },
+    { name = "networkx", version = "3.6.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "networkx", version = "3.7", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "nox" },
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "opentelemetry-api" },
+    { name = "opentelemetry-exporter-otlp-proto-http" },
+    { name = "opentelemetry-instrumentation-fastapi" },
+    { name = "opentelemetry-instrumentation-httpx" },
+    { name = "opentelemetry-sdk" },
     { name = "peft" },
     { name = "pillow" },
     { name = "playwright" },
@@ -2086,8 +2097,6 @@ dev = [
     { name = "ruff" },
 ]
 identity = [
-    { name = "cryptography" },
-    { name = "gmssl" },
     { name = "jwcrypto" },
 ]
 ml = [
@@ -2124,14 +2133,14 @@ requires-dist = [
     { name = "a2a-sdk", marker = "extra == 'a2a'", specifier = ">=1.0" },
     { name = "accelerate", marker = "extra == 'ml'", specifier = ">=0.30" },
     { name = "aiohttp", specifier = ">=3.9" },
-    { name = "cryptography", marker = "extra == 'identity'", specifier = ">=42.0" },
+    { name = "cryptography", specifier = ">=42.0" },
     { name = "datasets", marker = "extra == 'ml'", specifier = ">=2.19" },
     { name = "defusedxml", specifier = ">=0.7.1" },
     { name = "fastapi", marker = "extra == 'sidecar'", specifier = ">=0.111,<0.163" },
-    { name = "gmssl", marker = "extra == 'identity'", specifier = ">=3.2.2" },
+    { name = "gmssl", specifier = ">=3.2.2" },
     { name = "httpx", specifier = ">=0.27" },
     { name = "jwcrypto", marker = "extra == 'identity'", specifier = ">=1.5" },
-    { name = "maref", extras = ["ml", "sidecar", "dev", "desktop", "sentinel", "audit"], marker = "extra == 'all'" },
+    { name = "maref", extras = ["ml", "sidecar", "dev", "desktop", "sentinel", "audit", "identity", "a2a", "orchestration", "otel"], marker = "extra == 'all'" },
     { name = "mitmproxy", marker = "python_full_version >= '3.12' and extra == 'sentinel'", specifier = ">=11.1.2" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.10" },
     { name = "networkx", marker = "extra == 'orchestration'", specifier = ">=3.0" },
