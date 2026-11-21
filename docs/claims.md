@@ -7,7 +7,7 @@
 | `version.pyproject` | `0.55.3` | same_as version.api | PASS |
 | `version.readme_badge` | `0.55.3` | same_as version.api | PASS |
 | `version.citation` | `0.55.3` | same_as version.api | PASS |
-| `tests.functions` | `16384` | >= 16000 | PASS |
+| `tests.functions` | `16390` | >= 16000 | PASS |
 | `coverage.gate` | `50` | equals 50 | PASS |
 | `tests.readme_floor` | `16000` | equals 16000 | PASS |
 | `coverage.state` | `76.50` | equals 76.50 | PASS |
