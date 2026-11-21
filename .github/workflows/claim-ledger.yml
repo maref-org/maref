@@ -1,0 +1,62 @@
+# ──────────────────────────────────────────────────────────────────────
+# 声称账本门禁 (claim ledger) — 对外数字必须可复算
+#
+# 与公开仓的 claim_integrity_gate 分工：
+#   - claim_integrity_gate：检查 STATE.yaml 的结构性声称（路径/状态/run_id）
+#   - claim ledger：执行 claims.yaml 里的命令，验证公开数字（版本/测试/依赖/审计行为）
+#
+# 本工作流为阻断模式：任何一条声称漂移即 fail。
+# ──────────────────────────────────────────────────────────────────────
+
+name: 声称账本
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "claims.yaml"
+      - "claims.report.json"
+      - "docs/claims.md"
+      - "README.md"
+      - "pyproject.toml"
+      - "src/maref/__init__.py"
+      - "scripts/claims.py"
+      - "scripts/claims_probe.py"
+      - "tests/scripts/test_claims.py"
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "claims.yaml"
+      - "README.md"
+      - "pyproject.toml"
+      - "src/maref/__init__.py"
+      - "scripts/claims.py"
+      - "scripts/claims_probe.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  claim-ledger:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install minimal dependencies
+        run: pip install pyyaml pytest
+
+      - name: Verify public claims
+        run: python scripts/claims.py --check
+
+      - name: Verify audit probes are stdlib-only
+        run: python -S scripts/claims_probe.py audit_tamper
+
+      - name: Regression tests for the ledger itself
+        run: pytest tests/scripts/test_claims.py -q --no-cov -p no:cacheprovider

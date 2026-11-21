@@ -897,7 +897,8 @@ def audit_verify(
         # 回归（2026-11-21）：空文件 / 非 JSON 文件 / 路径解析失败都会走到这里，
         # 旧逻辑 `total > 0 and valid == 0` 放过了 total == 0，输出 "Integrity intact ✅ Yes"。
         console.print(
-            "[red]FAILED: no parseable audit entries — refusing to report integrity[/red]"
+            "[red]FAILED: no verifiable audit entries (empty, unreadable, or truncated by "
+            "tampering) — refusing to report integrity[/red]"
         )
         intact = False
     elif intact and valid == 0:

@@ -211,7 +211,10 @@ class AuditLogger:
                 base = Path(os.environ.get("MAREF_AUDIT_PATH", ".governance"))
                 if base.suffix:  # 指向文件时取父目录
                     base = base.parent
-                p = base / p
+                # 已经带沙箱前缀时不得再叠一层（否则 `.governance/x.jsonl` 会变成
+                # `.governance/.governance/x.jsonl`，验签读到空文件却报"完整"）。
+                if p.parts[: len(base.parts)] != base.parts:
+                    p = base / p
             self._path = p
             self._memory_entries = []
         self._write_lock: Any = __import__("threading").Lock()

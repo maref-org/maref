@@ -1,5 +1,41 @@
 # CHANGELOG
 
+## [v0.55.3] - 2026-11-21
+
+> 主题：**让已发布的产物对得起 README**。v0.55.2 的 wheel 在干净环境里装完起不来，
+> "可验证审计链"的命令跑不动，main 产品（AG-Conformance）没有发布。本版只修发布面，不加功能。
+
+### Fixed
+- **`pip install maref` 后 CLI 直接 ImportError**：`maref.crypto` 在包导入期无条件加载 SM2/SM3/SM4，
+  但 `gmssl` 只声明在 `[identity]` extra。`gmssl`、`cryptography` 移入 base 依赖（审计链 Ed25519
+  与 `a2a_secure_transport` 本就需要 `cryptography`）。
+- **`pip install "maref[all]"` 仍起不来**：`all` 不是并集（漏 `identity`/`a2a`/`orchestration`/`otel`）。已补齐。
+- **入口点依赖可选 extra 导致整体失败**：`maref.integration.__init__` 饿汉式导入 `a2a_server`（FastAPI，
+  属 `[sidecar]`），缺 FastAPI 时整个 CLI 起不来。改为可选导入 + 占位函数。
+- **CLI 版本号漂移**：`maref_lite.__version__` 硬编码 `0.55.0`，`maref --version` 打印的是它。
+  改为取自 `maref.__version__`（回退 dist metadata），并纳入测试。
+- **`maref audit verify` 对空/非 JSON 文件报 "Integrity intact ✅ Yes" 且 exit 0**：解析 0 条也敢报完整。
+  改为 fail-closed（exit 1 + ❌）。
+- **审计日志路径前缀叠加**：`AuditLogger(".governance/x.jsonl")` 解析为 `.governance/.governance/x.jsonl`，
+  导致验签读到空文件。已带沙箱前缀时不再叠加。
+- **文档入口不可用**：README 的 `pip install maref-lite` 在 PyPI 404（`maref_lite` 打在 `maref` wheel 内）；
+  `@maref/sdk` 改为真实包名 `@maref-org/sdk`。
+
+### Added
+- **AG-Conformance v0.1 发布**（`src/maref/conformance/`、`scripts/conformance_run.py`、`conformance/`）：
+  10 条控制项、stdlib-only、可对任意 runtime 导出的 trace 运行并签名出报告。此前只存在于开发仓。
+- **claim ledger 迁入公开仓**（`claims.yaml` + `scripts/claims.py` + `scripts/claims_probe.py` +
+  `docs/claims.md` + CI `claim-ledger.yml`）：9 条公开声称各有可复算命令，漂移即阻断。
+- 测试：`tests/packaging/test_cli_smoke.py`、`tests/cli/test_audit_verify_fails_closed.py`、
+  `tests/conformance/test_conformance.py`、`tests/governance/test_audit_path_semantics.py`、
+  `tests/scripts/test_claims.py`。
+
+### Known
+- `maref audit verify` 对"含被篡改条目"的日志会因载入截断而报告 0 条（fail-closed 但缺逐条明细）；
+  `verify_audit_chain` 的明细更完整。后续版本修正。
+- `STATE.yaml` 仍指向已发布的 0.55.2；`CITATION.cff` 仍为 0.35.0-beta（历史漂移，未在本版处理）。
+
+
 ## [v0.55.2] - 2026-11-01
 
 ### Fixed

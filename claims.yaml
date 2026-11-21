@@ -1,0 +1,79 @@
+# 公开声称账本（claim ledger）
+#
+# 规则：
+# 1. 任何对外公开的数字/版本/入口，必须在这里登记，并有一条可在本地复算的命令。
+# 2. 改数字 = 改这里 + 跑 `python3 scripts/claims.py --check`，CI 会阻断漂移。
+# 3. 命令不联网、不写仓库、输出单行；python/python3 会被替换为当前解释器。
+# 4. `same_as` 用于跨文件一致性（版本三角），`min` 用于下限声称，`equals` 用于精确断言。
+#
+# 本文件与 scripts/claims.py 自 2026-11-21（v0.55.3）起同时存在于公开仓，
+# 因为对外可见的仓库才是评估者的取证对象，而在此之前账本只存在于开发仓。
+
+spec_version: 1
+timeout_seconds: 180
+
+claims:
+  - id: version.api
+    statement: Python 包版本（maref.__version__）
+    command:
+      - python3
+      - -c
+      - "import sys;sys.path.insert(0,'src');import maref;print(maref.__version__)"
+    expect:
+      same_as: version.pyproject
+
+  - id: version.pyproject
+    statement: pyproject.toml 中的项目版本
+    command:
+      - python3
+      - -c
+      - "import tomllib;print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])"
+    expect:
+      same_as: version.api
+
+  - id: version.readme_badge
+    statement: README 徽章展示的版本
+    command: [python3, scripts/claims_probe.py, readme_badge]
+    expect:
+      same_as: version.api
+
+  - id: tests.functions
+    statement: tests/ 下 test_* 函数数量（下限口径，非 pytest collect 数）
+    command: [python3, scripts/claims_probe.py, count_tests]
+    expect:
+      min: 16000
+
+  - id: coverage.gate
+    statement: pytest-cov 强制覆盖率门槛（公开仓 50；开发仓旧值 15）
+    command: [python3, scripts/claims_probe.py, coverage_gate]
+    expect:
+      equals: "50"
+
+  - id: deps.direct
+    statement: pyproject.toml 直接运行时依赖数量（含 gmssl / cryptography）
+    command: [python3, scripts/claims_probe.py, count_deps]
+    expect:
+      equals: "11"
+
+  - id: sdk.package_name
+    statement: TypeScript SDK 的真实 npm 包名（README 必须与之一致）
+    command:
+      - python3
+      - -c
+      - "import json;print(json.load(open('sdk/typescript/package.json'))['name'])"
+    expect:
+      equals: "@maref-org/sdk"
+
+  - id: audit.tamper_detect
+    statement: 审计链能检出被篡改的记录
+    command: [python3, scripts/claims_probe.py, audit_tamper]
+    expect:
+      equals: detected
+    timeout: 60
+
+  - id: audit.key_rotation
+    statement: 换钥/错钥只标 unverifiable，不误判为篡改
+    command: [python3, scripts/claims_probe.py, audit_rotation]
+    expect:
+      equals: unverifiable
+    timeout: 60
