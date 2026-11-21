@@ -863,12 +863,17 @@ def audit_verify(
     Checks entry signatures (Ed25519 or HMAC-SHA256) and chain hash continuity.
     Returns VERIFIED/FAILED status with detailed report.
     """
-    from maref.governance.audit import AuditLogger
+    from maref.governance.audit import AuditLogger, resolve_audit_path
 
     path = Path(file) if file else _default_audit_log_path()
-    if not path.exists():
-        console.print(f"[red]Audit log not found: {path}[/red]")
+    resolved = resolve_audit_path(path)
+    if not resolved.exists():
+        console.print(f"[red]Audit log not found: {resolved}[/red]")
         raise typer.Exit(1)
+    if str(resolved) != str(path):
+        # 相对路径会被 MAREF_AUDIT_PATH 沙箱重定向；必须让用户看到真正读的文件。
+        console.print(f"[dim]Resolved: {resolved}[/dim]")
+    path = resolved
 
     console.print(f"[dim]Verifying: {path}[/dim]")
 

@@ -65,6 +65,15 @@ def readme_citation() -> str:
     return match.group(1)
 
 
+def citation_version() -> str:
+    """Version declared in CITATION.cff (a public-facing claim surface)."""
+    text = (ROOT / "CITATION.cff").read_text(encoding="utf-8")
+    match = re.search(r'^version:\s*"?([0-9]+\.[0-9]+\.[0-9]+)"?', text, re.MULTILINE)
+    if not match:
+        raise SystemExit("probe citation_version: version field not found")
+    return match.group(1)
+
+
 def count_tests() -> str:
     """Number of ``def test_*`` functions under tests/ (a floor, not pytest's count)."""
     total = 0
@@ -140,6 +149,7 @@ def audit_rotation() -> str:
 PROBES = {
     "readme_badge": readme_badge,
     "readme_citation": readme_citation,
+    "citation_version": citation_version,
     "count_tests": count_tests,
     "count_deps": count_deps,
     "coverage_gate": coverage_gate,

@@ -54,3 +54,18 @@ def test_verify_still_reports_missing_file(tmp_path: Path) -> None:
 
     assert result.exit_code == 1, output
     assert "Audit log not found" in output
+
+
+def test_verify_prints_resolved_path(tmp_path: Path, monkeypatch) -> None:
+    """裸文件名会被沙箱重定向；必须把真实读取路径打出来，否则用户以为读的是 ./x.jsonl。"""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("MAREF_AUDIT_PATH", raising=False)
+    (tmp_path / ".governance").mkdir()
+    (tmp_path / ".governance" / "audit.jsonl").write_text("", encoding="utf-8")
+
+    result = runner.invoke(app, ["audit", "verify", "-f", "audit.jsonl"])
+    output = _plain(result.output)
+
+    assert "Resolved:" in output, output
+    assert ".governance/audit.jsonl" in output
+    assert result.exit_code == 1

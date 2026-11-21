@@ -37,6 +37,12 @@ claims:
     expect:
       same_as: version.api
 
+  - id: version.citation
+    statement: CITATION.cff 声明的版本（学术引用面）
+    command: [python3, scripts/claims_probe.py, citation_version]
+    expect:
+      same_as: version.api
+
   - id: tests.functions
     statement: tests/ 下 test_* 函数数量（下限口径，非 pytest collect 数）
     command: [python3, scripts/claims_probe.py, count_tests]

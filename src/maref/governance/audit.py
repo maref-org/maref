@@ -33,6 +33,24 @@ _HMAC_KEY_ENV = "MAREF_HMAC_SECRET_KEY"
 _ED25519_KEY_ENV = "MAREF_ED25519_PRIVATE_KEY"
 
 
+def resolve_audit_path(log_path: Path | str) -> Path:
+    """把审计日志路径解析为最终落盘路径。
+
+    相对路径落在 ``MAREF_AUDIT_PATH``（默认 ``.governance/``）沙箱内；已带沙箱
+    前缀的路径原样返回（避免 ``.governance/x`` → ``.governance/.governance/x``）。
+    绝对路径原样返回。CLI 需要"先解析再判断存在"时也复用本函数。
+    """
+    p = log_path if isinstance(log_path, Path) else Path(log_path)
+    if p.is_absolute():
+        return p
+    base = Path(os.environ.get("MAREF_AUDIT_PATH", ".governance"))
+    if base.suffix:  # 指向文件时取父目录
+        base = base.parent
+    if p.parts[: len(base.parts)] == base.parts:
+        return p
+    return base / p
+
+
 @dataclass(frozen=True)
 class AuditEntry:
     """An immutable audit log entry with HMAC or Ed25519 signature.
@@ -205,17 +223,9 @@ class AuditLogger:
             self._path: Path | None = None
             self._memory_entries: list[AuditEntry] = []
         else:
-            p = Path(log_path) if not isinstance(log_path, Path) else log_path
-            if not p.is_absolute():
-                # P2-7: 相对路径强制走 MAREF_AUDIT_PATH 沙箱，杜绝 cwd/repo 根污染
-                base = Path(os.environ.get("MAREF_AUDIT_PATH", ".governance"))
-                if base.suffix:  # 指向文件时取父目录
-                    base = base.parent
-                # 已经带沙箱前缀时不得再叠一层（否则 `.governance/x.jsonl` 会变成
-                # `.governance/.governance/x.jsonl`，验签读到空文件却报"完整"）。
-                if p.parts[: len(base.parts)] != base.parts:
-                    p = base / p
-            self._path = p
+            # P2-7: 相对路径强制走 MAREF_AUDIT_PATH 沙箱，杜绝 cwd/repo 根污染；
+            # 解析规则见 resolve_audit_path（已带前缀不叠加）。
+            self._path = resolve_audit_path(log_path)
             self._memory_entries = []
         self._write_lock: Any = __import__("threading").Lock()
         self._max_file_size = max_file_size_mb * 1024 * 1024
@@ -382,6 +392,15 @@ class AuditLogger:
             entry.previous_hash.encode("utf-8") + self._legacy_payload(entry).encode("utf-8")
         ).hexdigest()
         return hmac.compare_digest(legacy, entry.chain_hash)
+
+    @property
+    def path(self) -> Path | None:
+        """解析后的落盘路径（None 表示纯内存模式）。
+
+        相对路径会按 `MAREF_AUDIT_PATH`（默认 `.governance/`）解析；调用方
+        需要展示"实际读了哪个文件"时应读取本属性，而不是原样回显入参。
+        """
+        return self._path
 
     def verify_integrity(
         self,

@@ -68,37 +68,85 @@ def load_state(root: Path) -> dict:
 def check_version_triangle(state: dict, root: Path) -> list[dict]:
     findings: list[dict] = []
     claimed = str(state.get("project", {}).get("current_release", ""))
+    # 发布进行中：pyproject 已升版但 STATE 仍记录上一次已发布版本时，
+    # 允许用 pending_release 明确声明"正在发这一版"，否则视为漂移（ERROR）。
+    pending = str(state.get("project", {}).get("pending_release", "") or "").lstrip("v")
 
     # pyproject.toml
     pyproject = root / "pyproject.toml"
-    m = re.search(r'^version\s*=\s*"([^"]+)"', pyproject.read_text(encoding="utf-8"), re.M) if pyproject.exists() else None
+    m = (
+        re.search(r'^version\s*=\s*"([^"]+)"', pyproject.read_text(encoding="utf-8"), re.M)
+        if pyproject.exists()
+        else None
+    )
     actual_py = m.group(1) if m else None
     if actual_py is None:
-        findings.append({"check": "C1", "severity": SEV_ERROR, "detail": "pyproject.toml version 缺失"})
+        findings.append(
+            {"check": "C1", "severity": SEV_ERROR, "detail": "pyproject.toml version 缺失"}
+        )
     elif actual_py != claimed:
-        findings.append({"check": "C1", "severity": SEV_ERROR,
-                         "detail": f"版本三角: STATE={claimed} ↔ pyproject={actual_py}"})
+        if pending and pending == actual_py:
+            findings.append(
+                {
+                    "check": "C1",
+                    "severity": SEV_WARN,
+                    "detail": f"版本三角: 发布进行中 pending_release={actual_py}"
+                    f"（STATE 仍记录上一发布 {claimed}）",
+                }
+            )
+        else:
+            findings.append(
+                {
+                    "check": "C1",
+                    "severity": SEV_ERROR,
+                    "detail": f"版本三角: STATE={claimed} ↔ pyproject={actual_py}",
+                }
+            )
 
-    # CHANGELOG 头
+    # CHANGELOG 头（描述正在开发的版本，即 pyproject 版本；无 pyproject 时退回 STATE）
     changelog = root / "CHANGELOG.md"
-    m2 = re.search(r"^##\s*\[v?([0-9][^\]]*)\]", changelog.read_text(encoding="utf-8"), re.M) if changelog.exists() else None
+    m2 = (
+        re.search(r"^##\s*\[v?([0-9][^\]]*)\]", changelog.read_text(encoding="utf-8"), re.M)
+        if changelog.exists()
+        else None
+    )
+    expected_doc = (actual_py or claimed).lstrip("v")
     if m2 is None:
-        findings.append({"check": "C1", "severity": SEV_WARN, "detail": "CHANGELOG.md 头部版本无法解析"})
-    elif m2.group(1) != claimed.lstrip("v"):
-        findings.append({"check": "C1", "severity": SEV_ERROR,
-                         "detail": f"版本三角: STATE={claimed} ↔ CHANGELOG头=v{m2.group(1)}"})
+        findings.append(
+            {"check": "C1", "severity": SEV_WARN, "detail": "CHANGELOG.md 头部版本无法解析"}
+        )
+    elif m2.group(1) != expected_doc:
+        findings.append(
+            {
+                "check": "C1",
+                "severity": SEV_ERROR,
+                "detail": f"版本三角: CHANGELOG头=v{m2.group(1)} ↔ pyproject={expected_doc}",
+            }
+        )
 
     # git tag（WARNING：tag 可先于 STATE/CHANGELOG 更新）
     try:
-        tags = subprocess.run(
-            ["git", "tag", "--sort=-v:refname"],
-            cwd=root, capture_output=True, text=True, timeout=10,
-        ).stdout.strip().splitlines()
+        tags = (
+            subprocess.run(
+                ["git", "tag", "--sort=-v:refname"],
+                cwd=root,
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            .stdout.strip()
+            .splitlines()
+        )
         if tags:
             latest = tags[0].lstrip("v")
             if latest != claimed.lstrip("v"):
-                findings.append({"check": "C1", "severity": SEV_WARN,
-                                 "detail": f"git 最新 tag=v{latest} 领先/偏离 STATE={claimed}（若为 patch 发布请同步 STATE/CHANGELOG/pyproject）"})
+                findings.append(
+                    {
+                        "check": "C1",
+                        "severity": SEV_WARN,
+                        "detail": f"git 最新 tag=v{latest} 领先/偏离 STATE={claimed}（若为 patch 发布请同步 STATE/CHANGELOG/pyproject）",
+                    }
+                )
     except (OSError, subprocess.TimeoutExpired):
         pass
 
@@ -119,8 +167,13 @@ def check_referenced_paths(state: dict, root: Path) -> list[dict]:
         elif isinstance(node, str) and _rel(node) and node not in seen:
             seen.add(node)
             if not (root / node).exists():
-                findings.append({"check": "C2", "severity": SEV_ERROR,
-                                 "detail": f"引用不存在: {trail} → {node}"})
+                findings.append(
+                    {
+                        "check": "C2",
+                        "severity": SEV_ERROR,
+                        "detail": f"引用不存在: {trail} → {node}",
+                    }
+                )
 
     walk(state)
     return findings
@@ -131,7 +184,9 @@ def check_implemented_symbols(state: dict, root: Path) -> list[dict]:
     findings: list[dict] = []
     src_dir = root / "src"
     if not src_dir.exists():
-        findings.append({"check": "C3", "severity": SEV_WARN, "detail": "src/ 不存在，跳过符号核验"})
+        findings.append(
+            {"check": "C3", "severity": SEV_WARN, "detail": "src/ 不存在，跳过符号核验"}
+        )
         return findings
 
     # 预扫 src 下全部 .py 文本（数量级可控）
@@ -148,8 +203,13 @@ def check_implemented_symbols(state: dict, root: Path) -> list[dict]:
             if node.get("status") == "implemented" and isinstance(node.get("name"), str):
                 name = node["name"]
                 if name not in haystack:
-                    findings.append({"check": "C3", "severity": SEV_ERROR,
-                                     "detail": f"声称 implemented 但 src/ 无符号引用: {trail}.name={name}"})
+                    findings.append(
+                        {
+                            "check": "C3",
+                            "severity": SEV_ERROR,
+                            "detail": f"声称 implemented 但 src/ 无符号引用: {trail}.name={name}",
+                        }
+                    )
             for k, v in node.items():
                 walk(v, f"{trail}.{k}")
         elif isinstance(node, list):
@@ -170,10 +230,17 @@ def check_constitution_version(state: dict, root: Path) -> list[dict]:
     if local.exists():
         m = re.search(r"v(\d+\.\d+)", local.read_text(encoding="utf-8")[:500])
         if m and f"v{m.group(1)}" != claimed:
-            findings.append({"check": "C4", "severity": SEV_ERROR,
-                             "detail": f"宪法版本: STATE={claimed} ↔ docs/CONSTITUTION.md=v{m.group(1)}"})
+            findings.append(
+                {
+                    "check": "C4",
+                    "severity": SEV_ERROR,
+                    "detail": f"宪法版本: STATE={claimed} ↔ docs/CONSTITUTION.md=v{m.group(1)}",
+                }
+            )
     else:
-        findings.append({"check": "C4", "severity": SEV_WARN, "detail": "docs/CONSTITUTION.md 不存在"})
+        findings.append(
+            {"check": "C4", "severity": SEV_WARN, "detail": "docs/CONSTITUTION.md 不存在"}
+        )
 
     # 跨仓 Track A Advisory（仅本机双仓环境）
     oc_root = os.environ.get("OPENCLAW_ROOT")
@@ -182,8 +249,13 @@ def check_constitution_version(state: dict, root: Path) -> list[dict]:
         if oc_const.exists():
             m2 = re.search(r"v(\d+\.\d+)", oc_const.read_text(encoding="utf-8")[:500])
             if m2 and f"v{m2.group(1)}" != claimed:
-                findings.append({"check": "C4", "severity": SEV_WARN,
-                                 "detail": f"跨仓宪法版本: 公开仓 STATE={claimed} ↔ Track A=v{m2.group(1)}（Track B 独立演进则忽略）"})
+                findings.append(
+                    {
+                        "check": "C4",
+                        "severity": SEV_WARN,
+                        "detail": f"跨仓宪法版本: 公开仓 STATE={claimed} ↔ Track A=v{m2.group(1)}（Track B 独立演进则忽略）",
+                    }
+                )
     return findings
 
 
@@ -191,8 +263,13 @@ def check_hook_claims(state: dict, root: Path) -> list[dict]:
     findings: list[dict] = []
     claim = str(state.get("track_b", {}).get("pre_push_hook", "")).lower()
     if claim == "present" and not (root / ".githooks" / "pre-push").exists():
-        findings.append({"check": "C5", "severity": SEV_ERROR,
-                         "detail": "track_b.pre_push_hook=present 但 .githooks/pre-push 不存在"})
+        findings.append(
+            {
+                "check": "C5",
+                "severity": SEV_ERROR,
+                "detail": "track_b.pre_push_hook=present 但 .githooks/pre-push 不存在",
+            }
+        )
     return findings
 
 
@@ -205,9 +282,7 @@ def _repo_slug(state: dict) -> str:
 def _gh_api(path: str) -> tuple[dict | None, str | None]:
     """Call ``gh api``; return (json, error). Never raises."""
     try:
-        proc = subprocess.run(
-            ["gh", "api", path], capture_output=True, text=True, timeout=20
-        )
+        proc = subprocess.run(["gh", "api", path], capture_output=True, text=True, timeout=20)
     except FileNotFoundError:
         return None, "gh CLI 不存在"
     except subprocess.TimeoutExpired:
@@ -273,9 +348,7 @@ def _check_run_pointer(trail: str, node: dict, repo: str) -> list[dict]:
         )
     conclusion = data.get("conclusion")
     if claims_green and conclusion != "success":
-        findings.append(
-            _err("C6", f"{trail} 声称 {value} 但 run conclusion={conclusion}")
-        )
+        findings.append(_err("C6", f"{trail} 声称 {value} 但 run conclusion={conclusion}"))
     if not _iso_ok(node.get("verified_at")):
         findings.append(_err("C6", f"{trail}.verified_at 缺失或不可解析"))
     return findings
@@ -315,9 +388,7 @@ def _check_coverage_pointer(state: dict, repo: str) -> list[dict]:
     if data is None:
         findings.append(_err("C6", f"coverage.source_run_id={run_id} 不可解析: {err}"))
     elif data.get("conclusion") != "success":
-        findings.append(
-            _err("C6", f"coverage run conclusion={data.get('conclusion')}，产物不可信")
-        )
+        findings.append(_err("C6", f"coverage run conclusion={data.get('conclusion')}，产物不可信"))
     if not _iso_ok(node.get("verified_at")):
         findings.append(_err("C6", "coverage.verified_at 缺失或不可解析"))
     return findings
@@ -367,7 +438,9 @@ def _check_rsi_pointer(state: dict) -> list[dict]:
     if value not in ("conditional", "full_pass", "failed"):
         return [_err("C6", f"project.rsi_level.value 非法: {node.get('value')!r}")]
     if value == "full_pass" and not node.get("evidence"):
-        return [_err("C6", "rsi_level=full_pass 但缺少 evidence（E1–E9 未全过时须保持 conditional）")]
+        return [
+            _err("C6", "rsi_level=full_pass 但缺少 evidence（E1–E9 未全过时须保持 conditional）")
+        ]
     return []
 
 
@@ -379,7 +452,9 @@ def check_evidence_pointers(state: dict, root: Path) -> list[dict]:
         if isinstance(node, dict):
             findings += _check_run_pointer(f"track_b.{key}", node, repo)
         else:
-            findings.append(_warn("C6", f"track_b.{key} 未指针化（需 value/run_id/sha/verified_at）"))
+            findings.append(
+                _warn("C6", f"track_b.{key} 未指针化（需 value/run_id/sha/verified_at）")
+            )
     findings += _check_coverage_pointer(state, repo)
     findings += _check_d1_pointer(state, root)
     findings += _check_rsi_pointer(state)
@@ -424,7 +499,9 @@ def main() -> int:
     if args.json:
         print(json.dumps(result, ensure_ascii=False, indent=2))
     else:
-        print(f"=== 声称完整性门禁 (STATE v{result['state_version']}, release {result['claimed_release']}) ===")
+        print(
+            f"=== 声称完整性门禁 (STATE v{result['state_version']}, release {result['claimed_release']}) ==="
+        )
         if not result["findings"]:
             print("✅ 全部声称与仓库实证一致")
         for f in result["findings"]:

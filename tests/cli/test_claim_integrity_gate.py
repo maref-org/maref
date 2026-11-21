@@ -17,13 +17,22 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts"))
 import claim_integrity_gate as gate
 
 
-def _write_repo(tmp: Path, state: dict, *, pyproject_ver="1.0.0",
-                changelog_ver="1.0.0", constitution_ver="v1.0",
-                hook=True, src_impl=None) -> Path:
+def _write_repo(
+    tmp: Path,
+    state: dict,
+    *,
+    pyproject_ver="1.0.0",
+    changelog_ver="1.0.0",
+    constitution_ver="v1.0",
+    hook=True,
+    src_impl=None,
+) -> Path:
     (tmp / "pyproject.toml").write_text(f'version = "{pyproject_ver}"\n', encoding="utf-8")
     (tmp / "CHANGELOG.md").write_text(f"## [v{changelog_ver}] - 2026-01-01\n", encoding="utf-8")
     (tmp / "docs").mkdir(exist_ok=True)
-    (tmp / "docs" / "CONSTITUTION.md").write_text(f"# Constitution {constitution_ver}\n", encoding="utf-8")
+    (tmp / "docs" / "CONSTITUTION.md").write_text(
+        f"# Constitution {constitution_ver}\n", encoding="utf-8"
+    )
     if hook:
         (tmp / ".githooks").mkdir(exist_ok=True)
         (tmp / ".githooks" / "pre-push").write_text("#!/bin/bash\n", encoding="utf-8")
@@ -62,38 +71,52 @@ def test_c1_pyproject_drift(tmp_path):
 def test_c1_changelog_drift(tmp_path):
     repo = _write_repo(tmp_path, dict(BASE_STATE), changelog_ver="0.9.0")
     result = gate.run_all(repo)
-    assert any(f["check"] == "C1" and "CHANGELOG" in f["detail"] and f["severity"] == "ERROR"
-               for f in result["findings"])
+    assert any(
+        f["check"] == "C1" and "CHANGELOG" in f["detail"] and f["severity"] == "ERROR"
+        for f in result["findings"]
+    )
 
 
 def test_c2_missing_referenced_path(tmp_path):
-    state = dict(BASE_STATE, project={**BASE_STATE["project"], "rsi_report": "docs/missing-report.md"})
+    state = dict(
+        BASE_STATE, project={**BASE_STATE["project"], "rsi_report": "docs/missing-report.md"}
+    )
     repo = _write_repo(tmp_path, state)
     result = gate.run_all(repo)
-    assert any(f["check"] == "C2" and "docs/missing-report.md" in f["detail"]
-               for f in result["findings"])
+    assert any(
+        f["check"] == "C2" and "docs/missing-report.md" in f["detail"] for f in result["findings"]
+    )
 
 
 def test_c2_ignores_urls_and_home(tmp_path):
-    state = dict(BASE_STATE, project={**BASE_STATE["project"],
-                                      "public_repo": "https://example.com/x.md",
-                                      "local_hook": "~/.claude/hooks/x.py"})
+    state = dict(
+        BASE_STATE,
+        project={
+            **BASE_STATE["project"],
+            "public_repo": "https://example.com/x.md",
+            "local_hook": "~/.claude/hooks/x.py",
+        },
+    )
     repo = _write_repo(tmp_path, state)
     result = gate.run_all(repo)
     assert not any(f["check"] == "C2" for f in result["findings"])
 
 
 def test_c3_implemented_symbol_missing(tmp_path):
-    state = dict(BASE_STATE, project={**BASE_STATE["project"],
-                                      "tool": {"name": "ghost_tool", "status": "implemented"}})
+    state = dict(
+        BASE_STATE,
+        project={**BASE_STATE["project"], "tool": {"name": "ghost_tool", "status": "implemented"}},
+    )
     repo = _write_repo(tmp_path, state, src_impl='name="other"')
     result = gate.run_all(repo)
     assert any(f["check"] == "C3" and "ghost_tool" in f["detail"] for f in result["findings"])
 
 
 def test_c3_implemented_symbol_present(tmp_path):
-    state = dict(BASE_STATE, project={**BASE_STATE["project"],
-                                      "tool": {"name": "real_tool", "status": "implemented"}})
+    state = dict(
+        BASE_STATE,
+        project={**BASE_STATE["project"], "tool": {"name": "real_tool", "status": "implemented"}},
+    )
     repo = _write_repo(tmp_path, state, src_impl='name="real_tool"')
     result = gate.run_all(repo)
     assert not any(f["check"] == "C3" for f in result["findings"])
@@ -133,3 +156,51 @@ def test_real_repo_smoke():
         pytest.skip("STATE.yaml 不在预期位置")
     result = gate.run_all(root)
     assert "ok" in result and "findings" in result
+
+
+def test_c1_pending_release_is_a_warning(tmp_path):
+    """发布窗口：pyproject 已升版、STATE 仍记上一发布时，pending_release 让 C1 只告警。"""
+    state = dict(
+        BASE_STATE,
+        project={
+            **BASE_STATE["project"],
+            "current_release": "1.0.0",
+            "pending_release": "1.1.0",
+        },
+    )
+    repo = _write_repo(tmp_path, state, pyproject_ver="1.1.0", changelog_ver="1.1.0")
+    result = gate.run_all(repo)
+    assert result["ok"] is True
+    assert any(f["check"] == "C1" and "pending_release" in f["detail"] for f in result["findings"])
+
+
+def test_c1_pending_release_mismatch_is_an_error(tmp_path):
+    """pending_release 只在等于 pyproject 版本时豁免；写成别的版本仍是漂移。"""
+    state = dict(
+        BASE_STATE,
+        project={
+            **BASE_STATE["project"],
+            "current_release": "1.0.0",
+            "pending_release": "9.9.9",
+        },
+    )
+    repo = _write_repo(tmp_path, state, pyproject_ver="1.1.0", changelog_ver="1.1.0")
+    result = gate.run_all(repo)
+    assert result["ok"] is False
+    assert any(f["check"] == "C1" and f["severity"] == "ERROR" for f in result["findings"])
+
+
+def test_c1_changelog_must_match_pyproject_during_release(tmp_path):
+    """CHANGELOG 头描述的是正在开发的版本（pyproject），不是上一发布。"""
+    state = dict(
+        BASE_STATE,
+        project={
+            **BASE_STATE["project"],
+            "current_release": "1.0.0",
+            "pending_release": "1.1.0",
+        },
+    )
+    repo = _write_repo(tmp_path, state, pyproject_ver="1.1.0", changelog_ver="1.0.0")
+    result = gate.run_all(repo)
+    assert result["ok"] is False
+    assert any(f["check"] == "C1" and "CHANGELOG" in f["detail"] for f in result["findings"])

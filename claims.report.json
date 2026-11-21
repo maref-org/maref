@@ -1,8 +1,8 @@
 {
   "spec_version": 1,
-  "generated_at": "2026-11-21T05:06:43+00:00",
+  "generated_at": "2026-11-21T05:15:35+00:00",
   "summary": {
-    "PASS": 9,
+    "PASS": 10,
     "FAIL": 0,
     "ERROR": 0
   },
@@ -32,9 +32,17 @@
       "detail": ""
     },
     {
+      "id": "version.citation",
+      "statement": "CITATION.cff 声明的版本（学术引用面）",
+      "value": "0.55.3",
+      "expectation": "same_as version.api",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "id": "tests.functions",
       "statement": "tests/ 下 test_* 函数数量（下限口径，非 pytest collect 数）",
-      "value": "16321",
+      "value": "16330",
       "expectation": ">= 16000",
       "status": "PASS",
       "detail": ""
