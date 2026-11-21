@@ -1,7 +1,7 @@
 {
   "name": "gui",
   "private": true,
-  "version": "0.55.2",
+  "version": "0.55.3",
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {

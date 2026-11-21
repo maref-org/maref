@@ -128,6 +128,13 @@ def check_versions() -> dict[str, str]:
             continue
 
         content = path.read_text()
+        # STATE.yaml 发布窗口：pending_release 与目标版本一致时视为已同步
+        # （current_release 仍描述"上一次已发布"，由 release 流程最后提升）。
+        if name == "STATE.yaml":
+            pending = re.search(r"^  pending_release:\s*([^\s#]+)", content, re.MULTILINE)
+            if pending and pending.group(1) == source_version:
+                results[name] = f"{pending.group(1)} (pending)"
+                continue
         match = re.search(config["pattern"], content, re.MULTILINE)
         if match:
             try:
@@ -174,6 +181,21 @@ def sync_version(target_version: str | None = None) -> bool:
 
         content = path.read_text()
         pattern = config["pattern"]
+
+        # STATE.yaml：发布窗口内只更新 pending_release，绝不把未发布的版本写成
+        # current_release（否则等于声称"已发布"）。发布完成后再删除该字段。
+        if name == "STATE.yaml" and re.search(r"^  pending_release:", content, re.MULTILINE):
+            new_content, count = re.subn(
+                r"^  pending_release:\s*[^\s#]+",
+                f"  pending_release: {target_version}",
+                content,
+                count=1,
+                flags=re.MULTILINE,
+            )
+            if count:
+                path.write_text(new_content)
+                print(f"  UPDATED {name}: pending_release = {target_version}")
+            continue
 
         if name == "CHANGELOG.md":
             # Special handling for CHANGELOG - add new header if not exists

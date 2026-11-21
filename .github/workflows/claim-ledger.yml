@@ -55,6 +55,11 @@ jobs:
       - name: Verify public claims
         run: python scripts/claims.py --check
 
+      - name: Verify version sites are consistent
+        # 版本位点由 scripts/sync_version.py 统一管理（otel / mcp_bridge / gui / uv.lock / STATE）。
+        # 2026-11-21：手工改版本漏掉 otel/mcp_bridge，CI 的 otel 测试才抓到——这里提前拦。
+        run: python scripts/sync_version.py --check
+
       - name: Verify audit probes are stdlib-only
         run: python -S scripts/claims_probe.py audit_tamper
 
