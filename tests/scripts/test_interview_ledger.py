@@ -238,3 +238,51 @@ def test_cli_default_ledger_path_works(flag: str, capsys) -> None:
     """默认路径指向真实账本；无论哪个子命令都不能因路径写错而崩。"""
     assert ledger.main([flag]) in (0, 1, 3)
     capsys.readouterr()
+
+
+# ---------------------------------------------------------------- 递归 PII 扫描
+
+
+def test_nested_pii_key_is_rejected() -> None:
+    findings = ledger.validate_ledger(
+        {"interviews": [_entry(would_buy={"signal": "none", "name": "张总"})]}
+    )
+    errors = [f for f in findings if f.level == "ERROR"]
+    assert any("would_buy.name" in f.detail for f in errors), errors
+
+
+def test_phone_in_free_text_is_rejected() -> None:
+    findings = ledger.validate_ledger(
+        {"interviews": [_entry(notes="他说有问题可以打 13800000000 找他")]}
+    )
+    errors = [f for f in findings if f.level == "ERROR"]
+    assert any("手机号" in f.detail for f in errors), errors
+
+
+def test_email_in_free_text_is_rejected() -> None:
+    findings = ledger.validate_ledger(
+        {"interviews": [_entry(notes="后续材料发 zhang@example.com")]}
+    )
+    errors = [f for f in findings if f.level == "ERROR"]
+    assert any("邮箱" in f.detail for f in errors), errors
+
+
+def test_wechat_id_in_free_text_is_rejected() -> None:
+    findings = ledger.validate_ledger(
+        {"interviews": [_entry(notes="微信：zhangsan_2026 可以联系")]}
+    )
+    errors = [f for f in findings if f.level == "ERROR"]
+    assert any("微信号" in f.detail for f in errors), errors
+
+
+def test_plain_free_text_is_allowed() -> None:
+    findings = ledger.validate_ledger(
+        {"interviews": [_entry(notes="客户要求第三方复核，内部走了 3 周流程")]}
+    )
+    assert findings == []
+
+
+def test_unsupported_schema_is_rejected() -> None:
+    findings = ledger.validate_ledger({"schema": 2, "interviews": []})
+    errors = [f for f in findings if f.level == "ERROR"]
+    assert any("schema 版本不支持" in f.detail for f in errors), errors

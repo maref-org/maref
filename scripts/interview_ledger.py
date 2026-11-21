@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from dataclasses import dataclass
 from datetime import date
@@ -66,6 +67,13 @@ ALLOWED_ROOT_KEYS = {
 # `switched` 不在必填项里：它由 spend_cny / hours_wasted 推导，不接受手填。
 REQUIRED_ENTRY_KEYS = {"id", "date", "persona", "consent", "would_buy"}
 
+# 自由文本（如 notes）里最常见的三类个人信息。键名可以被规避，值不会。
+_PII_VALUE_PATTERNS = {
+    "手机号": re.compile(r"(?<!\d)1[3-9]\d{9}(?!\d)"),
+    "邮箱": re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"),
+    "微信号": re.compile(r"(?:微信|wechat|weixin)\s*[:：]?\s*([A-Za-z][-_A-Za-z0-9]{5,19})", re.I),
+}
+
 _EXIT_OK = 0
 _EXIT_INVALID = 1
 _EXIT_USAGE = 2
@@ -87,6 +95,33 @@ def _as_int(value: Any) -> int:
     return int(value)
 
 
+def _walk(node: Any, path: str = ""):
+    """递归遍历账本，产出 (路径, 键, 值)。PII 检测必须覆盖嵌套对象。"""
+    if isinstance(node, dict):
+        for key, value in node.items():
+            child = f"{path}.{key}".lstrip(".")
+            yield child, str(key), value
+            yield from _walk(value, child)
+    elif isinstance(node, list):
+        for index, value in enumerate(node):
+            yield from _walk(value, f"{path}[{index}]")
+
+
+def _check_pii(entry: dict[str, Any], where: str) -> list[Finding]:
+    findings: list[Finding] = []
+    for path, key, value in _walk(entry):
+        if key.lower() in FORBIDDEN_KEYS:
+            findings.append(Finding("ERROR", where, f"禁止记录个人信息字段: {path}"))
+            continue
+        if not isinstance(value, str):
+            continue
+        for label, pattern in _PII_VALUE_PATTERNS.items():
+            if pattern.search(value):
+                findings.append(Finding("ERROR", where, f"{path} 含疑似{label}"))
+                break
+    return findings
+
+
 def _check_artifacts(entry: dict[str, Any], findings: list[Finding]) -> None:
     artifacts = entry.get("artifacts") or []
     if not isinstance(artifacts, list):
@@ -106,9 +141,7 @@ def validate_entry(entry: dict[str, Any], index: int) -> list[Finding]:
     if missing:
         findings.append(Finding("ERROR", where, f"缺少字段: {sorted(missing)}"))
 
-    leaked = FORBIDDEN_KEYS & set(entry)
-    if leaked:
-        findings.append(Finding("ERROR", where, f"禁止记录个人信息字段: {sorted(leaked)}"))
+    findings.extend(_check_pii(entry, where))
 
     persona = entry.get("persona")
     if persona is not None and persona not in PERSONAS:
@@ -158,6 +191,9 @@ def validate_ledger(data: dict[str, Any]) -> list[Finding]:
     findings = (
         [Finding("WARNING", "root", f"未知顶层键: {sorted(unknown_root)}")] if unknown_root else []
     )
+    schema = data.get("schema")
+    if schema is not None and schema != 1:
+        findings.append(Finding("ERROR", "root", f"schema 版本不支持: {schema!r}（当前仅支持 1）"))
 
     seen: set[str] = set()
     for index, entry in enumerate(data["interviews"]):
