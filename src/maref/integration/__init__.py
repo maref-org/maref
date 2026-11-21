@@ -10,12 +10,26 @@ M6: Provides clean interfaces for plugging MAREF into:
 - LLM Gateway routing decisions
 """
 
+from typing import TYPE_CHECKING, Any
+
 from maref.integration.a2a_bridge import A2ABridge, CommunicationBlockedError
 from maref.integration.a2a_client import A2AClient
 from maref.integration.a2a_discovery import A2ADiscovery
 from maref.integration.a2a_secure_transport import A2ASecureTransport, CertificateManager
 from maref.integration.a2a_semantic_guard import SemanticDecision, SemanticIntegrityGuard
-from maref.integration.a2a_server import create_a2a_router
+
+if TYPE_CHECKING:  # pragma: no cover - 仅供类型检查，运行时走下面的容错导入
+    from maref.integration.a2a_server import create_a2a_router
+else:
+    try:  # FastAPI 仅随 [sidecar] extra 安装；CLI 启动不应因缺它而失败
+        from maref.integration.a2a_server import create_a2a_router
+    except ImportError:  # pragma: no cover - 取决于实际安装的 extras
+
+        def create_a2a_router(*args: Any, **kwargs: Any) -> Any:
+            """Placeholder when FastAPI (``maref[sidecar]``) is not installed."""
+            raise ImportError("create_a2a_router 需要 FastAPI：pip install 'maref[sidecar]'")
+
+
 from maref.integration.a2a_types import (
     A2A_PROTOCOL_VERSION,
     A2ASkillDefinition,

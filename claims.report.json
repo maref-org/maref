@@ -1,0 +1,91 @@
+{
+  "spec_version": 1,
+  "generated_at": "2026-11-21T05:15:35+00:00",
+  "summary": {
+    "PASS": 10,
+    "FAIL": 0,
+    "ERROR": 0
+  },
+  "claims": [
+    {
+      "id": "version.api",
+      "statement": "Python 包版本（maref.__version__）",
+      "value": "0.55.3",
+      "expectation": "same_as version.pyproject",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "version.pyproject",
+      "statement": "pyproject.toml 中的项目版本",
+      "value": "0.55.3",
+      "expectation": "same_as version.api",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "version.readme_badge",
+      "statement": "README 徽章展示的版本",
+      "value": "0.55.3",
+      "expectation": "same_as version.api",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "version.citation",
+      "statement": "CITATION.cff 声明的版本（学术引用面）",
+      "value": "0.55.3",
+      "expectation": "same_as version.api",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "tests.functions",
+      "statement": "tests/ 下 test_* 函数数量（下限口径，非 pytest collect 数）",
+      "value": "16330",
+      "expectation": ">= 16000",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "coverage.gate",
+      "statement": "pytest-cov 强制覆盖率门槛（公开仓 50；开发仓旧值 15）",
+      "value": "50",
+      "expectation": "equals 50",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "deps.direct",
+      "statement": "pyproject.toml 直接运行时依赖数量（含 gmssl / cryptography）",
+      "value": "11",
+      "expectation": "equals 11",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "sdk.package_name",
+      "statement": "TypeScript SDK 的真实 npm 包名（README 必须与之一致）",
+      "value": "@maref-org/sdk",
+      "expectation": "equals @maref-org/sdk",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "audit.tamper_detect",
+      "statement": "审计链能检出被篡改的记录",
+      "value": "detected",
+      "expectation": "equals detected",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "audit.key_rotation",
+      "statement": "换钥/错钥只标 unverifiable，不误判为篡改",
+      "value": "unverifiable",
+      "expectation": "equals unverifiable",
+      "status": "PASS",
+      "detail": ""
+    }
+  ]
+}

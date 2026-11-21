@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "maref"
-version = "0.55.2"
+version = "0.55.3"
 description = "Multi-Agent Recursive Engineering Framework"
 readme = "README.md"
 license = {text = "Apache-2.0"}
@@ -33,6 +33,12 @@ dependencies = [
     "defusedxml>=0.7.1",
     "psutil>=5.9",
     "aiohttp>=3.9",
+    # gmssl 与 cryptography 是导入期/运行时硬依赖：
+    # maref.crypto 在包导入时加载 SM2/SM3/SM4（gmssl），
+    # 审计链的 Ed25519 签名与 a2a_secure_transport 用 cryptography。
+    # 放在 base 而非 [identity]，否则 `pip install maref` 后 CLI 直接 ImportError。
+    "gmssl>=3.2.2",
+    "cryptography>=42.0",
 ]
 
 [project.urls]
@@ -61,9 +67,7 @@ a2a = [
     "a2a-sdk>=1.0",
 ]
 identity = [
-    "cryptography>=42.0",
     "jwcrypto>=1.5",
-    "gmssl>=3.2.2",
 ]
 orchestration = [
     "networkx>=3.0",
@@ -102,7 +106,8 @@ audit = [
     "transformer_lens>=0.2",
 ]
 all = [
-    "maref[ml,sidecar,dev,desktop,sentinel,audit]",
+    # 必须覆盖全部 extra（曾经漏掉 identity，导致 `pip install maref[all]` 后 CLI 仍崩）
+    "maref[ml,sidecar,dev,desktop,sentinel,audit,identity,a2a,orchestration,otel]",
 ]
 
 [project.scripts]

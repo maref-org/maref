@@ -5,8 +5,8 @@ type: software
 authors:
   - name: "MAREF Team"
     affiliation: "MAREF Project"
-version: "0.35.0-beta"
-date-released: "2026-06-25"
+version: "0.55.3"
+date-released: "2026-11-21"
 license: Apache-2.0
 license-url: "https://www.apache.org/licenses/LICENSE-2.0"
 repository-code: "https://github.com/maref-org/maref"

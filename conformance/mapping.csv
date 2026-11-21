@@ -1,0 +1,11 @@
+control_id,control,owasp_asi,gbz_185,nist_tenet,eu_ai_act
+AG-01,Agent identity present and signed,ASI03 Identity & Privilege Abuse,185.2 Identity code / 185.3 Identity management,01 Distinct Agent Identification,Art 12 / Art 15
+AG-02,Every tool call is bound to a policy,ASI01 Agent Goal Hijack / ASI02 Tool Misuse,185.7 Tool invocation,06 Mandates and Constraints / 07 Separation of Policy from Reasoning,Art 12 / Art 15
+AG-03,Explicit allow/deny/escalate decision,ASI01 / ASI02,185.7 Tool invocation,07 Separation of Policy from Reasoning,Art 14 / Art 15
+AG-04,Least privilege against the tool manifest,ASI02 / ASI03,185.7 Tool invocation,03 Least and Zero Standing Privilege,Art 15
+AG-05,Hash chain linkage,ASI08 Cascading Failures,185.3 Identity management,08 Tamper-evident evidence chain,Art 12
+AG-06,Payload hash integrity,ASI04 Agentic Supply Chain,185.3 Identity management,08 Tamper-evident evidence chain,Art 12
+AG-07,Human approval for high-risk actions,ASI09 Human-Agent Trust Exploitation,185.6 Agent interaction,05 Human-in-the-Loop Triggers,Art 14
+AG-08,Tool supply-chain binding,ASI04 Agentic Supply Chain,185.4 Agent description / 185.7 Tool invocation,06 Mandates and Constraints,Art 15
+AG-09,Data classification for external calls,ASI06 Memory & Context Poisoning,185.1 Overall architecture,04 Short-Lived Dynamic Authorization,Art 10 / Art 12
+AG-10,Trace completeness (sequence + timestamps),ASI08 Cascading Failures,185.6 Agent interaction,08 Tamper-evident evidence chain,Art 12

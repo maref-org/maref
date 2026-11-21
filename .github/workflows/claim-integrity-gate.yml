@@ -5,7 +5,7 @@
 #   - 每日自动对账 STATE.yaml 自声称面 vs 仓库实证（版本三角/引用路径/
 #     implemented 符号/宪法版本/pre-push 钩子）
 #   - PR 触碰 STATE.yaml / pyproject.toml / CHANGELOG.md 时增量校验
-#   - 影子模式（advisory）：drift 只建 Issue 不阻断，收集误报率后再转 blocking
+#   - PR / main push：阻断（blocking）；定时任务：advisory 只建 Issue（2026-11-21 起）
 #   - 复用 anti-decorative-compliance 方法论：纸面声称必须可核验
 # ──────────────────────────────────────────────────────────────────────
 
@@ -38,6 +38,7 @@ on:
 permissions:
   contents: read
   issues: write
+  actions: read  # C6 需要读 workflow run 证据（缺 token 会把 4 个指针误判为不可解析）
 
 jobs:
   claim-gate:
@@ -58,11 +59,19 @@ jobs:
 
       - name: Run claim integrity gate
         id: gate
+        env:
+          # 缺 GH_TOKEN 时 `gh api` 会失败，C6 把 4 个证据指针全判为"不可解析"
+          # （issue #507 的真实根因是工作流没给 token，而不是 STATE 有问题）。
+          GH_TOKEN: ${{ github.token }}
         run: |
           set +e
           # 定时/PR 默认影子模式；workflow_dispatch 可显式 blocking
           # 注意: tee 在管道尾部，须用 PIPESTATUS 捕获 python 退出码（否则 blocking 永不触发）
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.blocking }}" = "true" ]; then
+          # 2026-11-21：影子期结束。PR 与 main push 一律阻断——版本漂移正是它存在的理由，
+          # 宽恕它就是装饰性合规。定时任务无 PR 可拦，仍走 advisory（只建 Issue）。
+          if [ "${{ github.event_name }}" = "pull_request" ] || [ "${{ github.event_name }}" = "push" ]; then
+            python3 scripts/claim_integrity_gate.py --json | tee claim_gate.json
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.blocking }}" = "true" ]; then
             python3 scripts/claim_integrity_gate.py --json | tee claim_gate.json
           else
             python3 scripts/claim_integrity_gate.py --json --advisory | tee claim_gate.json

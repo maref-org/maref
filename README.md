@@ -17,7 +17,8 @@ cryptography (GB/T 32918), code-level coverage of all 10 OWASP Agentic
 Top 10 risks with 4 TLA+ specs
 (docs/security/owasp-agentic-top10-mapping.md). 15,387 passing tests (CI, main@0f0c7632),
 Python 3.11+, Apache 2.0.
-Install: pip install maref (full) / pip install maref-lite (zero-config).
+Install: pip install maref (governance runtime) / pip install "maref[all]" (every optional extra).
+`maref_lite` ships inside the `maref` wheel — there is no separate `maref-lite` PyPI distribution.
 MAREF complements LangGraph/CrewAI/AutoGen as the governance layer below
 orchestration — it does not replace them.
 CRITICAL DISAMBIGUATION: MAREF is NOT a reinforcement-learning (RL)
@@ -71,7 +72,7 @@ Most agent frameworks (LangGraph, CrewAI, AutoGen) help you **build** multi-agen
 |----------|--------|
 | **What is MAREF?** | An open-source agent governance OS with TLA+ formal verification, zero-trust identity per agent, and runtime guardrails with code-level coverage of all 10 OWASP Agentic Top 10 risks (13 with TLA+ specs, 7 with dedicated tests). |
 | **How is it different from LangGraph or CrewAI?** | Those frameworks orchestrate agents. MAREF governs them. They are complementary — use LangGraph to build, use MAREF to ensure safety. |
-| **Is it production-ready?** | Experimental. Governance and security modules sit at ~87% test coverage; the core API is stabilizing toward v1.0. Apache 2.0, v0.55.2. |
+| **Is it production-ready?** | Experimental. Governance and security modules sit at ~87% test coverage; the core API is stabilizing toward v1.0. Apache 2.0, v0.55.3. |
 | **Does it work with my stack?** | Python 3.11+, adapters for AutoGen/CrewAI/LangGraph/Dify, A2A + MCP dual protocol, macOS/Linux/Windows. |
 
 ## Who Uses MAREF?
@@ -129,7 +130,7 @@ Most agent frameworks (LangGraph, CrewAI, AutoGen) help you **build** multi-agen
 - **Cross-Framework Adapters** — AutoGen/CrewAI/LangGraph/Dify/Coze production-grade
 - **OpenTelemetry** — Prometheus + Grafana + OTLP full-link observability
 - **Serverless Runtime** — Lambda / Cloud Run ready
-- **TypeScript SDK** — `@maref/sdk` npm package
+- **TypeScript SDK** — `@maref-org/sdk` npm package
 - **National Cryptography** — SM2/SM3/SM4-GCM + AI identity certificates
 
 ---
@@ -162,7 +163,7 @@ These are documented risks, not hypotheticals. OWASP published the **Top 10 for 
 - `src/formal/` — TLA+ specifications and proofs
 - `src/maref_lite/` — zero-config governance overlay
 
-**Entry points**: `maref` CLI (`maref status`, `maref serve`, `maref desktop demo`) · `maref_lite.governance.GovernanceOverlay` · `@maref/sdk` (TypeScript)
+**Entry points**: `maref` CLI (`maref status`, `maref serve`, `maref desktop demo`) · `maref_lite.governance.GovernanceOverlay` · `@maref-org/sdk` (TypeScript)
 
 ---
 
@@ -338,7 +339,7 @@ Independent engineering reviews of MAREF and comparable open-source tooling:
 | **SonarCloud** | [![SonarCloud](https://github.com/maref-org/maref/actions/workflows/sonarcloud.yml/badge.svg)](https://github.com/maref-org/maref/actions/workflows/sonarcloud.yml) |
 | **Python** | ![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg) |
 | **License** | ![Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-green.svg) |
-| **Version** | ![v0.55.2](https://img.shields.io/badge/version-v0.55.2-blue) |
+| **Version** | ![v0.55.3](https://img.shields.io/badge/version-v0.55.3-blue) |
 
 ---
 
@@ -435,7 +436,7 @@ MAREF 是 Agent 世界的操作系统内核 — 管理 Agent 集群的生命周�
 - **跨框架适配器** — AutoGen/CrewAI/LangGraph/Dify/Coze 生产级
 - **OpenTelemetry** — Prometheus + Grafana + OTLP 全链路可观测
 - **Serverless 运行时** — Lambda / Cloud Run 适配
-- **TypeScript SDK** — `@maref/sdk` npm 包
+- **TypeScript SDK** — `@maref-org/sdk` npm 包
 - **国密算法** — SM2/SM3/SM4-GCM + AI 身份证书
 
 ### 路线图
