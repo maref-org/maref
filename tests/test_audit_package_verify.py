@@ -108,8 +108,8 @@ def test_missing_audit_file_fails(tmp_path: Path) -> None:
         ["audit", "verify", "-f", str(tmp_path / "missing.jsonl")],
     )
 
-    assert result.exit_code == 1
-    assert "Audit log not found" in result.output
+    assert result.exit_code == 2
+    assert "AUDIT LOG NOT FOUND" in result.output
 
 
 def test_missing_public_key_fails(tmp_path: Path) -> None:
@@ -120,7 +120,7 @@ def test_missing_public_key_fails(tmp_path: Path) -> None:
         ["audit", "verify", "-f", str(log_path), "-k", str(tmp_path / "missing.pem")],
     )
 
-    assert result.exit_code == 1
+    assert result.exit_code == 2
     assert "Public key file not found" in result.output
 
 

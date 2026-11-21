@@ -98,6 +98,43 @@ def coverage_gate() -> str:
     return str(data["tool"]["coverage"]["report"]["fail_under"])
 
 
+def readme_tests_floor() -> str:
+    """README 对外声明的测试数量下限（必须与 claims.yaml 的地板一致）。
+
+    规则：README 只允许写"N,NNN+ test functions"这种**下限**表述，
+    不接受"15,387 passing tests"这类绑定到某个旧 commit 的精确数——
+    它一过期就变成不可复算的对外数字。
+    """
+    match = re.search(r"([0-9][0-9,]*)\+?\s*test functions", _readme())
+    if not match:
+        raise SystemExit("probe readme_tests_floor: 'N,NNN+ test functions' 未找到")
+    return str(int(match.group(1).replace(",", "")))
+
+
+def coverage_state() -> str:
+    """STATE.yaml 记录的最近一次实测综合覆盖率（两位小数）。"""
+    text = (ROOT / "STATE.yaml").read_text(encoding="utf-8")
+    match = re.search(r"coverage\.py\s*综合\s*([0-9]+(?:\.[0-9]+)?)%", text)
+    if not match:
+        raise SystemExit("probe coverage_state: STATE.yaml 未记录 coverage.py 综合覆盖率")
+    return f"{float(match.group(1)):.2f}"
+
+
+def coverage_readme_badge() -> str:
+    """README 健康表徽章的覆盖率（必须等于 STATE.yaml 的实测值）。
+
+    同时拒绝把"~87% test coverage"这类无来源聚合数重新写回 README。
+    """
+    text = _readme()
+    stale = re.search(r"~\s*[0-9]{1,3}\s*%\s*test coverage", text, re.IGNORECASE)
+    if stale:
+        raise SystemExit(f"probe coverage_readme_badge: 发现无来源聚合数 {stale.group(0)!r}")
+    match = re.search(r"badge/coverage-([0-9]+(?:\.[0-9]+)?)", text)
+    if not match:
+        raise SystemExit("probe coverage_readme_badge: coverage 徽章未找到")
+    return f"{float(match.group(1)):.2f}"
+
+
 def _audit_fixture(directory: str, key: str) -> Path:
     audit = _load_source("_claim_audit", "src/maref/governance/audit.py")
     path = Path(directory) / "audit.jsonl"
@@ -153,6 +190,9 @@ PROBES = {
     "count_tests": count_tests,
     "count_deps": count_deps,
     "coverage_gate": coverage_gate,
+    "readme_tests_floor": readme_tests_floor,
+    "coverage_state": coverage_state,
+    "coverage_readme_badge": coverage_readme_badge,
     "audit_tamper": audit_tamper,
     "audit_rotation": audit_rotation,
 }

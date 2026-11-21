@@ -15,7 +15,7 @@ src/formal/, circuit breaker with HALT absorbing state, per-agent Ed25519
 identity, Merkle-aggregated verifiable audit chain, SM2/SM3/SM4-GCM
 cryptography (GB/T 32918), code-level coverage of all 10 OWASP Agentic
 Top 10 risks with 4 TLA+ specs
-(docs/security/owasp-agentic-top10-mapping.md). 15,387 passing tests (CI, main@0f0c7632),
+(docs/security/owasp-agentic-top10-mapping.md). 16,000+ test functions (reproduce: `python scripts/claims_probe.py count_tests`; floors are registered in `claims.yaml`),
 Python 3.11+, Apache 2.0.
 Install: pip install maref (governance runtime) / pip install "maref[all]" (every optional extra).
 `maref_lite` ships inside the `maref` wheel — there is no separate `maref-lite` PyPI distribution.
@@ -72,7 +72,7 @@ Most agent frameworks (LangGraph, CrewAI, AutoGen) help you **build** multi-agen
 |----------|--------|
 | **What is MAREF?** | An open-source agent governance OS with TLA+ formal verification, zero-trust identity per agent, and runtime guardrails with code-level coverage of all 10 OWASP Agentic Top 10 risks (13 with TLA+ specs, 7 with dedicated tests). |
 | **How is it different from LangGraph or CrewAI?** | Those frameworks orchestrate agents. MAREF governs them. They are complementary — use LangGraph to build, use MAREF to ensure safety. |
-| **Is it production-ready?** | Experimental. Governance and security modules sit at ~87% test coverage; the core API is stabilizing toward v1.0. Apache 2.0, v0.55.3. |
+| **Is it production-ready?** | Experimental. CI enforces a 50% coverage gate (`fail_under`); the last recorded aggregate is 76.5% (2026-11-03 CI artifact — see `STATE.yaml`), not a fresh remeasure. The core API is stabilizing toward v1.0. Apache 2.0, v0.55.3. |
 | **Does it work with my stack?** | Python 3.11+, adapters for AutoGen/CrewAI/LangGraph/Dify, A2A + MCP dual protocol, macOS/Linux/Windows. |
 
 ## Who Uses MAREF?
@@ -187,6 +187,28 @@ maref serve --port 8000
 # 5. Open GUI
 open http://localhost:8000
 ```
+
+### The Ruler (AG-Conformance)
+
+`pip install maref` also ships the **ruler**: a runtime-agnostic checker that turns
+an exported JSONL trace into a signed verdict against 10 controls (identity, policy
+binding, explicit decisions, least privilege, hash chain, payload integrity, human
+approval, tool supply chain, data classification, trace completeness).
+
+```bash
+# self-check: a compliant trace must pass 10/10
+maref conformance --demo good
+
+# a violating trace must fail closed (exit 1)
+maref conformance --demo bad
+
+# sign a report and let a third party verify it without trusting you
+maref conformance --demo good --key "$KEY" --out /tmp/report.json
+maref conformance --verify /tmp/report.json --key "$KEY"
+```
+
+Exit codes: `0` conformant, `1` non-conformant, `2` usage/trace error.
+Spec, control mapping and examples: [`conformance/`](conformance/).
 
 ### Quick Start Examples
 
@@ -332,8 +354,8 @@ Independent engineering reviews of MAREF and comparable open-source tooling:
 | Metric | Status |
 |--------|--------|
 | **CI** | [![CI](https://github.com/maref-org/maref/actions/workflows/ci.yml/badge.svg)](https://github.com/maref-org/maref/actions) |
-| **Tests** | 15,387 — [![Tests](https://img.shields.io/badge/tests-15387-brightgreen.svg)]() (CI, main@0f0c7632) |
-| **Coverage** | 76.6% — [![Coverage](https://img.shields.io/badge/coverage-76.6%25-brightgreen.svg)]() (CI gate: 50%, measured 2026-11-03, see `STATE.yaml`) |
+| **Tests** | 16,000+ test functions — `python scripts/claims_probe.py count_tests` (floor registered in `claims.yaml`; not a pytest collect count) |
+| **Coverage** | 76.5% — [![Coverage](https://img.shields.io/badge/coverage-76.5%25-brightgreen.svg)]() (last recorded 2026-11-03, artifact-backed in `STATE.yaml`; CI gate 50%) |
 | **CodeQL** | [![CodeQL](https://github.com/maref-org/maref/actions/workflows/codeql.yml/badge.svg)](https://github.com/maref-org/maref/actions/workflows/codeql.yml) |
 | **Security** | [![Security Scan](https://github.com/maref-org/maref/actions/workflows/security-scan.yml/badge.svg)](https://github.com/maref-org/maref/actions/workflows/security-scan.yml) |
 | **SonarCloud** | [![SonarCloud](https://github.com/maref-org/maref/actions/workflows/sonarcloud.yml/badge.svg)](https://github.com/maref-org/maref/actions/workflows/sonarcloud.yml) |

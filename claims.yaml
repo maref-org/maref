@@ -55,6 +55,24 @@ claims:
     expect:
       equals: "50"
 
+  - id: tests.readme_floor
+    statement: README 对外测试数量下限（必须等于 claims 里的地板，禁止写成某个旧 commit 的精确数）
+    command: [python3, scripts/claims_probe.py, readme_tests_floor]
+    expect:
+      equals: "16000"
+
+  - id: coverage.state
+    statement: STATE.yaml 记录的最近一次实测综合覆盖率
+    command: [python3, scripts/claims_probe.py, coverage_state]
+    expect:
+      equals: "76.50"
+
+  - id: coverage.readme_badge
+    statement: README 覆盖率徽章（必须等于 STATE.yaml 实测值；拒绝无来源聚合数）
+    command: [python3, scripts/claims_probe.py, coverage_readme_badge]
+    expect:
+      same_as: coverage.state
+
   - id: deps.direct
     statement: pyproject.toml 直接运行时依赖数量（含 gmssl / cryptography）
     command: [python3, scripts/claims_probe.py, count_deps]

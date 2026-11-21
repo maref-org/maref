@@ -193,6 +193,41 @@ def rollback(
     console.print("  e.g. maref rollback v0.34.0")
 
 
+@app.command("conformance")
+def conformance_cmd(
+    demo: str = typer.Option("", "--demo", help="内置 fixture：good | bad"),
+    trace: str = typer.Option("", "--trace", help="外部 runtime 导出的 JSONL trace"),
+    out: str = typer.Option("", "--out", help="JSON 报告输出路径（默认 stdout）"),
+    md: str = typer.Option("", "--md", help="Markdown 报告输出路径"),
+    key: str = typer.Option("", "--key", help="HMAC 签名/验签密钥（或 MAREF_CONFORMANCE_KEY）"),
+    verify: str = typer.Option("", "--verify", help="验证一份已签名报告"),
+    export_trace: str = typer.Option("", "--export-trace", help="把 demo trace 写到该路径"),
+    quiet: bool = typer.Option(False, "--quiet", help="不打印 VERDICT 行"),
+) -> None:
+    """Run the AG-Conformance suite（10 项控制；输出可签名、可第三方验签的报告）。
+
+    Exit codes: 0 conformant / 1 non-conformant / 2 usage or trace error.
+    """
+    from maref.conformance.cli import main as conformance_main
+
+    argv: list[str] = []
+    for flag, value in (
+        ("--demo", demo),
+        ("--trace", trace),
+        ("--out", out),
+        ("--md", md),
+        ("--key", key),
+        ("--verify", verify),
+        ("--export-trace", export_trace),
+    ):
+        if value:
+            argv += [flag, value]
+    if quiet:
+        argv.append("--quiet")
+
+    raise typer.Exit(conformance_main(argv))
+
+
 @app.command()
 def status(
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed status"),
@@ -815,6 +850,14 @@ def audit_show(
         console.print("[dim]No matching audit entries.[/dim]")
 
 
+def _is_json_object(line: str) -> bool:
+    """审计日志的一行是否是可解析的 JSON 对象。"""
+    try:
+        return isinstance(json.loads(line), dict)
+    except (json.JSONDecodeError, TypeError):
+        return False
+
+
 def _load_audit_package_entries(path: Path) -> list[dict[str, Any]] | None:
     """Return entries from an exported audit package, or None for JSONL logs."""
     text = path.read_text(encoding="utf-8")
@@ -862,14 +905,17 @@ def audit_verify(
 
     Checks entry signatures (Ed25519 or HMAC-SHA256) and chain hash continuity.
     Returns VERIFIED/FAILED status with detailed report.
+
+    Exit codes: 0 = intact, 1 = tampered/unverifiable, 2 = input unusable
+    (missing file, empty log, or lines that are not JSON objects).
     """
     from maref.governance.audit import AuditLogger, resolve_audit_path
 
     path = Path(file) if file else _default_audit_log_path()
     resolved = resolve_audit_path(path)
     if not resolved.exists():
-        console.print(f"[red]Audit log not found: {resolved}[/red]")
-        raise typer.Exit(1)
+        console.print(f"[red]AUDIT LOG NOT FOUND: {resolved} (exit 2)[/red]")
+        raise typer.Exit(2)
     if str(resolved) != str(path):
         # 相对路径会被 MAREF_AUDIT_PATH 沙箱重定向；必须让用户看到真正读的文件。
         console.print(f"[dim]Resolved: {resolved}[/dim]")
@@ -881,11 +927,39 @@ def audit_verify(
     if pubkey:
         key_path = Path(pubkey)
         if not key_path.exists():
-            console.print(f"[red]Public key file not found: {pubkey}[/red]")
-            raise typer.Exit(1)
+            console.print(f"[red]Public key file not found: {pubkey} (exit 2)[/red]")
+            raise typer.Exit(2)
         ed25519_pubkey_pem = key_path.read_text()
 
-    package_entries = _load_audit_package_entries(path)
+    try:
+        package_entries = _load_audit_package_entries(path)
+    except (OSError, UnicodeDecodeError):
+        package_entries = None
+
+    # 区分"输入不可解释"（exit 2）与"内容被篡改"（exit 1）。
+    # 旧版把空文件、乱码、被截断的日志都压成同一条 FAILED，调用方无法分辨
+    # "没有事件"和"被攻击"——对一份以备证为目的的产品，这个区别是核心语义。
+    if package_entries is None:
+        try:
+            raw = path.read_text(encoding="utf-8", errors="replace")
+        except OSError as exc:
+            console.print(f"[red]UNREADABLE: {exc} (exit 2)[/red]")
+            raise typer.Exit(2) from exc
+        lines = [line for line in raw.splitlines() if line.strip()]
+        if not lines:
+            console.print(
+                "[red]EMPTY: no audit entries in this file — nothing to verify (exit 2)[/red]"
+            )
+            raise typer.Exit(2)
+        bad = [index for index, line in enumerate(lines, 1) if not _is_json_object(line)]
+        if bad:
+            preview = ", ".join(str(index) for index in bad[:5])
+            console.print(
+                f"[red]UNREADABLE: {len(bad)} line(s) are not valid JSON objects "
+                f"(lines {preview}) — refusing to treat them as tampering (exit 2)[/red]"
+            )
+            raise typer.Exit(2)
+
     if package_entries is not None:
         result = _verify_audit_package(package_entries, ed25519_pubkey_pem)
     else:
