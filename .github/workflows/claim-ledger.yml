@@ -23,6 +23,9 @@ on:
       - "scripts/claims.py"
       - "scripts/claims_probe.py"
       - "tests/scripts/test_claims.py"
+      - "scripts/interview_ledger.py"
+      - "tests/scripts/test_interview_ledger.py"
+      - "docs/research/interviews/ledger.yaml"
   pull_request:
     branches: [main, develop]
     paths:
@@ -32,6 +35,9 @@ on:
       - "src/maref/__init__.py"
       - "scripts/claims.py"
       - "scripts/claims_probe.py"
+      - "scripts/interview_ledger.py"
+      - "tests/scripts/test_interview_ledger.py"
+      - "docs/research/interviews/ledger.yaml"
   workflow_dispatch:
 
 permissions:
@@ -63,5 +69,12 @@ jobs:
       - name: Verify audit probes are stdlib-only
         run: python -S scripts/claims_probe.py audit_tamper
 
+      - name: Verify interview ledger structure
+        # 市场验证账本也是"对外可引用的事实"：结构不合法（缺 consent / 有 PII /
+        # 声称付费但无金额）必须先在这里拦下，而不是等到对外材料里被发现。
+        run: python scripts/interview_ledger.py --check
+
       - name: Regression tests for the ledger itself
-        run: pytest tests/scripts/test_claims.py -q --no-cov -p no:cacheprovider
+        run: |
+          pytest tests/scripts/test_claims.py -q --no-cov -p no:cacheprovider
+          pytest tests/scripts/test_interview_ledger.py -q --no-cov -p no:cacheprovider

@@ -1,0 +1,41 @@
+# MAREF 切换访谈账本
+#
+# 校验：python3 scripts/interview_ledger.py --check
+# 评估：python3 scripts/interview_ledger.py --eval --json
+#
+# 只允许结构化的"角色 + 事实"。禁止写入姓名、手机、邮箱、微信等个人信息
+# （脚本会 fail-closed 拒绝）。同意必须显式为 true。
+#
+# 字段说明：
+#   id               INT-YYYYMMDD-NN
+#   date             YYYY-MM-DD（访谈发生日）
+#   persona          integrator | assessor | regulated_enterprise | platform | other
+#   consent          true 表示对方同意记录并可被引用（引用时仍只写角色）
+#   spend_cny        过去 12 个月为"证明 Agent 行为可核验"实际花掉的钱（对方口述，没说就 0）
+#   hours_wasted     同期团队为此贴进去的小时数（没说就 0）
+#   would_buy.signal none | interest | trial | quote_requested | paid
+#                    interest 及以下不算信号；trial/quote_requested 必须给 amount_cny
+#   would_buy.amount_cny  对方口述的金额或报价区间下限（整数，人民币）
+#   would_buy.when   对方说的采购/试用时间窗口（自由文本，如 "2027Q1 预算"）
+#   artifacts        脱敏证据文件路径（相对仓库根），必须真实存在
+#   notes            一句话事实，不写评价、不写推断
+
+schema: 1
+interviews: []
+
+# ---- 填写示例（去掉注释后按实际事实替换，不要照抄数字）----
+#
+# interviews:
+#   - id: INT-20261125-01
+#     date: '2026-11-25'
+#     persona: integrator
+#     consent: true
+#     spend_cny: 180000
+#     hours_wasted: 240
+#     would_buy:
+#       signal: quote_requested
+#       amount_cny: 50000
+#       when: '2027Q1 预算'
+#     artifacts:
+#       - docs/research/interviews/artifacts/INT-20261125-01-quote-excerpt.md
+#     notes: '为一个政务 Agent 项目补做了 3 周人工审计记录，甲方仍要求第三方复核'
