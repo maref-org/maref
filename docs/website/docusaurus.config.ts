@@ -20,6 +20,15 @@ const config: Config = {
   onBrokenLinks: 'throw',
   onBrokenMarkdownLinks: 'warn',
 
+  // 2026-11-22：Docusaurus 3 默认把 .md 当 MDX 解析，正文里任何 `{...}`
+  // （比如集合写法 `{1,2}` 或公式片段）都会被当成 JS 表达式 → 构建失败。
+  // 实测 blog 里 5 篇因此报 "Could not parse expression with acorn"。
+  // 改为 detect：不含 JSX/import 的 .md 按 CommonMark 解析，需要 MDX 的文件
+  // 用 .mdx 扩展名显式声明（docs/integrations/autogen）。
+  markdown: {
+    format: 'detect',
+  },
+
   i18n: {
     defaultLocale: 'en',
     locales: ['en', 'zh-CN'],
