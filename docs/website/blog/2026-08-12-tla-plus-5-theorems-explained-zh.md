@@ -1,7 +1,7 @@
 ---
 title: "MAREF 治理状态机的五个定理：TLA+ 形式化验证详解"
 slug: tla-plus-5-theorems-explained-zh
-authors: [maref-engineering]
+authors: [maref]
 tags: [formal-verification, tla-plus, gray-code, governance, state-machine]
 date: 2026-08-12
 description: "用 TLA+ 形式化验证 Agent 治理状态机的五个核心定理：Lyapunov 收敛性、HALT 吸收性、Gray Code 转移性、安全门完整性、红线不可变性。含真实 TLA+ 代码与诚实的局限性陈述。"
