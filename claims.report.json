@@ -1,6 +1,6 @@
 {
   "spec_version": 1,
-  "generated_at": "2026-11-22T11:32:42+00:00",
+  "generated_at": "2026-11-22T11:43:34+00:00",
   "summary": {
     "PASS": 19,
     "FAIL": 0,
@@ -42,7 +42,7 @@
     {
       "id": "tests.functions",
       "statement": "tests/ 下 test_* 函数数量（下限口径，非 pytest collect 数）",
-      "value": "16406",
+      "value": "16410",
       "expectation": ">= 16000",
       "status": "PASS",
       "detail": ""
