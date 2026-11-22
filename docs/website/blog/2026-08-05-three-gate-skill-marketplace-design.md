@@ -23,7 +23,7 @@ Agent skill marketplaces face the same problem, but worse. Here's why:
 |-----------|-------------------|-------------|
 | **Execution context** | Runs in your build/CI | Runs inside an autonomous agent at runtime |
 | **Human review at runtime** | Developer reviews the dependency tree | Agent executes skills autonomously — no human in the loop |
-| **Blast radius** | Build fails or library misbehaves | Agent achieves the wrong goal competently (see [W2 article](./why-agent-governance-matters)) |
+| **Blast radius** | Build fails or library misbehaves | Agent achieves the wrong goal competently (see [W2 article](/blog/why-agent-governance-matters)) |
 | **Discovery speed** | Developer consciously adds a dependency | Agent discovers and invokes skills via marketplace search |
 
 The last row is the terrifying one. A developer adding a npm package at least makes a *conscious decision* to depend on something. An agent discovering a skill via marketplace search may invoke code that no human ever reviewed — and the agent will execute it *competently*, pursuing whatever goal the skill suggests.
@@ -232,4 +232,4 @@ This is the opposite of "fake it till you make it". It's "design the contract, i
 
 ---
 
-*This article is the second in MAREF's governance thought-leadership series. The first was ["Why Agent Governance Matters in 2026"](./why-agent-governance-matters). The next will cover TLA+ formal verification of the governance state machine.*
+*This article is the second in MAREF's governance thought-leadership series. The first was ["Why Agent Governance Matters in 2026"](/blog/why-agent-governance-matters). The next will cover TLA+ formal verification of the governance state machine.*

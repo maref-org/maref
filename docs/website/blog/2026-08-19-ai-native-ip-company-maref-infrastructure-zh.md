@@ -15,7 +15,7 @@ description: "遥望科技四年亏30亿、无忧传媒估值暴跌87%、东方�
 
 2024 年，中国直播电商市场规模突破 5.8 万亿元，MCN 机构超过 2.6 万家——但约 **90% 的机构面临亏损**。这不是周期性波动，而是结构性困局。
 
-本报告（[MCN/IP行业深度痛点研究报告](./report.md)）对五家代表性公司的研究发现，行业面临五大痛点，每一家都在不同程度上深受其害：
+本报告（MCN/IP 行业深度痛点研究报告）对五家代表性公司的研究发现，行业面临五大痛点，每一家都在不同程度上深受其害：
 
 | 痛点 | 严重程度 | 典型案例 |
 |------|----------|----------|
@@ -193,7 +193,7 @@ class MCPToA2ABridge:
 
 ## 四、案例：Creative Automation Pipeline on MAREF
 
-2026 年 7 月，我们基于 MAREF 构建了一个创意自动化管线的参考实现（[Creative Automation Case Study](/docs/case-studies/creative-automation/)），展示了 MAREF 治理原语如何嵌入内容生产流程：
+2026 年 7 月，我们基于 MAREF 构建了一个创意自动化管线的参考实现（[Creative Automation Case Study](https://github.com/maref-org/maref/tree/main/docs/case-studies/creative-automation)），展示了 MAREF 治理原语如何嵌入内容生产流程：
 
 ```
 campaign brief + brand_profile
@@ -212,7 +212,7 @@ campaign brief + brand_profile
 | AuditTrail | 每个组合的 prompt 可复现，profile_version + brief_hash 可回溯 | `mcp_envelope.py` |
 | Version pinning | brand_profile 变更不使历史资产失效 | `version_negotiator.py` |
 
-参考实现运行延迟 <1ms 每次组合，无需 LLM API key。完整代码在 [`docs/case-studies/creative-automation/demo.py`](/docs/case-studies/creative-automation/demo.py)。
+参考实现运行延迟 <1ms 每次组合，无需 LLM API key。完整代码在 [`docs/case-studies/creative-automation/demo.py`](https://github.com/maref-org/maref/blob/main/docs/case-studies/creative-automation/demo.py)。
 
 ## 五、诚实的评估
 
