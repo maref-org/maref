@@ -1,7 +1,7 @@
 ---
 title: "MAREF 治理状态机的形式化证明：10 态 Gray Code FSM"
 slug: gray-code-10-state-fsm-proof
-authors: [maref-engineering]
+authors: [maref]
 tags: [formal-verification, tla-plus, gray-code, governance, state-machine]
 date: 2026-07-15
 description: "从代码到 TLA+：用汉明距离、状态空间枚举与不变量验证，证明 MAREF 10 态治理状态机的安全性、活性与可终止性。"
