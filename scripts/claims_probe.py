@@ -16,6 +16,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import re
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -74,10 +75,30 @@ def citation_version() -> str:
     return match.group(1)
 
 
+def _tracked_test_files() -> list[Path]:
+    """tests/ 下的测试文件；优先取 git 索引，保证本地与 CI 数出同一个值。
+
+    2026-11-22 事故：本地多了一个未跟踪的草稿测试文件，`tests.functions` 从
+    16,400 变成 16,398，`--check-docs` 在 CI 上直接判红——声称账本被本地草稿污染。
+    声称必须是"仓库里有什么"，不是"我这台机器上有什么"。
+    """
+    try:
+        out = subprocess.run(
+            ["git", "ls-files", "-z", "--", "tests"],
+            cwd=ROOT,
+            capture_output=True,
+            check=True,
+        ).stdout
+    except (OSError, subprocess.CalledProcessError):
+        return sorted((ROOT / "tests").rglob("test_*.py"))
+    names = [p for p in out.decode("utf-8", "replace").split("\0") if p.endswith(".py")]
+    return [ROOT / name for name in names if Path(name).name.startswith("test_")]
+
+
 def count_tests() -> str:
     """Number of ``def test_*`` functions under tests/ (a floor, not pytest's count)."""
     total = 0
-    for path in (ROOT / "tests").rglob("test_*.py"):
+    for path in _tracked_test_files():
         try:
             text = path.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError):

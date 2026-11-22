@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import importlib.util
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -98,3 +99,30 @@ def test_claims_rule_is_narrowed_to_measurable_properties() -> None:
 
     assert "本仓可度量的属性" in text
     assert "引用第三方调研的数字" in text
+
+
+def _git_index_test_count() -> int:
+    files = subprocess.check_output(["git", "ls-files", "-z", "--", "tests"], cwd=ROOT)
+    total = 0
+    for name in files.decode("utf-8", "replace").split("\0"):
+        if not (name.endswith(".py") and Path(name).name.startswith("test_")):
+            continue
+        text = (ROOT / name).read_text(encoding="utf-8")
+        total += len(re.findall(r"^\s*def (test_[A-Za-z0-9_]*)\s*\(", text, re.MULTILINE))
+    return total
+
+
+def test_count_tests_matches_git_index() -> None:
+    """声称数只能来自 git 索引（本地草稿不算"仓库里有"）。"""
+    assert probe.count_tests() == str(_git_index_test_count())
+
+
+def test_count_tests_ignores_untracked_scratch_file() -> None:
+    """回归（2026-11-22）：一个未跟踪的测试草稿把 16,400 变成 16,398，CI 判红。"""
+    before = probe.count_tests()
+    scratch = ROOT / "tests" / "test_zz_untracked_scratch_probe.py"
+    scratch.write_text("def test_scratch_only():\n    pass\n", encoding="utf-8")
+    try:
+        assert probe.count_tests() == before
+    finally:
+        scratch.unlink(missing_ok=True)
