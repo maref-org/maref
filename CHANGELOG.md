@@ -1,5 +1,29 @@
 # CHANGELOG
 
+## [v0.55.4] - 2026-11-22
+
+> 主题：**把复盘修的东西送到用户手里**。尺子（AG-Conformance）进 wheel、对外数字可复算、
+> 验签退出码分层、sdist 瘦身 28 MB。详见 `docs/releases/v0.55.4.md`。
+
+### Added
+- `maref conformance`：AG-Conformance 随 wheel 发布（此前仅 git clone 可用），支持
+  `--demo good|bad`、`--trace`、`--key` 签名、`--verify` 第三方验签、`--md` 报告。
+- `scripts/verify_artifacts.py`：CI 构建后断言 wheel 的 `[all]` 并集、conformance CLI、
+  base 依赖与 entry_points，以及 sdist 不携带宣传视频。
+
+### Changed
+- `maref audit verify` 退出码分层：`0` 完好 / `1` 篡改或不可验证 / `2` 输入不可用
+  （文件不存在、空日志、行不是 JSON 对象）；空日志报 `EMPTY`、格式错误报 `UNREADABLE`。
+- 对外数字收敛：README 移除 `15,387 passing tests` 与 `~87% test coverage`，
+  改为 `16,000+ test functions`（附复算命令）与 `76.5%`（绑定 `STATE.yaml` 工件）；
+  `claims.yaml` 10 → 13 条，`docs/claims.md` 由 `--check-docs` 强制同步。
+- sdist 排除 `website/public/videos` 与 `sbom.spdx.json`：36.9 MB → 8.1 MB。
+
+### Fixed
+- 访谈账本 PII 扫描改为递归（任意层级键 + 自由文本中的手机号/邮箱/微信号），`schema` 仅接受 1。
+- `sync_version.py` 的 README 徽章正则支持 `v` 前缀（此前静默不匹配，`--check` 仍报 OK）。
+
+
 ## [v0.55.3] - 2026-11-21
 
 > 主题：**让已发布的产物对得起 README**。v0.55.2 的 wheel 在干净环境里装完起不来，

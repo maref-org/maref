@@ -81,3 +81,29 @@ def test_sync_never_promotes_pending_to_current(tmp_path: Path, monkeypatch) -> 
     text = (tmp_path / "STATE.yaml").read_text(encoding="utf-8")
     assert "current_release: 1.0.0" in text
     assert "pending_release: 1.1.0" in text
+
+
+def test_readme_badge_with_v_prefix_is_synced(tmp_path: Path, monkeypatch) -> None:
+    """README 徽章形如 `badge/version-v1.0.0-blue`；v 前缀必须被识别。
+
+    回归（2026-11-22）：旧正则要求 `version-` 后直接是数字，遇到 `v` 前缀
+    `re.search` 静默不匹配——`--check` 仍打印 OK，徽章却停在旧版本。
+    """
+    readme = tmp_path / "README.md"
+    readme.write_text(
+        "![version](https://img.shields.io/badge/version-v1.0.0-blue)\n", encoding="utf-8"
+    )
+    config = _fake_repo(tmp_path, "project:\n  current_release: 1.0.0\n")
+    badge_cfg = dict(sync.VERSION_FILES["README.md"])
+    badge_cfg["path"] = readme
+    config["README.md"] = badge_cfg
+    monkeypatch.setattr(sync, "VERSION_FILES", config)
+    monkeypatch.setattr(sync, "ROOT", tmp_path)
+    monkeypatch.setattr(sync, "date", pytest.importorskip("datetime").date)
+
+    _, _, mismatches = sync.check_versions()
+    assert mismatches.get("README.md") == "1.0.0"
+
+    sync.sync_version("1.1.0")
+
+    assert "version-v1.1.0-blue" in readme.read_text(encoding="utf-8")

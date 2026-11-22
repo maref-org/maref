@@ -3,6 +3,10 @@ last_updated: '2026-11-21T17:55:00+08:00'
 project:
   name: MAREF
   current_release: 0.55.3
+  # 发布窗口：pyproject 已升到 0.55.4，但尚未发布到 PyPI。
+  # claim_integrity_gate C1 仅对此记 WARNING；发布完成后删除本字段并把
+  # current_release 提升为 0.55.4。
+  pending_release: 0.55.4
   release_evidence: docs/releases/v0.55.3.md
   public_repo: https://github.com/maref-org/maref
   license: Apache-2.0

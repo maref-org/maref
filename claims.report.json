@@ -1,6 +1,6 @@
 {
   "spec_version": 1,
-  "generated_at": "2026-11-21T15:07:02+00:00",
+  "generated_at": "2026-11-22T01:55:55+00:00",
   "summary": {
     "PASS": 13,
     "FAIL": 0,
@@ -10,7 +10,7 @@
     {
       "id": "version.api",
       "statement": "Python 包版本（maref.__version__）",
-      "value": "0.55.3",
+      "value": "0.55.4",
       "expectation": "same_as version.pyproject",
       "status": "PASS",
       "detail": ""
@@ -18,7 +18,7 @@
     {
       "id": "version.pyproject",
       "statement": "pyproject.toml 中的项目版本",
-      "value": "0.55.3",
+      "value": "0.55.4",
       "expectation": "same_as version.api",
       "status": "PASS",
       "detail": ""
@@ -26,7 +26,7 @@
     {
       "id": "version.readme_badge",
       "statement": "README 徽章展示的版本",
-      "value": "0.55.3",
+      "value": "0.55.4",
       "expectation": "same_as version.api",
       "status": "PASS",
       "detail": ""
@@ -34,7 +34,7 @@
     {
       "id": "version.citation",
       "statement": "CITATION.cff 声明的版本（学术引用面）",
-      "value": "0.55.3",
+      "value": "0.55.4",
       "expectation": "same_as version.api",
       "status": "PASS",
       "detail": ""
@@ -42,7 +42,7 @@
     {
       "id": "tests.functions",
       "statement": "tests/ 下 test_* 函数数量（下限口径，非 pytest collect 数）",
-      "value": "16390",
+      "value": "16391",
       "expectation": ">= 16000",
       "status": "PASS",
       "detail": ""
