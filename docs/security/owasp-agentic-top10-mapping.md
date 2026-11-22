@@ -1,6 +1,6 @@
 # OWASP Agentic Top 10 → MAREF Control Mapping
 
-> **Document version**: v1.0 | **Last updated**: 2026-07-15 | **Owner**: MAREF Engineering
+> **Document version**: v1.0 | **Last updated**: 2026-11-22 | **Owner**: MAREF Engineering
 > **Strategic context**: This document closes the §5.4 gap in the MAREF Brand Positioning & Hybrid Reinforcement Plan — README claims 10/10 OWASP coverage but the public mapping table was missing.
 > **Scope**: Each OWASP Agentic Top 10 risk is mapped to MAREF controls with file paths, key code snippets, TLA+ correspondence, and test coverage. Gaps are honestly documented.
 
@@ -14,7 +14,7 @@ MAREF covers all 10 OWASP Agentic Top 10 risks with code-level implementations. 
 | TLA+ formal specification | ⚠️ 4/10 (HITL, CrossInstance, ConstitutionalRedLines, Consensus) |
 | Independent unit tests | ⚠️ 7/10 (Goal Hijacking and Rogue Agents only have indirect coverage) |
 
-**Key honesty note.** The README's claim of "Ed25519 signing for every agent decision" is currently a simulation: `AgentCardSigner.sign_card` uses SHA256 hashing with `algorithm="ed25519-sim"`, and `VerifiableCredential.proof.type` is `"HMAC-SHA256"`. The `AgentCardSignature.algorithm` field defaults to `"ed25519"` but does not invoke real elliptic-curve cryptography. This is tracked as a P0 fix item.
+**Key honesty note (updated 2026-11-22).** The July 2026 version of this note said agent-card signing was only a SHA-256 simulation. **That is no longer true**: `AgentCardSigner.sign_card` signs with real Ed25519 by default (`src/maref/crypto/ed25519_keys.py`), and `AgentCardSignature.verify` **rejects** `algorithm="ed25519-sim"` unless the caller explicitly passes `allow_legacy_sim=True`（弱模拟默认不可信，见 `src/maref/recursive/signed_agent_cards.py`）. Remaining gap: `VerifiableCredential.proof.type` is still `"HMAC-SHA256"` (`src/maref/identity/credential.py`), so "Ed25519 identity" applies to **agent cards**, not to verifiable credentials — the README's "per-agent Ed25519 identity" refers to the former.
 
 ---
 
