@@ -41,7 +41,7 @@
 - **Cross-Framework Adapters** — AutoGen, CrewAI, LangGraph, Dify, Coze
 - **OpenTelemetry** — Prometheus, Grafana, OTLP full-link observability
 - **Serverless Runtime** — Lambda, Cloud Run ready
-- **TypeScript SDK** — `@maref/sdk` npm package
+- **TypeScript SDK** — `@maref-org/sdk` 0.2.0 npm package
 
 ## Project Status
 

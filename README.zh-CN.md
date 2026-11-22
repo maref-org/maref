@@ -59,7 +59,7 @@ MAREF 是 Agent 世界的操作系统内核 — 管理 Agent 集群的生命周�
 - **跨框架适配器** — AutoGen/CrewAI/LangGraph/Dify/Coze 生产级
 - **OpenTelemetry** — Prometheus + Grafana + OTLP 全链路可观测
 - **Serverless 运行时** — Lambda / Cloud Run 适配
-- **TypeScript SDK** — `@maref/sdk` npm 包
+- **TypeScript SDK** — npm 上的 `@maref-org/sdk` 0.2.0（独立版本线，不随 Python 包版本发布）
 
 ---
 
