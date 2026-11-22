@@ -21,13 +21,14 @@
 EXTENDS Naturals, Sequences, FiniteSets
 
 CONSTANTS
-  AgentStates,       (* Set of all 24 agent states: 0..23 *)
-  Agents,            (* Set of agent identifiers *)
-  MaxTransitions     (* Bound for model checking *)
+  Agents             (* Set of agent identifiers, e.g. {"agent1"} *)
 
-ASSUME AgentStates = 0..23
+(* 2026-11-22：AgentStates 原来是 CONSTANT + `ASSUME AgentStates = 0..23`，
+   而 TLC 的 .cfg 无法给常量赋区间字面量（`X = 0..23` 报 "expecting = or <-"），
+   所以这个规格从来没有被任何 .cfg 实例化过。改为全等定义后可被 TLC 检查。*)
+AgentStates == 0..23
+
 ASSUME IsFiniteSet(Agents)
-ASSUME MaxTransitions \in Nat
 
 (* 5-bit Gray code for each state *)
 GrayCode5 == [
@@ -121,11 +122,16 @@ GrayCodeSingleBit5(s, t) ==
   IN \E i \in 1..5 : /\ gs[i] # gt[i]
                      /\ \A j \in 1..5 : j # i => gs[j] = gt[j]
 
-(* Full transition relation: valid + Gray code single-bit + not from terminal *)
+(* Full transition relation: the real ValidTransition5 table, minus the two
+   absorbing states.
+
+   2026-11-22: 这里原来还叠了一条 `GrayCodeSingleBit5(s, t)` 过滤，把
+   ValidTransition5 里 27 条多比特边全部删掉，导致 14/15/16 三个状态
+   （RECOVERING/MIGRATING/PAUSED）失去全部出边 → NoDeadlock5 恒假。
+   该规格因 cfg 关键字拼写错误从未跑过，所以一直没人发现。*)
 CanTransition5(s, t) ==
   /\ ValidTransition5(s, t)
   /\ ~(s = 22 \/ s = 23)  (* No transitions from TERMINATED or ZOMBIE *)
-  /\ GrayCodeSingleBit5(s, t)
 
 (* Transitions set *)
 Transitions5 == { <<s, t>> \in AgentStates \X AgentStates : CanTransition5(s, t) }
@@ -153,9 +159,30 @@ TerminatedFinal5 == ~HasOutgoing5(22)
 (* INV-004: ZOMBIE has no outgoing transitions *)
 ZombieFinal5 == ~HasOutgoing5(23)
 
-(* INV-005: All valid transitions change exactly 1 bit in Gray code *)
+(* ── 灰码不变量（2026-11-22 按实际转移表重写）─────────────────────────────
+   实测：48 条边里只有 21 条是单比特（Gray 相邻），其余 27 条是多比特跳转，
+   而且不是边缘情况——IDLE 一个状态就有 11 条入边是多比特。
+   所以"每条合法转移都只改 1 位"这个说法与设计不符；真实设计是：
+   相邻生命周期走单比特，停机/恢复/跨阶段切换走显式声明的多比特跳转。
+
+   下面把 27 条多比特边写成字面集合，作为变更控制锁：新增一条多比特边
+   必须同时改这里（review 可见），否则 TLC 判红。*)
+JumpEdges5 == {
+  <<0,22>>, <<1,21>>, <<2,21>>, <<3,15>>,
+  <<3,16>>, <<3,19>>, <<3,21>>, <<5,3>>,
+  <<6,3>>, <<7,3>>, <<8,10>>, <<8,12>>,
+  <<10,8>>, <<11,3>>, <<12,17>>, <<13,3>>,
+  <<14,3>>, <<14,12>>, <<15,3>>, <<15,21>>,
+  <<16,3>>, <<16,21>>, <<17,21>>, <<18,3>>,
+  <<19,3>>, <<20,3>>, <<21,23>>
+}
+
+
+(* INV-005（重写）: 多比特边 vs 声明集合，双向等价 —— 既不允许未声明的多比特跳转，
+   也不允许声明了却不在转移表里的幽灵边。 *)
 GrayContinuity5 ==
-  \A <<s, t>> \in Transitions5 : GrayCodeSingleBit5(s, t)
+  \A p \in Transitions5 :
+    (~GrayCodeSingleBit5(p[1], p[2])) <=> (p \in JumpEdges5)
 
 (* INV-006: 24 states total *)
 StateCount5 == Cardinality(AgentStates) = 24

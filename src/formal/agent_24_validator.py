@@ -19,6 +19,25 @@ console = Console()
 ALL_STATES = list(AgentStateV3)
 TERMINAL_STATES = {AgentStateV3.TERMINATED, AgentStateV3.ZOMBIE}
 
+# 设计上允许的"多比特跳转"（下标对）。2026-11-22 实测：48 条转移边中
+# 21 条是单比特（Gray 相邻），其余 27 条是多比特 —— 停机路径、回 IDLE 的
+# 恢复路径、以及跨阶段切换。此前本模块的 check_gray_continuity 只检查
+# "灰码表里相邻下标差 1 位"（那是编码表性质，恒真），从未检查转移表，
+# 所以"每条合法转移都只改 1 位"这个对外声称一直是装饰性的。
+#
+# 本常量与 src/formal/MarefAgent24.tla 的 JumpEdges5 必须逐条相等
+# （tests/formal/test_agent_24_tla_consistency.py 会解析 TLA 文本核对）。
+JUMP_EDGES: frozenset[tuple[int, int]] = frozenset(
+    {
+    (0, 22), (1, 21), (2, 21), (3, 15), (3, 16),
+    (3, 19), (3, 21), (5, 3), (6, 3), (7, 3),
+    (8, 10), (8, 12), (10, 8), (11, 3), (12, 17),
+    (13, 3), (14, 3), (14, 12), (15, 3), (15, 21),
+    (16, 3), (16, 21), (17, 21), (18, 3), (19, 3),
+    (20, 3), (21, 23),
+    }
+)
+
 
 def _hamming_5bit(a: str, b: str) -> int:
     return sum(1 for ca, cb in zip(a, b, strict=True) if ca != cb)
@@ -55,16 +74,40 @@ def check_zombie_final() -> tuple[bool, list[str]]:
     return True, []
 
 
+def transition_edges() -> set[tuple[int, int]]:
+    """转移表里的全部边，用状态下标表示（与 TLA+ 规格的 0..23 一致）。"""
+    order = {state: i for i, state in enumerate(AgentStateV3)}
+    return {
+        (order[s], order[t])
+        for s, targets in VALID_TRANSITIONS.items()
+        for t in targets
+    }
+
+
+def _multi_bit_edges() -> set[tuple[int, int]]:
+    """转移表中 Hamming 距离 != 1 的边（必须全部在 JUMP_EDGES 里声明）。"""
+    by_index = {i: GRAY_CODE_5BIT[state] for i, state in enumerate(AgentStateV3)}
+    return {
+        (s, t)
+        for s, t in transition_edges()
+        if _hamming_5bit(by_index[s], by_index[t]) != 1
+    }
+
+
 def check_gray_continuity() -> tuple[bool, list[str]]:
+    """多比特边与声明集合双向等价。
+
+    只查"编码表相邻下标差 1 位"是没有意义的（恒真）；真正要锁的是转移表：
+    新增一条多比特跳转，必须同时写进 JUMP_EDGES 与 MarefAgent24.tla 的
+    JumpEdges5，否则这里和 TLC 都会判红。
+    """
     errors: list[str] = []
-    for i in range(len(ALL_STATES) - 1):
-        s, t = ALL_STATES[i], ALL_STATES[i + 1]
-        dist = _hamming_5bit(GRAY_CODE_5BIT[s], GRAY_CODE_5BIT[t])
-        if dist != 1:
-            errors.append(
-                f"Gray code adjacent {s.value}({i}) -> {t.value}({i + 1}) "
-                f"has Hamming distance {dist}, expected 1"
-            )
+    declared = set(JUMP_EDGES)
+    actual = _multi_bit_edges()
+    for s, t in sorted(actual - declared):
+        errors.append(f"未声明的多比特跳转 {s} -> {t}（必须写进 JUMP_EDGES 与 JumpEdges5）")
+    for s, t in sorted(declared - actual):
+        errors.append(f"声明的跳转 {s} -> {t} 不在转移表里（幽灵边）")
     return len(errors) == 0, errors
 
 

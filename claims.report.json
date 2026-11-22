@@ -1,6 +1,6 @@
 {
   "spec_version": 1,
-  "generated_at": "2026-11-22T09:51:07+00:00",
+  "generated_at": "2026-11-22T11:32:42+00:00",
   "summary": {
     "PASS": 19,
     "FAIL": 0,
@@ -42,7 +42,7 @@
     {
       "id": "tests.functions",
       "statement": "tests/ 下 test_* 函数数量（下限口径，非 pytest collect 数）",
-      "value": "16402",
+      "value": "16406",
       "expectation": ">= 16000",
       "status": "PASS",
       "detail": ""
@@ -114,22 +114,22 @@
     {
       "id": "formal.tlc_jobs",
       "statement": "CI 每次构建真正执行 TLC 的任务数（formal-verify.yml 里的 tlc2.TLC 调用）",
-      "value": "4",
-      "expectation": "equals 4",
+      "value": "10",
+      "expectation": "equals 10",
       "status": "PASS",
       "detail": ""
     },
     {
       "id": "formal.specs",
-      "statement": "src/formal/ 下的 .tla 规格总数（不等于\"被检查的规格数\"）",
-      "value": "18",
-      "expectation": "equals 18",
+      "statement": "仓库内 .tla 规格总数（src/formal/ 与 gray-code-fsm/ 合计，不等于\"被检查的规格数\"）",
+      "value": "19",
+      "expectation": "equals 19",
       "status": "PASS",
       "detail": ""
     },
     {
       "id": "formal.cfg",
-      "statement": "src/formal/ 下的 TLC 配置文件数",
+      "statement": "仓库内 TLC 配置文件数（每个都必须能解析到真实规格，见 scripts/formal_cfg_audit.py）",
       "value": "10",
       "expectation": "equals 10",
       "status": "PASS",

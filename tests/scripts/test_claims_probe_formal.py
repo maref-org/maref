@@ -42,7 +42,8 @@ probe = _load_probe()
 def test_tlc_jobs_match_workflow_invocations() -> None:
     invocations = len(re.findall(r"tlc2\.TLC", WORKFLOW.read_text(encoding="utf-8")))
 
-    assert invocations == 4, f"formal-verify.yml 里 TLC 调用应为 4 处，实测 {invocations}"
+    # 不写死数字：CI 每次加/删 TLC 步骤时，这里只要求"账本与工作流一致"。
+    assert invocations > 0, "formal-verify.yml 里应该有 TLC 调用"
     assert probe.formal_tlc_jobs() == str(invocations)
 
 
@@ -74,7 +75,9 @@ def test_readme_formal_wording_is_scoped() -> None:
     assert "formally-verified agent governance operating system" not in readme, (
         "README 又出现了无法界定的整体 formally-verified 定语；应写明被检查的是哪几个规格"
     )
-    assert "4 TLC jobs" in readme
+    assert f"{probe.formal_tlc_jobs()} TLC jobs" in readme, (
+        "README 里的 TLC 任务数必须与 formal-verify.yml 的实际调用数一致"
+    )
     assert "13 with TLA+ specs" not in readme
 
 
