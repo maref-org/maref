@@ -72,7 +72,7 @@ Most agent frameworks (LangGraph, CrewAI, AutoGen) help you **build** multi-agen
 |----------|--------|
 | **What is MAREF?** | An open-source agent governance OS with TLA+ formal verification, zero-trust identity per agent, and runtime guardrails with code-level coverage of all 10 OWASP Agentic Top 10 risks (13 with TLA+ specs, 7 with dedicated tests). |
 | **How is it different from LangGraph or CrewAI?** | Those frameworks orchestrate agents. MAREF governs them. They are complementary — use LangGraph to build, use MAREF to ensure safety. |
-| **Is it production-ready?** | Experimental. CI enforces a 50% coverage gate (`fail_under`); the last recorded aggregate is 76.5% (2026-11-03 CI artifact — see `STATE.yaml`), not a fresh remeasure. The core API is stabilizing toward v1.0. Apache 2.0, v0.55.3. |
+| **Is it production-ready?** | Experimental. CI enforces a 50% coverage gate (`fail_under`); the last recorded aggregate is 76.5% (2026-11-03 CI artifact — see `STATE.yaml`), not a fresh remeasure. The core API is stabilizing toward v1.0. Apache 2.0, v0.55.4. |
 | **Does it work with my stack?** | Python 3.11+, adapters for AutoGen/CrewAI/LangGraph/Dify, A2A + MCP dual protocol, macOS/Linux/Windows. |
 
 ## Who Uses MAREF?
@@ -361,7 +361,7 @@ Independent engineering reviews of MAREF and comparable open-source tooling:
 | **SonarCloud** | [![SonarCloud](https://github.com/maref-org/maref/actions/workflows/sonarcloud.yml/badge.svg)](https://github.com/maref-org/maref/actions/workflows/sonarcloud.yml) |
 | **Python** | ![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg) |
 | **License** | ![Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-green.svg) |
-| **Version** | ![v0.55.3](https://img.shields.io/badge/version-v0.55.3-blue) |
+| **Version** | ![version](https://img.shields.io/badge/version-v0.55.4-blue) |
 
 ---
 

@@ -3,11 +3,11 @@
 
 | 声称 | 值 | 期望 | 状态 |
 |---|---|---|---|
-| `version.api` | `0.55.3` | same_as version.pyproject | PASS |
-| `version.pyproject` | `0.55.3` | same_as version.api | PASS |
-| `version.readme_badge` | `0.55.3` | same_as version.api | PASS |
-| `version.citation` | `0.55.3` | same_as version.api | PASS |
-| `tests.functions` | `16390` | >= 16000 | PASS |
+| `version.api` | `0.55.4` | same_as version.pyproject | PASS |
+| `version.pyproject` | `0.55.4` | same_as version.api | PASS |
+| `version.readme_badge` | `0.55.4` | same_as version.api | PASS |
+| `version.citation` | `0.55.4` | same_as version.api | PASS |
+| `tests.functions` | `16391` | >= 16000 | PASS |
 | `coverage.gate` | `50` | equals 50 | PASS |
 | `tests.readme_floor` | `16000` | equals 16000 | PASS |
 | `coverage.state` | `76.50` | equals 76.50 | PASS |

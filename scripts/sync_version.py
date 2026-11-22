@@ -41,8 +41,10 @@ VERSION_FILES = {
     },
     "README.md": {
         "path": ROOT / "README.md",
-        "pattern": r"version-([0-9]+\.[0-9]+\.[0-9]+(?:-[a-z]+)?)\-",
-        "replacement": "version-{version}-",
+        # 徽章形如 `badge/version-v0.55.4-blue`；v 前缀必须可选，否则
+        # `re.search` 静默不匹配、`--check` 仍显示 OK（2026-11-22 实测）。
+        "pattern": r"version-v?([0-9]+\.[0-9]+\.[0-9]+(?:-[a-z]+)?)\-",
+        "replacement": "version-v{version}-",
         "priority": "derived",
     },
     "CHANGELOG.md": {

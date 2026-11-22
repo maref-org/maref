@@ -395,7 +395,7 @@ class SidecarMCPBridge:
     def get_server_info(self) -> dict[str, Any]:
         return {
             "protocolVersion": "2024-11-05",
-            "serverInfo": {"name": "MAREF Sidecar", "version": "0.55.3"},
+            "serverInfo": {"name": "MAREF Sidecar", "version": "0.55.4"},
             "capabilities": self.get_capabilities(),
         }
 
