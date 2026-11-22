@@ -88,6 +88,18 @@ jobs:
           python-version: "3.12"
       - name: Build package
         run: pip install build && python -m build
+      # 依赖清单（SBOM）必须随产物一起发布，且必须在 RFC 3161 时间戳之前生成，
+      # 这样它也被 SHA256SUMS 与外部时间证明覆盖。
+      # 注意：仓库里原有的 sbom.spdx.json 是 2026-07 用开发机环境生成的（5308 个包），
+      # 既不可复现也无法对上某一版发布，2026-11-22 起改为每次发布现场生成。
+      - name: Generate SBOM (SPDX JSON)
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: spdx-json
+          output-file: dist/sbom.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
       # 外部锚：产物清单的 RFC 3161 时间戳。失败即阻断发布（fail-closed），
       # 因为"何时存在"无法由仓库自身证明，只能由外部 TSA 证明。
       - name: Timestamp artifacts (RFC 3161)
@@ -101,8 +113,18 @@ jobs:
           mkdir -p dist/pypi
           cp dist/*.whl dist/*.tar.gz dist/pypi/
           ls -l dist/pypi
-      - name: Publish to PyPI
-        if: github.event_name == 'push' || github.event.inputs.dry_run != 'true'
+      # 两条互斥路径：仓库变量 PYPI_TRUSTED_PUBLISHING=true 时走 OIDC 可信发布
+      # （PEP 740 会为每个文件生成 attestation，PyPI 页面显示 "Attestations"），
+      # 否则继续用 API token —— token 路径不会产生 attestation，这是事实。
+      # 启用前置条件（PyPI 侧，需人工）：项目 maref → Publishing →
+      #   添加 Trusted Publisher（owner maref-org / repo maref / workflow release.yml）。
+      - name: Publish to PyPI (trusted publishing + attestations)
+        if: vars.PYPI_TRUSTED_PUBLISHING == 'true' && (github.event_name == 'push' || github.event.inputs.dry_run != 'true')
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/pypi
+      - name: Publish to PyPI (API token, no attestations)
+        if: vars.PYPI_TRUSTED_PUBLISHING != 'true' && (github.event_name == 'push' || github.event.inputs.dry_run != 'true')
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           password: ${{ secrets.PYPI_TOKEN }}
@@ -154,6 +176,7 @@ jobs:
             dist/SHA256SUMS.tsq
             dist/SHA256SUMS.tsr
             dist/freetsa-cacert.pem
+            dist/sbom.spdx.json
           body_path: release-body.md
           generate_release_notes: false
 

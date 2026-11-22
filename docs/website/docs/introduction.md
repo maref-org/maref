@@ -42,7 +42,7 @@ As AI agents become autonomous and interconnected, governing their behavior beco
 
 - **CI/CD**: [GitHub Actions CI](https://github.com/maref-org/maref/actions/workflows/ci.yml)
 - **Code Coverage**: [Codecov](https://codecov.io/gh/maref-org/maref)
-- **SBOM**: [`sbom.spdx.json`](https://github.com/maref-org/maref/blob/main/sbom.spdx.json)
+- **SBOM**: generated per release (SPDX JSON) and attached to [GitHub Releases](https://github.com/maref-org/maref/releases/latest)
 - **Chaos Reports**: [`.chaos-reports/`](https://github.com/maref-org/maref/blob/main/.chaos-reports/)
 
 ## License
