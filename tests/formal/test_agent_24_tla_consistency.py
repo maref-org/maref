@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+import re
+from pathlib import Path
+
 from src.formal.agent_24_validator import (
+    JUMP_EDGES,
     check_gray_continuity,
     check_no_deadlock,
     check_no_orphan,
@@ -22,26 +26,37 @@ TERMINAL_STATES = {AgentStateV3.TERMINATED, AgentStateV3.ZOMBIE}
 NON_TERMINAL = [s for s in ALL_STATES if s not in TERMINAL_STATES]
 
 BIRTH_PHASES = {
-    AgentStateV3.UNINITIALIZED, AgentStateV3.BOOTING,
-    AgentStateV3.REGISTERING, AgentStateV3.IDLE,
+    AgentStateV3.UNINITIALIZED,
+    AgentStateV3.BOOTING,
+    AgentStateV3.REGISTERING,
+    AgentStateV3.IDLE,
 }
 ACTIVE_PHASES = {
-    AgentStateV3.DISCOVERING, AgentStateV3.NEGOTIATING,
-    AgentStateV3.TRUST_BUILDING, AgentStateV3.CONTRACTING,
-    AgentStateV3.EXECUTING, AgentStateV3.WAITING,
-    AgentStateV3.VERIFYING, AgentStateV3.REPORTING,
+    AgentStateV3.DISCOVERING,
+    AgentStateV3.NEGOTIATING,
+    AgentStateV3.TRUST_BUILDING,
+    AgentStateV3.CONTRACTING,
+    AgentStateV3.EXECUTING,
+    AgentStateV3.WAITING,
+    AgentStateV3.VERIFYING,
+    AgentStateV3.REPORTING,
 }
 CONFLICT_PHASES = {
-    AgentStateV3.CONFLICTING, AgentStateV3.ARBITRATING,
-    AgentStateV3.RECOVERING, AgentStateV3.MIGRATING,
+    AgentStateV3.CONFLICTING,
+    AgentStateV3.ARBITRATING,
+    AgentStateV3.RECOVERING,
+    AgentStateV3.MIGRATING,
 }
 PAUSE_PHASES = {
-    AgentStateV3.PAUSED, AgentStateV3.DEGRADING,
-    AgentStateV3.SELF_HEALING, AgentStateV3.SELF_OPTIMIZING,
+    AgentStateV3.PAUSED,
+    AgentStateV3.DEGRADING,
+    AgentStateV3.SELF_HEALING,
+    AgentStateV3.SELF_OPTIMIZING,
     AgentStateV3.EVOLVING,
 }
 DEATH_PHASES = {
-    AgentStateV3.TERMINATING, AgentStateV3.TERMINATED,
+    AgentStateV3.TERMINATING,
+    AgentStateV3.TERMINATED,
     AgentStateV3.ZOMBIE,
 }
 
@@ -179,7 +194,9 @@ class TestGrayCodeHammingDistance:
         assert len(set(codes)) == 24
         for i in range(len(codes) - 1):
             dist = _hamming_5bit(codes[i], codes[i + 1])
-            assert dist == 1, f"Non-adjacent Gray code at position {i}: {codes[i]} -> {codes[i + 1]}"
+            assert dist == 1, (
+                f"Non-adjacent Gray code at position {i}: {codes[i]} -> {codes[i + 1]}"
+            )
 
 
 # ── No self-loops ──
@@ -247,10 +264,9 @@ class TestTerminalStates:
         for s in NON_TERMINAL:
             targets = VALID_TRANSITIONS.get(s, set())
             assert AgentStateV3.TERMINATED not in targets or s in {
-                AgentStateV3.TERMINATING, AgentStateV3.UNINITIALIZED,
-            }, (
-                f"State {s.value} (non-UNINITIALIZED/non-TERMINATING) can reach TERMINATED"
-            )
+                AgentStateV3.TERMINATING,
+                AgentStateV3.UNINITIALIZED,
+            }, f"State {s.value} (non-UNINITIALIZED/non-TERMINATING) can reach TERMINATED"
 
     def test_zombie_is_absorbing(self) -> None:
         for s in NON_TERMINAL:
@@ -319,3 +335,48 @@ class TestCrossLayerInvariants:
             f"Shortest path UNINITIALIZED→ZOMBIE is {found_depth}, "
             f"expected >= 3 (requires birth→terminating→zombie lifecycle progression)"
         )
+
+
+# ── 声明式多比特跳转（TLA+ ↔ Python 一致性）──────────────────────────────
+#
+# 2026-11-22：MarefAgent24MC.cfg 的关键字拼写错误（INVARIANCES）让这份规格
+# 从落地起就没被 TLC 跑过；同时 CanTransition5 叠加了"必须单比特"过滤，
+# 把 27 条多比特边全删掉，导致 14/15/16 三个状态失去出边、NoDeadlock5 恒假。
+# 现在多比特边显式声明在 JumpEdges5 与 JUMP_EDGES 两处，下面锁住二者相等。
+
+
+class TestDeclaredJumpEdges:
+    TLA_PATH = Path(__file__).resolve().parents[2] / "src" / "formal" / "MarefAgent24.tla"
+
+    def _tla_jumps(self) -> set[tuple[int, int]]:
+        text = self.TLA_PATH.read_text(encoding="utf-8")
+        block = text.split("JumpEdges5 == {", 1)[1].split("}", 1)[0]
+        return {(int(a), int(b)) for a, b in re.findall(r"<<(\d+),(\d+)>>", block)}
+
+    def test_tla_and_python_declare_the_same_jump_edges(self) -> None:
+        assert self._tla_jumps() == set(JUMP_EDGES), (
+            "MarefAgent24.tla 的 JumpEdges5 与 agent_24_validator.JUMP_EDGES 不一致"
+        )
+
+    def test_declared_jump_count_is_27(self) -> None:
+        # 回归锁：这个数字出现在 README / 文档里，变了要一起改。
+        assert len(self._tla_jumps()) == 27
+
+    def test_every_declared_jump_is_really_multi_bit(self) -> None:
+        by_index = {i: GRAY_CODE_5BIT[s] for i, s in enumerate(ALL_STATES)}
+        for s, t in JUMP_EDGES:
+            assert _hamming_5bit(by_index[s], by_index[t]) > 1, f"{s}->{t} 其实是单比特"
+
+    def test_undeclared_multi_bit_edge_fails_the_check(self) -> None:
+        """塞一条未声明的多比特边，check_gray_continuity 必须报错。"""
+        from maref.recursive.agent_24_state_machine import VALID_TRANSITIONS
+
+        src = ALL_STATES[0]
+        dst = ALL_STATES[5]
+        VALID_TRANSITIONS[src].add(dst)
+        try:
+            passed, errors = check_gray_continuity()
+        finally:
+            VALID_TRANSITIONS[src].discard(dst)
+        assert not passed
+        assert any("未声明" in e for e in errors)

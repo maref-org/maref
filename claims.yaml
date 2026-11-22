@@ -110,16 +110,16 @@ claims:
     statement: CI 每次构建真正执行 TLC 的任务数（formal-verify.yml 里的 tlc2.TLC 调用）
     command: [python3, scripts/claims_probe.py, formal_tlc_jobs]
     expect:
-      equals: "4"
+      equals: "10"
 
   - id: formal.specs
-    statement: src/formal/ 下的 .tla 规格总数（不等于"被检查的规格数"）
+    statement: 仓库内 .tla 规格总数（src/formal/ 与 gray-code-fsm/ 合计，不等于"被检查的规格数"）
     command: [python3, scripts/claims_probe.py, formal_specs]
     expect:
-      equals: "18"
+      equals: "19"
 
   - id: formal.cfg
-    statement: src/formal/ 下的 TLC 配置文件数
+    statement: 仓库内 TLC 配置文件数（每个都必须能解析到真实规格，见 scripts/formal_cfg_audit.py）
     command: [python3, scripts/claims_probe.py, formal_cfg]
     expect:
       equals: "10"

@@ -40,3 +40,28 @@ jobs:
       - name: Verify Test Integration Theorems (含 StenoDetectionComplete)
         run: |
           java -cp /tmp/tla2tools.jar tlc2.TLC src/formal/MAREF_TestIntegration.tla -config src/formal/MAREF_TestIntegrationMC.cfg
+      # 以下 4 步为 2026-11-22 补齐：这 4 个模型本来就能跑通，但从未进 CI，
+      # 于是 MarefAgent24MC.cfg 里 "INVARIANCES" 这种拼写错误活了很久没人发现。
+      - name: Verify Agent 24-state FSM (declared jump edges)
+        # MarefAgent24.tla 是纯定义模块；可执行模型在 MarefAgent24Model.tla
+        run: |
+          java -cp /tmp/tla2tools.jar tlc2.TLC src/formal/MarefAgent24Model.tla -config src/formal/MarefAgent24MC.cfg
+      - name: Verify Joint 3+4 State FSM (src/formal)
+        run: |
+          java -cp /tmp/tla2tools.jar tlc2.TLC src/formal/MarefJoint34.tla -config src/formal/MarefJoint34MC.cfg
+      - name: Verify Joint 3+4 State FSM (gray-code-fsm)
+        run: |
+          java -cp /tmp/tla2tools.jar tlc2.TLC gray-code-fsm/MarefJoint34.tla -config gray-code-fsm/MarefJoint34MC.cfg
+      - name: Verify Gray Code FSM (gray-code-fsm copy)
+        run: |
+          java -cp /tmp/tla2tools.jar tlc2.TLC gray-code-fsm/MarefLiteModel.tla -config gray-code-fsm/MarefLiteMC.cfg
+      - name: Verify Vortex369
+        run: |
+          java -cp /tmp/tla2tools.jar tlc2.TLC src/formal/Vortex369.tla -config src/formal/Vortex369MC.cfg
+      - name: Verify cross-dimension invariants (RedLines spec, CrossDim cfg)
+        run: |
+          java -cp /tmp/tla2tools.jar tlc2.TLC src/formal/MAREF_ConstitutionalRedLines.tla -config src/formal/MAREF_CrossDimModel.cfg
+      - name: Audit every .cfg against its spec
+        # 孤儿/坏配置本身不会让 TLC 变红（CI 不跑它们）。这一步把"配置是否
+        # 真有一个能跑成"变成可执行检查。
+        run: python3 scripts/formal_cfg_audit.py
