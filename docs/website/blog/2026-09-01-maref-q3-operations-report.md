@@ -63,8 +63,8 @@ The 12-week brand-building campaign (MAREF 品牌定位与混合补强实施方�
 ### W2: Governance Thought Leadership
 
 **Deliverables:**
-- English article: ["Why Agent Governance Matters"](/blog/2026-07-08-why-agent-governance-matters) (Medium)
-- Chinese article: "为什么 Agent 需要治理" ([知乎](/blog/2026-07-08-why-agent-governance-matters-zh))
+- English article: ["Why Agent Governance Matters"](/blog/why-agent-governance-matters) (Medium)
+- Chinese article: "为什么 Agent 需要治理" ([知乎](/blog/why-agent-governance-matters-zh))
 - Twitter/X thread: 9 tweets
 - Brand-positioning Skill: Python implementation + three-gate test
 - AI Search Visibility Baseline protocol (10 test queries)
@@ -74,7 +74,7 @@ The 12-week brand-building campaign (MAREF 品牌定位与混合补强实施方�
 ### W3: Technical Depth — Gray Code FSM Proof
 
 **Deliverables:**
-- Chinese article: ["10 态 Gray Code 状态机数学证明"](/blog/2026-07-15-gray-code-10-state-fsm-proof-zh) (知乎, 23KB)
+- Chinese article: ["10 态 Gray Code 状态机数学证明"](/blog/gray-code-10-state-fsm-proof) (知乎, 23KB)
 - English arXiv draft: "Formal Verification of 10-State Gray Code Governance FSM" (arXiv-ready)
 - OWASP Agentic Top 10 → MAREF control mapping document
 - Hacker News + Reddit distribution summaries
@@ -112,7 +112,7 @@ The 12-week brand-building campaign (MAREF 品牌定位与混合补强实施方�
 ### W7: Three-Gate Skill Marketplace Design
 
 **Deliverables:**
-- English article: ["Three Gates, Not Two"](/blog/2026-08-05-three-gate-skill-marketplace-design) (Medium)
+- English article: ["Three Gates, Not Two"](/blog/three-gate-skill-marketplace-design) (Medium)
 - 知乎: 三闸门准入设计
 - Twitter/X thread + distribution checklist
 
@@ -122,7 +122,7 @@ The 12-week brand-building campaign (MAREF 品牌定位与混合补强实施方�
 
 **Deliverables:**
 - [`maref-tla-plus-5-theorems/`](https://github.com/maref-org/maref/tree/main/docs/arxiv/maref-tla-plus-5-theorems) — complete arXiv LaTeX package (main.tex, references.bib)
-- Medium English version: ["TLA+ 5 Theorems Explained"](/blog/2026-08-12-tla-plus-5-theorems-explained)
+- Medium English version: ["TLA+ 5 Theorems Explained"](/blog/tla-plus-5-theorems-explained)
 - 知乎中文版: "TLA+ 5 定理详解"
 - `SUBMISSION_GUIDE.md` — arXiv submission procedure + G1 unlock process
 
@@ -140,7 +140,7 @@ The 12-week brand-building campaign (MAREF 品牌定位与混合补强实施方�
 ### W10: Case Study — AI-Native IP Companies on MAREF
 
 **Deliverables:**
-- Chinese article (3,000 words): ["AI-Native IP 公司如何用 MAREF 输出基础设施"](/blog/2026-08-19-ai-native-ip-company-maref-infrastructure-zh)
+- Chinese article (3,000 words): ["AI-Native IP 公司如何用 MAREF 输出基础设施"](/blog/ai-native-ip-company-maref-infrastructure)
 - 小红书 short version (500 words)
 - Distribution checklist + 知乎 + 小红书 post templates
 

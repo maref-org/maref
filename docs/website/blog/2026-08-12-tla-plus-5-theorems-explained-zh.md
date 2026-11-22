@@ -227,7 +227,7 @@ MAREF 是目前唯一把 Agent 治理状态机完整形式化的开源框架。
 4. Frank Gray. *Pulse Code Communication*. U.S. Patent 2,632,058. 1953.
 5. OWASP Agentic AI Top 10 — https://owasp.org/www-project-agentic-ai/
 6. CISA & Five Eyes. *Joint Guidance on Securing Agentic AI Systems*. May 2026.
-7. MAREF W3 技术深度文章 — [10 态 Gray Code 状态机数学证明](./gray-code-10-state-fsm-proof)
+7. MAREF W3 技术深度文章 — [10 态 Gray Code 状态机数学证明](/blog/gray-code-10-state-fsm-proof)
 
 ---
 

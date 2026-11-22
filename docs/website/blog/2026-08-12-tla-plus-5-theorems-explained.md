@@ -205,4 +205,4 @@ The full arXiv preprint (with complete TLA+ specifications, proof sketches, and 
 
 ---
 
-*This article is the second technical-depth piece in MAREF's content series. The first was the [10-state Gray Code proof](./gray-code-10-state-fsm-proof). The [arXiv preprint](https://arxiv.org/) contains the full formal treatment. The next piece will cover the MAREF skill marketplace vs. the MCP Marketplace.*
+*This article is the second technical-depth piece in MAREF's content series. The first was the [10-state Gray Code proof](/blog/gray-code-10-state-fsm-proof). The [arXiv preprint](https://arxiv.org/) contains the full formal treatment. The next piece will cover the MAREF skill marketplace vs. the MCP Marketplace.*

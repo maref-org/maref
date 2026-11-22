@@ -333,4 +333,4 @@ The adapter is 430 lines of Python, uses CrewAI's public API, and requires no LL
 
 ---
 
-*This case study is based on real, runnable code. The adapter and demo are in the [MAREF repository](https://github.com/maref-org/maref/tree/main/docs/examples/crewai-governance). For the full governance benchmark (MAREF vs LangGraph vs CrewAI vs AutoGen), see [our W4 benchmark article](https://github.com/maref-org/maref/blob/main/docs/website/blog/2026-07-22-maref-vs-langgraph-governance-benchmark.md).*
+*This case study is based on real, runnable code. The adapter and demo are in the [MAREF repository](https://github.com/maref-org/maref/tree/main/docs/examples/crewai-governance). For the full governance benchmark (MAREF vs LangGraph vs CrewAI vs AutoGen), see [our W4 benchmark article](https://github.com/maref-org/maref/blob/main/docs/website/blog/maref-vs-langgraph-governance-benchmark.md).*
