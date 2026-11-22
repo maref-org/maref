@@ -1035,6 +1035,11 @@ def check_notification_staleness(
         open_records = tracker.get_open_alerts()
         open_total = len(open_records)
         for rec in open_records:
+            # This check's own alarm is the *messenger*, not evidence: counting
+            # it would let a single failure sustain itself forever (m2 could
+            # never pass again because passing is what clears the alarm).
+            if rec.check_id == "notification_staleness":
+                continue
             age_h = (now - rec.triggered_at) / 3600.0
             if age_h > 72:
                 stale_72h += 1

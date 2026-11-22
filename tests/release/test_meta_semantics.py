@@ -102,6 +102,44 @@ def test_m2_silent_channel_is_advisory_not_failure(tmp_path: Path, monkeypatch) 
     assert result["passed"] is True
 
 
+def test_m2_self_alarm_does_not_sustain_failure(tmp_path: Path, monkeypatch) -> None:
+    """检查自身的 M2 Fail 告警不得反过来把 m2 永久钉死在失败态。"""
+    from maref.observability.alert_feedback_tracker import AlertFeedbackTracker
+
+    tracker = AlertFeedbackTracker(state_path=str(tmp_path / "tracker.json"))
+    tracker.record_alert(
+        name="M2 Fail",
+        severity="critical",
+        message="1 open alerts stale >72h — feedback loop broken",
+        subsystem="feedback-loop",
+        check_id="notification_staleness",
+    )
+    tracker.get_open_alerts()[0].triggered_at = time.time() - 600 * 3600
+    monkeypatch.setattr(mm, "_get_alert_tracker", lambda: tracker)
+    monkeypatch.setattr(mm, "_write_notification", lambda *a, **k: None)
+    result = mm.check_notification_staleness(notifications_dir=tmp_path / "notifications")
+    assert result["stale_72h"] == 0
+    assert result["passed"] is True
+
+
+def test_m2_unrelated_stale_alert_still_fails(tmp_path: Path, monkeypatch) -> None:
+    from maref.observability.alert_feedback_tracker import AlertFeedbackTracker
+
+    tracker = AlertFeedbackTracker(state_path=str(tmp_path / "tracker.json"))
+    tracker.record_alert(
+        name="M4 Telemetry Liveness",
+        severity="warning",
+        message="no events",
+        check_id="telemetry_liveness",
+    )
+    tracker.get_open_alerts()[0].triggered_at = time.time() - 73 * 3600
+    monkeypatch.setattr(mm, "_get_alert_tracker", lambda: tracker)
+    monkeypatch.setattr(mm, "_write_notification", lambda *a, **k: None)
+    result = mm.check_notification_staleness(notifications_dir=tmp_path / "notifications")
+    assert result["stale_72h"] == 1
+    assert result["passed"] is False
+
+
 def test_m0_retired_and_idle_are_not_dead(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(mm.sys, "platform", "darwin")
     monkeypatch.setattr(mm, "_find_all_plist_labels", lambda: {"a", "b", "c", "d"})
