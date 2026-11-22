@@ -7,7 +7,7 @@
 | `version.pyproject` | `0.55.4` | same_as version.api | PASS |
 | `version.readme_badge` | `0.55.4` | same_as version.api | PASS |
 | `version.citation` | `0.55.4` | same_as version.api | PASS |
-| `tests.functions` | `16391` | >= 16000 | PASS |
+| `tests.functions` | `16398` | >= 16000 | PASS |
 | `coverage.gate` | `50` | equals 50 | PASS |
 | `tests.readme_floor` | `16000` | equals 16000 | PASS |
 | `coverage.state` | `76.50` | equals 76.50 | PASS |
@@ -16,7 +16,13 @@
 | `sdk.package_name` | `@maref-org/sdk` | equals @maref-org/sdk | PASS |
 | `audit.tamper_detect` | `detected` | equals detected | PASS |
 | `audit.key_rotation` | `unverifiable` | equals unverifiable | PASS |
+| `formal.tlc_jobs` | `4` | equals 4 | PASS |
+| `formal.specs` | `18` | equals 18 | PASS |
+| `formal.cfg` | `10` | equals 10 | PASS |
+| `conformance.controls` | `10` | equals 10 | PASS |
+| `owasp.risks_documented` | `10` | equals 10 | PASS |
+| `owasp.tla_specs` | `4` | equals 4 | PASS |
 
-汇总：**13 pass / 0 fail / 0 error**
+汇总：**19 pass / 0 fail / 0 error**
 
 复算：`python scripts/claims.py --check`

@@ -1,7 +1,11 @@
 # 公开声称账本（claim ledger）
 #
 # 规则：
-# 1. 任何对外公开的数字/版本/入口，必须在这里登记，并有一条可在本地复算的命令。
+# 1. 凡声称**本仓可度量的属性**（版本 / 入口 / 规模 / 覆盖率 / 依赖 / 测试 / 形式化 /
+#    控制项数），必须在这里登记，并有一条可在本地复算的命令；引用第三方调研的数字
+#    （Gartner / Gravitee 等）必须带来源链接，不纳入本账本。
+#    —— 2026-11-22 明确边界：旧规则写"任何数字"，实际只覆盖 13 条，规则比实现对不上，
+#    导致 README 的"5 invariants / 4 TLA+ / 10 OWASP"长期无人拦（复盘 P2）。
 # 2. 改数字 = 改这里 + 跑 `python3 scripts/claims.py --check`，CI 会阻断漂移。
 # 3. 命令不联网、不写仓库、输出单行；python/python3 会被替换为当前解释器。
 # 4. `same_as` 用于跨文件一致性（版本三角），`min` 用于下限声称，`equals` 用于精确断言。
@@ -101,3 +105,39 @@ claims:
     expect:
       equals: unverifiable
     timeout: 60
+
+  - id: formal.tlc_jobs
+    statement: CI 每次构建真正执行 TLC 的任务数（formal-verify.yml 里的 tlc2.TLC 调用）
+    command: [python3, scripts/claims_probe.py, formal_tlc_jobs]
+    expect:
+      equals: "4"
+
+  - id: formal.specs
+    statement: src/formal/ 下的 .tla 规格总数（不等于"被检查的规格数"）
+    command: [python3, scripts/claims_probe.py, formal_specs]
+    expect:
+      equals: "18"
+
+  - id: formal.cfg
+    statement: src/formal/ 下的 TLC 配置文件数
+    command: [python3, scripts/claims_probe.py, formal_cfg]
+    expect:
+      equals: "10"
+
+  - id: conformance.controls
+    statement: AG-Conformance 套件的控制项条数（README "10 controls" 的来源）
+    command: [python3, scripts/claims_probe.py, conformance_controls]
+    expect:
+      equals: "10"
+
+  - id: owasp.risks_documented
+    statement: OWASP Agentic Top 10 映射文档里逐条展开的风险数
+    command: [python3, scripts/claims_probe.py, owasp_risks]
+    expect:
+      equals: "10"
+
+  - id: owasp.tla_specs
+    statement: 有 TLA+ 规格支撑的 OWASP 风险数（README 与 mapping 文档必须一致）
+    command: [python3, scripts/claims_probe.py, owasp_tla_specs]
+    expect:
+      equals: "4"

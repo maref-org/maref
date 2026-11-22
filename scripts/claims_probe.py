@@ -149,6 +149,55 @@ def _audit_fixture(directory: str, key: str) -> Path:
     return path
 
 
+def _workflow(name: str) -> str:
+    return (ROOT / ".github" / "workflows" / name).read_text(encoding="utf-8")
+
+
+def formal_tlc_jobs() -> str:
+    """CI 里**真正跑 TLC** 的任务数（不是仓库里 .tla 文件数）。"""
+    return str(len(re.findall(r"tlc2\.TLC", _workflow("formal-verify.yml"))))
+
+
+_SKIP_DIRS = {".git", ".venv", "node_modules", "dist", "build", "__pycache__"}
+
+
+def _count_suffix(suffix: str) -> int:
+    """仓库内（含 gray-code-fsm/ 与 src/formal/）某后缀的文件数，跳过构建目录。"""
+    return sum(1 for path in ROOT.rglob(f"*{suffix}") if not _SKIP_DIRS & set(path.parts))
+
+
+def formal_specs() -> str:
+    return str(_count_suffix(".tla"))
+
+
+def formal_cfg() -> str:
+    return str(_count_suffix(".cfg"))
+
+
+def conformance_controls() -> str:
+    """conformance 套件的控制项条数（文本计数，避免导入 maref 运行时依赖）。"""
+    text = (ROOT / "src" / "maref" / "conformance" / "controls.py").read_text(encoding="utf-8")
+    return str(len(re.findall(r"^\s+Control\(", text, re.MULTILINE)))
+
+
+def owasp_risks() -> str:
+    text = (ROOT / "docs" / "security" / "owasp-agentic-top10-mapping.md").read_text(
+        encoding="utf-8"
+    )
+    return str(len(re.findall(r"^## Risk \d+:", text, re.MULTILINE)))
+
+
+def owasp_tla_specs() -> str:
+    """README 与 mapping 文档的交叉一致性锚点（防 13 vs 4 这类漂移）。"""
+    text = (ROOT / "docs" / "security" / "owasp-agentic-top10-mapping.md").read_text(
+        encoding="utf-8"
+    )
+    match = re.search(r"TLA\+ formal specification\s*\|\s*[^|\n]*?(\d+)/10", text)
+    if not match:
+        raise SystemExit("mapping 文档缺少 'TLA+ formal specification | N/10' 行")
+    return match.group(1)
+
+
 def audit_tamper() -> str:
     """A modified payload must be reported as tampering, not silently accepted."""
     verify = _load_source("_claim_audit_verify", "src/maref/governance/audit_chain_verify.py")
@@ -193,6 +242,12 @@ PROBES = {
     "readme_tests_floor": readme_tests_floor,
     "coverage_state": coverage_state,
     "coverage_readme_badge": coverage_readme_badge,
+    "formal_tlc_jobs": formal_tlc_jobs,
+    "formal_specs": formal_specs,
+    "formal_cfg": formal_cfg,
+    "conformance_controls": conformance_controls,
+    "owasp_risks": owasp_risks,
+    "owasp_tla_specs": owasp_tla_specs,
     "audit_tamper": audit_tamper,
     "audit_rotation": audit_rotation,
 }

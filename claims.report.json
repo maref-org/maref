@@ -1,8 +1,8 @@
 {
   "spec_version": 1,
-  "generated_at": "2026-11-22T01:55:55+00:00",
+  "generated_at": "2026-11-22T08:39:52+00:00",
   "summary": {
-    "PASS": 13,
+    "PASS": 19,
     "FAIL": 0,
     "ERROR": 0
   },
@@ -42,7 +42,7 @@
     {
       "id": "tests.functions",
       "statement": "tests/ 下 test_* 函数数量（下限口径，非 pytest collect 数）",
-      "value": "16391",
+      "value": "16398",
       "expectation": ">= 16000",
       "status": "PASS",
       "detail": ""
@@ -108,6 +108,54 @@
       "statement": "换钥/错钥只标 unverifiable，不误判为篡改",
       "value": "unverifiable",
       "expectation": "equals unverifiable",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "formal.tlc_jobs",
+      "statement": "CI 每次构建真正执行 TLC 的任务数（formal-verify.yml 里的 tlc2.TLC 调用）",
+      "value": "4",
+      "expectation": "equals 4",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "formal.specs",
+      "statement": "src/formal/ 下的 .tla 规格总数（不等于\"被检查的规格数\"）",
+      "value": "18",
+      "expectation": "equals 18",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "formal.cfg",
+      "statement": "src/formal/ 下的 TLC 配置文件数",
+      "value": "10",
+      "expectation": "equals 10",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "conformance.controls",
+      "statement": "AG-Conformance 套件的控制项条数（README \"10 controls\" 的来源）",
+      "value": "10",
+      "expectation": "equals 10",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "owasp.risks_documented",
+      "statement": "OWASP Agentic Top 10 映射文档里逐条展开的风险数",
+      "value": "10",
+      "expectation": "equals 10",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "owasp.tla_specs",
+      "statement": "有 TLA+ 规格支撑的 OWASP 风险数（README 与 mapping 文档必须一致）",
+      "value": "4",
+      "expectation": "equals 4",
       "status": "PASS",
       "detail": ""
     }

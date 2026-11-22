@@ -141,10 +141,43 @@ jobs:
                 `- STATE version: ${report.state_version}, claimed release: ${report.claimed_release}`,
                 '',
                 '---',
-                '_由 claim-integrity-gate.yml 自动创建（影子模式，不阻断 CI）_',
+                '_由 claim-integrity-gate.yml 自动创建；门禁转绿时自动关闭。_',
               ].join('\n'),
               labels: ['claim-integrity'],
             });
+
+      - name: Close drift Issue when gate is green
+        # 2026-11-22：门禁绿了但 issue 一直开着（#507 自 11-02 挂到今天），
+        # 对外第一屏就是"作者自己的门禁在指控作者"。绿则关闭，并在 issue 里留结论。
+        if: steps.gate.outputs.errors == '0' && steps.gate.outputs.warnings == '0'
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: ['claim-integrity'],
+            });
+            for (const issue of issues) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: [
+                  '✅ 声称完整性复检通过（ERROR 0 / WARNING 0），自动关闭。',
+                  '',
+                  `_由 claim-integrity-gate 于 ${new Date().toISOString()} 关闭；再次漂移会重开新 issue。_`,
+                ].join('\n'),
+              });
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                state: 'closed',
+                state_reason: 'completed',
+              });
+            }
 
       - name: Fail on blocking mode
         if: always() && steps.gate.outputs.exit_code != '' && steps.gate.outputs.exit_code != '0'
