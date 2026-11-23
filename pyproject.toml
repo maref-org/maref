@@ -58,7 +58,7 @@ ml = [
     "accelerate>=0.30",
 ]
 sidecar = [
-    "fastapi>=0.111,<0.163",
+    "fastapi>=0.111,<0.166",
     "uvicorn>=0.30",
     "websockets>=12.0",
     "sse-starlette>=2.0",
