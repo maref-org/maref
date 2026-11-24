@@ -144,3 +144,20 @@ claims:
 def test_repo_claims_are_green(capsys: pytest.CaptureFixture[str]) -> None:
     """The repository's own claims must hold in a clean checkout."""
     assert ledger.main(["--check"]) == 0, capsys.readouterr().out
+
+
+def test_unknown_expect_key_fails_closed() -> None:
+    """拼错的 expect 键必须 FAIL，不能静默通过（2026-11-24 审计）。
+    
+    expect={"equal": "1"} 中的 "equal" 是 "equals" 的拼写错误，
+    不应被视为有效期望键，必须返回 FAIL 而非静默通过。
+    """
+    claim = ledger.Claim(
+        id="test-unknown-key",
+        statement="test",
+        command=["echo", "1"],
+        expect={"equal": "1"},  # 故意拼写错误，应视为未知键
+        value="1",
+    )
+    result = ledger.evaluate([claim], 5)
+    assert result[0].status == "FAIL", f"期望 status=FAIL 但得到 {result[0].status}: {result[0].detail}"

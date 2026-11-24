@@ -179,7 +179,23 @@ def formal_tlc_jobs() -> str:
     return str(len(re.findall(r"tlc2\.TLC", _workflow("formal-verify.yml"))))
 
 
-_SKIP_DIRS = {".git", ".venv", "node_modules", "dist", "build", "__pycache__"}
+_SKIP_DIRS = {".git", ".venv", ".venv3", "node_modules", "dist", "build", "__pycache__", ".worktrees"}
+
+
+def _tracked_suffix(suffix: str) -> int:
+    """仓库内（git 索引）某后缀的已跟踪文件数。
+
+    2026-11-24 审计：此前用 rglob 全盘扫，本机 .venv3/.worktrees 里的副本
+    把 .tla 从 19 抬到 38、.cfg 从 10 抬到 25，导致 claims.py --check 恒红。
+    口径必须与 count_tests 一致：只问"仓库里有什么"。
+    """
+    try:
+        out = subprocess.check_output(
+            ["git", "ls-files", "-z", "--", f"*{suffix}"], cwd=ROOT
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return sum(1 for p in ROOT.rglob(f"*{suffix}") if not _SKIP_DIRS & set(p.parts))
+    return sum(1 for name in out.decode("utf-8", "replace").split("\0") if name)
 
 
 def _count_suffix(suffix: str) -> int:
@@ -188,11 +204,11 @@ def _count_suffix(suffix: str) -> int:
 
 
 def formal_specs() -> str:
-    return str(_count_suffix(".tla"))
+    return str(_tracked_suffix(".tla"))
 
 
 def formal_cfg() -> str:
-    return str(_count_suffix(".cfg"))
+    return str(_tracked_suffix(".cfg"))
 
 
 def conformance_controls() -> str:

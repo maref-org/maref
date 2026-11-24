@@ -140,7 +140,9 @@ def _check_expectation(claim: Claim, values: dict[str, str | None]) -> tuple[boo
             return False, f"expected numeric >= {expect['min']}"
     if "regex" in expect:
         return bool(re.search(str(expect["regex"]), value or "")), f"expected /{expect['regex']}/"
-    return True, ""
+    known = {"same_as", "equals", "min", "regex"}
+    unknown = sorted(set(expect) - known)
+    return False, f"unknown expect keys: {unknown}"
 
 
 def evaluate(claims: list[Claim], default_timeout: int) -> list[Claim]:
