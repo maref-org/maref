@@ -42,6 +42,7 @@ on:
       - "scripts/interview_ledger.py"
       - "tests/scripts/test_interview_ledger.py"
       - "docs/research/interviews/ledger.yaml"
+      - "tests/scripts/test_claims.py"
   workflow_dispatch:
 
 permissions:

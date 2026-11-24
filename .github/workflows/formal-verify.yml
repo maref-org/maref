@@ -7,12 +7,14 @@ on:
       - 'src/maref/governance/**'
       - 'src/maref/integration/test_platform/**'
       - 'src/maref/security/steg_sanitizer.py'
+      - 'scripts/formal_cfg_audit.py'
   pull_request:
     paths:
       - 'src/formal/**'
       - 'src/maref/governance/**'
       - 'src/maref/integration/test_platform/**'
       - 'src/maref/security/steg_sanitizer.py'
+      - 'scripts/formal_cfg_audit.py'
   workflow_dispatch:
 
 jobs:

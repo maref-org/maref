@@ -74,8 +74,24 @@ jobs:
           -m "not integration and not chaos and not benchmark and not slow and not real"
           --ignore=tests/maref/compliance --ignore=tests/desktop --ignore=tests/test_crypto.py
 
+  artifact-gate:
+    needs: [release-preflight]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Build artifacts
+        run: pip install build && python -m build --wheel --sdist --outdir dist
+      - name: Verify artifact contract
+        # 发布前必须验产物本身（[all] 并集 / conformance 是否进 wheel / sdist 是否带宣传视频），
+        # 这些属性源码树测试看不见。此前该门只在 ci.yml 上，发布路径无覆盖。
+        run: python scripts/verify_artifacts.py --wheel dist/*.whl --sdist dist/*.tar.gz
+
   publish-python:
-    needs: [release-preflight, release-check, test-gate]
+    needs: [release-preflight, release-check, test-gate, artifact-gate]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
