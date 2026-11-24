@@ -148,7 +148,7 @@ def test_repo_claims_are_green(capsys: pytest.CaptureFixture[str]) -> None:
 
 def test_unknown_expect_key_fails_closed() -> None:
     """拼错的 expect 键必须 FAIL，不能静默通过（2026-11-24 审计）。
-    
+
     expect={"equal": "1"} 中的 "equal" 是 "equals" 的拼写错误，
     不应被视为有效期望键，必须返回 FAIL 而非静默通过。
     """
