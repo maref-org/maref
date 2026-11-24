@@ -47,14 +47,29 @@ def test_tlc_jobs_match_workflow_invocations() -> None:
     assert probe.formal_tlc_jobs() == str(invocations)
 
 
-def test_spec_counts_match_filesystem() -> None:
-    tla = [p for p in ROOT.rglob("*.tla") if not probe._SKIP_DIRS & set(p.parts)]
-    cfg = [p for p in ROOT.rglob("*.cfg") if not probe._SKIP_DIRS & set(p.parts)]
+def test_spec_counts_match_git_index() -> None:
+    """口径必须来自 git 索引（与 test_count_tests_matches_git_index 同范式）。"""
+    def tracked(suffix: str) -> int:
+        out = subprocess.check_output(["git", "ls-files", "-z", "--", f"*{suffix}"], cwd=ROOT)
+        return sum(1 for n in out.decode().split("\0") if n)
 
-    assert probe.formal_specs() == str(len(tla))
-    assert probe.formal_cfg() == str(len(cfg))
-    # 只记录"存在多少"，不假装"检查多少"。
-    assert int(probe.formal_specs()) > int(probe.formal_tlc_jobs())
+    assert probe.formal_specs() == str(tracked(".tla"))
+    assert probe.formal_cfg() == str(tracked(".cfg"))
+
+
+def test_formal_counts_ignore_untracked_files() -> None:
+    """未跟踪文件不得改变声称数（回归：本机 .worktrees 副本曾把 19 抬到 38）。"""
+    before_specs, before_cfg = probe.formal_specs(), probe.formal_cfg()
+    scratch_tla = ROOT / "src" / "formal" / "zz_untracked_probe.tla"
+    scratch_cfg = ROOT / "src" / "formal" / "zz_untracked_probe.cfg"
+    scratch_tla.write_text("---- MODULE zz ----\n====", encoding="utf-8")
+    scratch_cfg.write_text("SPECIFICATION Spec\n", encoding="utf-8")
+    try:
+        assert probe.formal_specs() == before_specs, "未跟踪 .tla 被计入（口径错误）"
+        assert probe.formal_cfg() == before_cfg, "未跟踪 .cfg 被计入（口径错误）"
+    finally:
+        scratch_tla.unlink(missing_ok=True)
+        scratch_cfg.unlink(missing_ok=True)
 
 
 def test_owasp_risks_and_tla_anchor_agree() -> None:
@@ -94,6 +109,29 @@ def test_claims_ledger_registers_formal_family() -> None:
         "owasp.tla_specs",
     ):
         assert needed in ids, f"claims.yaml 缺少 {needed}"
+
+
+def test_readme_formal_numbers_match_probes() -> None:
+    """README 内所有 formal 数字必须等于探针输出（防旧值残留）。
+
+    2026-11-24 审计：README 曾有 4 个副本，其中中文段落长期停留在 4 TLC / 18 specs，
+    与英文段落的 10 / 19 冲突，无任何门禁拦。
+    """
+    readme = README.read_text(encoding="utf-8")
+    specs, tlc = probe.formal_specs(), probe.formal_tlc_jobs()
+    checks = 0
+
+    for m in re.finditer(r"(\d+)\s*specs", readme):
+        checks += 1
+        assert m.group(1) == specs, f"README 写 {m.group(1)} specs，实际 {specs}"
+    for m in re.finditer(r"(\d+)\s*(?:个\s*)?TLC", readme):
+        checks += 1
+        assert m.group(1) == tlc, f"README 写 {m.group(1)} TLC，实际 {tlc}"
+    for m in re.finditer(r"(\d+)\s*个规格", readme):
+        checks += 1
+        assert m.group(1) == specs, f"README 写 {m.group(1)} 个规格，实际 {specs}"
+
+    assert checks >= 5, f"只匹配到 {checks} 处 formal 数字，测试已失效（README 措辞变了？）"
 
 
 def test_claims_rule_is_narrowed_to_measurable_properties() -> None:

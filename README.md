@@ -30,7 +30,7 @@ uses the same abbreviation ("Multi-Agent Reinforcement Learning
 Environment" / MAREF-RL); they share only the four-letter name. This
 project is the Multi-Agent Recursive Evolution Framework — a
 agent governance OS with TLA+ model checks on the Gray-Code FSM
-(10 TLC jobs on every main build; 19 specs live in the repo).
+(10 TLC jobs, triggered by `src/formal/**` changes; 19 specs live in the repo).
 Machine-readable repo map: .github/llms.txt
 -->
 <!-- LLM-SUMMARY-END -->
@@ -87,7 +87,7 @@ Most agent frameworks (LangGraph, CrewAI, AutoGen) help you **build** multi-agen
 | **Desktop automation** | Screenshot→parse→keyboard/mouse→verify closed loop, cross-platform |
 | **Agent safety & compliance** | 10-state Gray Code governance FSM, circuit breaker with HALT absorbing state, 4-level safety decision tree |
 | **Drift detection** | LoRA weight drift + ontology concept drift (KL/JS/Hellinger triple divergence) |
-| **Formal verification** | 19 TLA+ specs in repo; **10 TLC jobs** run on every main build and model-check the governance invariants (state reachability, transition determinism, halt absorption, safety gate integrity, red line immutability, and declared jump edges on the 24-state FSM). Only these are machine-checked — see `docs/claims.md` |
+| **Formal verification** | 19 TLA+ specs in repo; **10 TLC jobs** run on `src/formal/**` changes and model-check the governance invariants (state reachability, transition determinism, halt absorption, safety gate integrity, red line immutability, and declared jump edges on the 24-state FSM). Only these are machine-checked — see `docs/claims.md` |
 
 ---
 
@@ -102,7 +102,7 @@ Most agent frameworks (LangGraph, CrewAI, AutoGen) help you **build** multi-agen
 ### Governance Layer (World-Leading)
 - **Three Loop Meta-Patterns** — Convergent / Exploratory / Interactive template library (v0.50.0)
 - **10-State Gray Code Governance State Machine** — Mathematically provable convergence (4-bit, Hamming distance=1)
-- **TLA+ Formal Verification** — model-checked invariants, executed by 10 TLC jobs per build (19 specs in repo; every `.cfg` must pair with a real spec, enforced by `scripts/formal_cfg_audit.py`)
+- **TLA+ Formal Verification** — model-checked invariants, executed by 10 TLC jobs on formal-area changes (19 specs in repo; every `.cfg` must pair with a real spec, enforced by `scripts/formal_cfg_audit.py`)
 - **CircuitBreaker** — Auto-lock after 3 consecutive failures + HALT absorb state + 30s cooldown
 - **Four-Tier Security Decision Tree** — Rule→Mode→SafetyGate→User, routine operations auto-cleared
 - **LoRA/Ontology Dual Drift Detection** — KL/JS/Hellinger triple divergence + human arbitration
@@ -438,7 +438,7 @@ MAREF 是 Agent 世界的操作系统内核 — 管理 Agent 集群的生命周�
 
 #### 治理层（世界领先）
 - **10 态 Gray Code 治理状态机** — 数学可证明收敛性 (4-bit, 汉明距离=1)
-- **TLA+ 形式化验证** — 5 条模型检查不变量（每次构建 4 个 TLC 任务；仓库内 18 个规格，仅 4 个被执行）
+- **TLA+ 形式化验证** — 5 条模型检查不变量（每次形式化区变更 10 个 TLC 任务；仓库内 19 个规格）
 - **CircuitBreaker** — 3连败自动锁 + HALT 吸收态 + 30s 冷却
 - **四级安全决策树** — Rule→Mode→SafetyGate→User，常规操作自动放行
 - **LoRA/本体双重漂移检测** — KL/JS/Hellinger 三重散度 + 人工仲裁
