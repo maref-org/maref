@@ -1,33 +1,33 @@
 {
-  "report_id": "8d4e4bcf-c96f-4c20-a46e-12eb48b6c19b",
+  "report_id": "ccb47ac9-ae80-40cb-b160-99ac95057b02",
   "report_version": "1.0",
-  "created_at": "2026-11-27T04:28:48.495331+00:00",
+  "created_at": "2026-11-28T04:09:58.208610+00:00",
   "generated_by": "maref v0.55.4",
   "signer_fingerprint": "cbac8750e6b1db3a",
-  "merkle_root": "699af05c8846101c1f8cb9315716d33ea92307fac886361c02559b471496c6ff",
+  "merkle_root": "410de1306e1169db14d0dc561ecff1c1a93ae4778a52f7a7b2ba264da12e672b",
   "audit_summary": {
-    "total_events": 20884,
+    "total_events": 21194,
     "time_range_start": 1792381511.869832,
-    "time_range_end": 1795753196.477688,
+    "time_range_end": 1795838412.7402098,
     "event_types": {
       "chain_rebaseline": 1,
-      "meta_monitor_heartbeat": 11116,
-      "state_transition": 9766,
+      "meta_monitor_heartbeat": 11400,
+      "state_transition": 9792,
       "audit_chain_quarantine": 1
     },
     "actor_counts": {
       "operator": 2,
-      "automation": 11207,
+      "automation": 11517,
       "state_machine": 9675
     }
   },
   "system_state": {
     "governance_state": "DEGRADED",
     "active_agents_count": 0,
-    "merkle_tree_size": 20884,
+    "merkle_tree_size": 21194,
     "version": "0.55.4"
   },
-  "previous_report_id": "4a1f9d4e-e4c5-41ac-aa0b-1bf2a8c3d56e",
+  "previous_report_id": "8d4e4bcf-c96f-4c20-a46e-12eb48b6c19b",
   "metadata": {
     "scope": {
       "status": "degraded",
@@ -47,12 +47,12 @@
     },
     "anchor": {
       "run_id": "",
-      "generated_at": "2026-11-26T10:11:19.692412+00:00",
-      "manifest_sha256": "cd328f4b476e79aea034b1b64b5e5a69bbcf8a6aa6334ff837b31f882efb31e4",
-      "audit_sha256": "6f520a9db12cd89b2107cc2eebf8591a62ef06f9ec0aff676fc83558fc272e9b",
-      "total_events": 20666,
-      "anchored_events": 20665,
-      "uncovered_events": 1,
+      "generated_at": "2026-11-27T10:14:58.197352+00:00",
+      "manifest_sha256": "43424ea91fb82e54f36039002526d76234746606163be9f8e4a75a8bd421c7a8",
+      "audit_sha256": "52157fe5df8b57bf41d4f6c8bec6efe40ba732d9ac9740fe78fbb873d43ca306",
+      "total_events": 20980,
+      "anchored_events": 20980,
+      "uncovered_events": 0,
       "tsa_url": "https://freetsa.org/tsr",
       "tsa_ca_sha256": "2151b61137ffa86bf664691ba67e7da0b19f98c758e3d228d5d8ebf27e044438",
       "batches": [
@@ -178,9 +178,9 @@
         },
         {
           "batch_start_id": "4abdfd30a8d442958cf59620cc8d83da",
-          "batch_end_id": "8f006a3e7c304de49d56b3097f42b834",
-          "merkle_root": "c320be9f9084442c96f8e8e9c636205ae4e20f4db31cda60a5f47e70849717d9",
-          "event_count": 665
+          "batch_end_id": "6cccb3c53ae0454cbaaaaa1cb584b557",
+          "merkle_root": "94381408de91c5da423b60226dbf30cb79a07e69f7f6b2c0f350295e48b4c796",
+          "event_count": 980
         }
       ]
     },
@@ -188,191 +188,191 @@
       {
         "name": "P0-B-probe-sampler",
         "status": "pass",
-        "checked_at": "2026-11-26T22:00:16Z",
+        "checked_at": "2026-11-27T22:00:12Z",
         "exit_code": 0,
-        "evidence_sha256": "e4f73703d8f541f390bfe1b033ccee00856f18b1184c90ac7fa159c1efb4d0e8"
+        "evidence_sha256": "ce660c0e033635a815cdcbd150800263b698474267909ad1888438d727d0d8fa"
       },
       {
         "name": "P-02",
         "status": "pass",
-        "checked_at": "2026-11-26T22:00:16Z",
+        "checked_at": "2026-11-27T22:00:12Z",
         "exit_code": 0,
-        "evidence_sha256": "e4f73703d8f541f390bfe1b033ccee00856f18b1184c90ac7fa159c1efb4d0e8"
+        "evidence_sha256": "ce660c0e033635a815cdcbd150800263b698474267909ad1888438d727d0d8fa"
       },
       {
         "name": "P-01",
         "status": "pass",
-        "checked_at": "2026-11-26T22:00:16Z",
+        "checked_at": "2026-11-27T22:00:12Z",
         "exit_code": 0,
-        "evidence_sha256": "e4f73703d8f541f390bfe1b033ccee00856f18b1184c90ac7fa159c1efb4d0e8"
+        "evidence_sha256": "ce660c0e033635a815cdcbd150800263b698474267909ad1888438d727d0d8fa"
       },
       {
         "name": "P-06",
         "status": "pass",
-        "checked_at": "2026-11-26T22:00:16Z",
+        "checked_at": "2026-11-27T22:00:12Z",
         "exit_code": 0,
-        "evidence_sha256": "e4f73703d8f541f390bfe1b033ccee00856f18b1184c90ac7fa159c1efb4d0e8"
+        "evidence_sha256": "ce660c0e033635a815cdcbd150800263b698474267909ad1888438d727d0d8fa"
       },
       {
         "name": "P-09",
         "status": "pass",
-        "checked_at": "2026-11-26T22:00:16Z",
+        "checked_at": "2026-11-27T22:00:12Z",
         "exit_code": 0,
-        "evidence_sha256": "e4f73703d8f541f390bfe1b033ccee00856f18b1184c90ac7fa159c1efb4d0e8"
+        "evidence_sha256": "ce660c0e033635a815cdcbd150800263b698474267909ad1888438d727d0d8fa"
       },
       {
         "name": "P-03",
         "status": "pass",
-        "checked_at": "2026-11-26T22:00:16Z",
+        "checked_at": "2026-11-27T22:00:12Z",
         "exit_code": 0,
-        "evidence_sha256": "e4f73703d8f541f390bfe1b033ccee00856f18b1184c90ac7fa159c1efb4d0e8"
+        "evidence_sha256": "ce660c0e033635a815cdcbd150800263b698474267909ad1888438d727d0d8fa"
       },
       {
         "name": "P-05",
         "status": "pass",
-        "checked_at": "2026-11-26T22:00:16Z",
+        "checked_at": "2026-11-27T22:00:12Z",
         "exit_code": 0,
-        "evidence_sha256": "e4f73703d8f541f390bfe1b033ccee00856f18b1184c90ac7fa159c1efb4d0e8"
+        "evidence_sha256": "ce660c0e033635a815cdcbd150800263b698474267909ad1888438d727d0d8fa"
       },
       {
         "name": "coding-agent-status",
         "status": "pass",
-        "checked_at": "2026-11-26T22:00:16Z",
+        "checked_at": "2026-11-27T22:00:12Z",
         "exit_code": 0,
-        "evidence_sha256": "e4f73703d8f541f390bfe1b033ccee00856f18b1184c90ac7fa159c1efb4d0e8"
+        "evidence_sha256": "ce660c0e033635a815cdcbd150800263b698474267909ad1888438d727d0d8fa"
       },
       {
         "name": "P-07-extract",
         "status": "pass",
-        "checked_at": "2026-11-26T22:00:16Z",
+        "checked_at": "2026-11-27T22:00:12Z",
         "exit_code": 0,
-        "evidence_sha256": "e4f73703d8f541f390bfe1b033ccee00856f18b1184c90ac7fa159c1efb4d0e8"
+        "evidence_sha256": "ce660c0e033635a815cdcbd150800263b698474267909ad1888438d727d0d8fa"
       },
       {
         "name": "P-07-compile",
         "status": "pass",
-        "checked_at": "2026-11-26T22:00:16Z",
+        "checked_at": "2026-11-27T22:00:12Z",
         "exit_code": 0,
-        "evidence_sha256": "e4f73703d8f541f390bfe1b033ccee00856f18b1184c90ac7fa159c1efb4d0e8"
+        "evidence_sha256": "ce660c0e033635a815cdcbd150800263b698474267909ad1888438d727d0d8fa"
       },
       {
         "name": "P-04",
         "status": "pass",
-        "checked_at": "2026-11-26T22:00:16Z",
+        "checked_at": "2026-11-27T22:00:12Z",
         "exit_code": 0,
-        "evidence_sha256": "e4f73703d8f541f390bfe1b033ccee00856f18b1184c90ac7fa159c1efb4d0e8"
+        "evidence_sha256": "ce660c0e033635a815cdcbd150800263b698474267909ad1888438d727d0d8fa"
       },
       {
         "name": "P-08",
         "status": "pass",
-        "checked_at": "2026-11-26T22:00:16Z",
+        "checked_at": "2026-11-27T22:00:12Z",
         "exit_code": 0,
-        "evidence_sha256": "e4f73703d8f541f390bfe1b033ccee00856f18b1184c90ac7fa159c1efb4d0e8"
+        "evidence_sha256": "ce660c0e033635a815cdcbd150800263b698474267909ad1888438d727d0d8fa"
       },
       {
         "name": "recursive-overlay-tick",
         "status": "pass",
-        "checked_at": "2026-11-26T22:00:16Z",
+        "checked_at": "2026-11-27T22:00:12Z",
         "exit_code": 0,
-        "evidence_sha256": "e4f73703d8f541f390bfe1b033ccee00856f18b1184c90ac7fa159c1efb4d0e8"
+        "evidence_sha256": "ce660c0e033635a815cdcbd150800263b698474267909ad1888438d727d0d8fa"
       },
       {
         "name": "audit-heartbeat",
         "status": "pass",
-        "checked_at": "2026-11-26T22:00:16Z",
+        "checked_at": "2026-11-27T22:00:12Z",
         "exit_code": 0,
-        "evidence_sha256": "e4f73703d8f541f390bfe1b033ccee00856f18b1184c90ac7fa159c1efb4d0e8"
+        "evidence_sha256": "ce660c0e033635a815cdcbd150800263b698474267909ad1888438d727d0d8fa"
       },
       {
         "name": "probe-calibrate",
         "status": "pass",
-        "checked_at": "2026-11-26T22:00:16Z",
+        "checked_at": "2026-11-27T22:00:12Z",
         "exit_code": 0,
-        "evidence_sha256": "e4f73703d8f541f390bfe1b033ccee00856f18b1184c90ac7fa159c1efb4d0e8"
+        "evidence_sha256": "ce660c0e033635a815cdcbd150800263b698474267909ad1888438d727d0d8fa"
       },
       {
         "name": "threshold-verify",
         "status": "fail",
-        "checked_at": "2026-11-26T22:00:10Z",
+        "checked_at": "2026-11-27T22:00:07Z",
         "exit_code": 1,
-        "evidence_sha256": "e4f73703d8f541f390bfe1b033ccee00856f18b1184c90ac7fa159c1efb4d0e8"
+        "evidence_sha256": "ce660c0e033635a815cdcbd150800263b698474267909ad1888438d727d0d8fa"
       },
       {
         "name": "calibration-status",
         "status": "pass",
-        "checked_at": "2026-11-26T22:00:16Z",
+        "checked_at": "2026-11-27T22:00:12Z",
         "exit_code": 0,
-        "evidence_sha256": "e4f73703d8f541f390bfe1b033ccee00856f18b1184c90ac7fa159c1efb4d0e8"
+        "evidence_sha256": "ce660c0e033635a815cdcbd150800263b698474267909ad1888438d727d0d8fa"
       },
       {
         "name": "calibration-review",
         "status": "pass",
-        "checked_at": "2026-11-26T22:00:16Z",
+        "checked_at": "2026-11-27T22:00:12Z",
         "exit_code": 0,
-        "evidence_sha256": "e4f73703d8f541f390bfe1b033ccee00856f18b1184c90ac7fa159c1efb4d0e8"
+        "evidence_sha256": "ce660c0e033635a815cdcbd150800263b698474267909ad1888438d727d0d8fa"
       },
       {
         "name": "audit-health",
         "status": "pass",
-        "checked_at": "2026-11-26T22:00:16Z",
+        "checked_at": "2026-11-27T22:00:12Z",
         "exit_code": 0,
-        "evidence_sha256": "e4f73703d8f541f390bfe1b033ccee00856f18b1184c90ac7fa159c1efb4d0e8"
+        "evidence_sha256": "ce660c0e033635a815cdcbd150800263b698474267909ad1888438d727d0d8fa"
       },
       {
         "name": "evolution-status",
         "status": "pass",
-        "checked_at": "2026-11-26T22:00:16Z",
+        "checked_at": "2026-11-27T22:00:12Z",
         "exit_code": 0,
-        "evidence_sha256": "e4f73703d8f541f390bfe1b033ccee00856f18b1184c90ac7fa159c1efb4d0e8"
+        "evidence_sha256": "ce660c0e033635a815cdcbd150800263b698474267909ad1888438d727d0d8fa"
       },
       {
         "name": "morning-report",
         "status": "pass",
-        "checked_at": "2026-11-26T22:00:16Z",
+        "checked_at": "2026-11-27T22:00:12Z",
         "exit_code": 0,
-        "evidence_sha256": "e4f73703d8f541f390bfe1b033ccee00856f18b1184c90ac7fa159c1efb4d0e8"
+        "evidence_sha256": "ce660c0e033635a815cdcbd150800263b698474267909ad1888438d727d0d8fa"
       },
       {
         "name": "agent-coverage",
         "status": "pass",
-        "checked_at": "2026-11-26T22:00:16Z",
+        "checked_at": "2026-11-27T22:00:12Z",
         "exit_code": 0,
-        "evidence_sha256": "e4f73703d8f541f390bfe1b033ccee00856f18b1184c90ac7fa159c1efb4d0e8"
+        "evidence_sha256": "ce660c0e033635a815cdcbd150800263b698474267909ad1888438d727d0d8fa"
       },
       {
         "name": "evidence-gate",
         "status": "pass",
-        "checked_at": "2026-11-26T22:00:16Z",
+        "checked_at": "2026-11-27T22:00:12Z",
         "exit_code": 0,
-        "evidence_sha256": "e4f73703d8f541f390bfe1b033ccee00856f18b1184c90ac7fa159c1efb4d0e8"
+        "evidence_sha256": "ce660c0e033635a815cdcbd150800263b698474267909ad1888438d727d0d8fa"
       },
       {
         "name": "threshold-push",
         "status": "pass",
-        "checked_at": "2026-11-26T22:00:16Z",
+        "checked_at": "2026-11-27T22:00:12Z",
         "exit_code": 0,
-        "evidence_sha256": "e4f73703d8f541f390bfe1b033ccee00856f18b1184c90ac7fa159c1efb4d0e8"
+        "evidence_sha256": "ce660c0e033635a815cdcbd150800263b698474267909ad1888438d727d0d8fa"
       },
       {
         "name": "alert-push",
         "status": "pass",
-        "checked_at": "2026-11-26T22:00:16Z",
+        "checked_at": "2026-11-27T22:00:12Z",
         "exit_code": 0,
-        "evidence_sha256": "e4f73703d8f541f390bfe1b033ccee00856f18b1184c90ac7fa159c1efb4d0e8"
+        "evidence_sha256": "ce660c0e033635a815cdcbd150800263b698474267909ad1888438d727d0d8fa"
       },
       {
         "name": "proposal-push",
         "status": "pass",
-        "checked_at": "2026-11-26T22:00:16Z",
+        "checked_at": "2026-11-27T22:00:12Z",
         "exit_code": 0,
-        "evidence_sha256": "e4f73703d8f541f390bfe1b033ccee00856f18b1184c90ac7fa159c1efb4d0e8"
+        "evidence_sha256": "ce660c0e033635a815cdcbd150800263b698474267909ad1888438d727d0d8fa"
       },
       {
         "name": "gates-summary",
         "status": "pass",
-        "checked_at": "2026-11-26T22:00:16Z",
+        "checked_at": "2026-11-27T22:00:12Z",
         "exit_code": 0,
-        "evidence_sha256": "e4f73703d8f541f390bfe1b033ccee00856f18b1184c90ac7fa159c1efb4d0e8"
+        "evidence_sha256": "ce660c0e033635a815cdcbd150800263b698474267909ad1888438d727d0d8fa"
       }
     ],
     "privacy": {
@@ -385,5 +385,5 @@
       ]
     }
   },
-  "signature": "EStiiFvQDR1kmn5aBziCQtPueAiGCxSnvJlIrpopxSc2e98R4oWFGS36uZJSV+sq84RFZE38RFblnj9EcoqWCg=="
+  "signature": "TjO5UxPJ1sXpJPZbPuTb4Pe8YWY/BcXNJ6+Lj9dlOv3AqpyJ1DpQwWcZtcFM2BZQGXi64Gs2fOj/cVRNfCqlDg=="
 }
