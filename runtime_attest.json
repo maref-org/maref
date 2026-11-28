@@ -1,11 +1,11 @@
 {
   "payload": {
     "schema": "maref.runtime_attestation/v1",
-    "generated_at": "2026-11-28T05:39:45Z",
+    "generated_at": "2026-11-28T11:39:55Z",
     "source": {
       "component": "maref-meta-monitor",
-      "report_sha256": "922939e9d53dca95c24cd1c93b6f371e06cf1c02486add2a0346d2b157daa7e7",
-      "report_timestamp": 1795844114.219008
+      "report_sha256": "695594af30bfec9df273fba0f7e6474172fa5e4459a084c604d06c23aea2e3a0",
+      "report_timestamp": 1795865718.340746
     },
     "claims": {
       "all_passed": true,
@@ -42,6 +42,6 @@
   "signature": {
     "alg": "ed25519",
     "key_id": "1c650ce065489fd165f20cc14c948a29",
-    "value": "ClsZK0ZJtClqVcKs8bSp2C1lw6UXgAhP+/ig95n+rTpCW13ueQVMh1Dj48fLV4/PPpaYi6BIV2HjtClvx27CAA=="
+    "value": "CRwvCwo1KnBHvauLw+Z1nzXL5ArgEGJoj2wT3UaAhsLbYsbk8BdyNMmu4SUtSbniU7JW76C898smvb8Qy3EjDg=="
   }
 }
